@@ -1,3 +1,7 @@
+---
+trigger: always_on
+alwaysApply: true
+---
 # AI Chat Uygulaması - Project Rules ve Development Guidelines
 
 ## 1. Genel Geliştirme Kuralları

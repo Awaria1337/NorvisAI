@@ -68,26 +68,35 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
   
   initializeAuth: async () => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      if (token) {
-        try {
-          set({ token });
-          const response = await authAPI.me();
-          if (response.success) {
-            set({ 
-              user: response.data.user, 
-              isAuthenticated: true,
-              isLoading: false 
-            });
-            return;
+    try {
+      set({ isLoading: true });
+      
+      if (typeof window !== 'undefined') {
+        const token = localStorage.getItem('token');
+        if (token) {
+          try {
+            set({ token });
+            const response = await authAPI.me();
+            if (response.success) {
+              set({ 
+                user: response.data.user, 
+                isAuthenticated: true,
+                isLoading: false 
+              });
+              return;
+            }
+          } catch (error) {
+            console.warn('Token validation failed:', error);
+            // Token is invalid, remove it
+            localStorage.removeItem('token');
+            set({ token: null });
           }
-        } catch (error) {
-          // Token is invalid, remove it
-          localStorage.removeItem('token');
-          set({ token: null });
         }
       }
+    } catch (error) {
+      console.error('Auth initialization error:', error);
+    } finally {
+      // Always set loading to false
       set({ isLoading: false });
     }
   },
