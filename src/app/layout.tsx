@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
+import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import ToasterProvider from '@/components/providers/ToasterProvider';
 import AuthProvider from '@/components/providers/AuthProvider';
 import { cn } from '@/utils/cn';
@@ -21,15 +22,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full">
-      <body className={cn(
-        inter.variable,
-        "font-sans h-full bg-gray-50 antialiased"
-      )}>
-        <AuthProvider>
-          {children}
-          <ToasterProvider />
-        </AuthProvider>
+    <html lang="en" suppressHydrationWarning>
+      <body 
+        className={cn(
+          inter.variable,
+          "font-sans h-full bg-background text-foreground antialiased"
+        )}
+        suppressHydrationWarning
+      >
+        <ThemeProvider>
+          <AuthProvider>
+            {children}
+            <ToasterProvider />
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
