@@ -5,8 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuthStore } from '@/store/authStore';
 import { ROUTES } from '@/constants';
 
@@ -27,15 +27,21 @@ const LoginPage: React.FC = () => {
   } = useForm<LoginForm>();
 
   const onSubmit = async (data: LoginForm) => {
+    console.log('📝 Form submitted with:', { email: data.email });
     setIsLoading(true);
     
     try {
       const success = await loginUser(data);
+      console.log('🎯 Login result:', success);
+      
       if (success) {
+        console.log('✅ Redirecting to chat...');
         router.push(ROUTES.CHAT);
+      } else {
+        console.log('❌ Login failed, staying on login page');
       }
     } catch (error) {
-      // Error handling is done in the store
+      console.error('💥 Login page error:', error);
     } finally {
       setIsLoading(false);
     }
@@ -126,7 +132,7 @@ const LoginPage: React.FC = () => {
 
           <div className="text-center">
             <span className="text-sm text-muted-foreground">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link 
                 href={ROUTES.REGISTER}
                 className="font-medium text-primary hover:text-primary/80"
