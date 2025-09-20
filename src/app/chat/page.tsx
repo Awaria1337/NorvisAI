@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useChatStore } from '@/store/chatStore';
@@ -30,9 +30,14 @@ import {
   MoreHorizontal,
   Mic,
   MessageSquare,
-  ChevronDown,
-  ArrowUp
+  ArrowUp,
+  Key,
+  Search
 } from 'lucide-react';
+import MessageBubble from '@/components/ui/message-bubble';
+import AILoadingStates from '@/components/ui/ai-loading-states';
+import SearchModal from '@/components/ui/search-modal';
+// import { ApiKeyModal } from '@/components/api-key-modal';
 
 
 
@@ -42,31 +47,148 @@ const ChatPage: React.FC = () => {
   const { isAuthenticated, isLoading, logout } = useAuthStore();
   const {
     chats,
-    currentChat,
+    getCurrentChat,
     currentChatId,
     fetchChats,
     createNewChat,
     sendMessage,
     setCurrentChatId
   } = useChatStore();
+  
+  // Memoize currentChat to ensure proper re-rendering when chats or currentChatId changes
+  const currentChat = useMemo(() => getCurrentChat(), [chats, currentChatId, getCurrentChat]);
   const [inputMessage, setInputMessage] = useState('');
-
-  const handleSendMessage = async () => {
-    if (inputMessage.trim() && currentChatId) {
-      try {
-        await sendMessage(inputMessage);
-        setInputMessage('');
-      } catch (error) {
-        console.error('Failed to send message:', error);
-      }
+  // const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [availableModels, setAvailableModels] = useState<Array<{id: string, name: string, provider: string}>>([]);
+  const [selectedModel, setSelectedModel] = useState('deepseek-chat');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  
+  // Scroll reference for auto-scrolling to bottom
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  // Get AI loading states from store
+  const { isAIThinking, isAIResponding, showWaitingMessage, streamingMessageId, streamingContent } = useChatStore();
+  
+  // Auto-scroll to bottom when new messages arrive or AI states change
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
+  };
+  
+  // Scroll to bottom when messages change or AI states change
+  useEffect(() => {
+    scrollToBottom();
+  }, [currentChat?.messages, isAIThinking, isAIResponding, showWaitingMessage, streamingContent]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K for search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+      // Escape to close search
+      if (e.key === 'Escape' && isSearchOpen) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isSearchOpen]);
+
+  const handleSendMessage = async (messageContent?: string) => {
+    const content = messageContent || inputMessage.trim();
+    if (!content) return;
+
+    // Don't send if AI is already processing
+    if (isAIThinking || isAIResponding) {
+      console.log('AI is busy, please wait...');
+      return;
+    }
+
+    // Clear input immediately for better UX
+    setInputMessage('');
+    
+    try {
+      console.log('🚀 Starting message send process...');
+      await sendMessage(content, false, selectedModel);
+      console.log('✅ Message sent successfully');
+    } catch (error) {
+      console.error('❌ Failed to send message:', error);
+      // If message fails, restore the input content
+      setInputMessage(content);
+    }
+  };
+
+  const handleSendClick = () => {
+    // if (!hasApiKeys) {
+    //   setShowApiKeyModal(true);
+    //   return;
+    // }
+    handleSendMessage();
   };
 
   const handleNewChat = async () => {
     try {
-      await createNewChat();
+      const newChat = await createNewChat('New Chat', selectedModel || 'gemini-1.5-flash');
+      // Clear input when creating new chat
+      setInputMessage('');
     } catch (error) {
       console.error('Failed to create new chat:', error);
+    }
+  };
+
+  const handleSearchOpen = () => {
+    setIsSearchOpen(true);
+  };
+
+  const handleSearchClose = () => {
+    setIsSearchOpen(false);
+  };
+
+  const handleChatSelectFromSearch = (chatId: string) => {
+    setCurrentChatId(chatId);
+    setIsSearchOpen(false);
+  };
+
+  const fetchAvailableModels = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/user/models', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setAvailableModels(result.data || []);
+        // setHasApiKeys((result.data || []).length > 0);
+        
+        // Set DeepSeek Chat v3.1 as default model if available
+        if (result.data && result.data.length > 0) {
+          const deepSeekModel = result.data.find((model: any) => model.id === 'deepseek/deepseek-chat-v3.1:free');
+          if (deepSeekModel) {
+            setSelectedModel(deepSeekModel.id);
+          } else {
+            setSelectedModel(result.data[0].id);
+          }
+        } else {
+          // No API keys available, show modal after a short delay
+          // setTimeout(() => {
+          //   setShowApiKeyModal(true);
+          // }, 1000);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch models:', error);
+      // setHasApiKeys(false);
     }
   };
 
@@ -81,6 +203,7 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchChats();
+      fetchAvailableModels();
     }
   }, [isAuthenticated, fetchChats]);
 
@@ -108,140 +231,82 @@ const ChatPage: React.FC = () => {
           currentChatId={currentChatId}
           onChatSelect={setCurrentChatId}
           onNewChat={handleNewChat}
+          onSearchOpen={handleSearchOpen}
         />
 
 
         <SidebarInset>
           {/* Main Chat Area */}
-          <div className="flex-1 flex flex-col bg-background min-h-0 h-screen">
-            {/* Chat Header */}
-            <div className="bg-background/95 backdrop-blur-sm border-b border-border p-6 flex items-center justify-between sticky top-0 z-10">
-              <div className="flex items-center space-x-4">
-                <SidebarTrigger className="bg-background border border-border rounded-md p-2 shadow-sm hover:bg-accent" />
-                <div className="flex items-center space-x-2">
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm" className="rounded-lg">
-                      <Share className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Share conversation</p>
-                  </TooltipContent>
-                </Tooltip>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm" className="rounded-lg">
-                      <MoreHorizontal className="h-4 w-4" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-48">
-                    <DropdownMenuItem>
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      New conversation
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Copy className="h-4 w-4 mr-2" />
-                      Copy conversation
-                    </DropdownMenuItem>
-                    <DropdownMenuItem className="text-destructive">
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      Clear conversation
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </div>
+          <div className="flex-1 flex flex-col bg-background h-screen overflow-hidden relative">
+            {/* ChatGPT-style Fixed Top Left */}
+            <div className="fixed top-0 left-0 md:left-64 z-30 flex items-center space-x-3 p-4">
+              <SidebarTrigger className="bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent" />
+              <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">Norvis AI</h1>
             </div>
 
-            {/* Messages Area */}
-            <ScrollArea className="flex-1 min-h-0 overflow-hidden">
-              <div className="p-6 space-y-6 max-w-4xl mx-auto">
+            {/* Messages Area - ChatGPT style, starts from top */}
+            <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
+              <div className="p-6 pt-16 space-y-6 max-w-4xl mx-auto min-h-full pb-48">
                 {currentChat?.messages && currentChat.messages.length > 0 ? (
-                  currentChat.messages.map((message) => (
-                    <div key={message.id} className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex space-x-3 max-w-[75%] ${message.role === 'user' ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                        <Avatar className="h-8 w-8 flex-shrink-0">
-                          <AvatarFallback className={`${message.role === 'user'
-                            ? 'bg-blue-600 text-white font-bold text-sm'
-                            : 'bg-green-600 text-white font-bold text-xs'
-                            }`}>
-                            {message.role === 'user' ? 'M' : 'AI'}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className={`group relative rounded-3xl px-5 py-4 ${message.role === 'user'
-                          ? 'bg-blue-600 text-white shadow-lg'
-                          : 'bg-gray-800 dark:bg-gray-800 text-white shadow-lg'
-                          }`}>
-                          <div className="text-sm leading-relaxed whitespace-pre-wrap">
-                            {message.content}
-                          </div>
-                          {message.model && (
-                            <div className="text-xs opacity-70 mt-2">
-                              {message.model}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))
+                  <>
+                    {currentChat.messages.map((message) => (
+                      <MessageBubble
+                        key={message.id}
+                        message={message}
+                        isUser={message.role === 'user'}
+                      />
+                    ))}
+                    
+                    {/* AI Loading States */}
+                    <AILoadingStates
+                      isAIThinking={isAIThinking}
+                      showWaitingMessage={showWaitingMessage}
+                      isAIResponding={isAIResponding}
+                      streamingMessageId={streamingMessageId}
+                      streamingContent={streamingContent}
+                    />
+                  </>
                 ) : (
-                  <div className="text-center py-20">
-                    <div className="h-20 w-20 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                      <MessageSquare className="h-10 w-10 text-purple-600 dark:text-purple-400" />
+                  <>
+                    <div className="text-center py-20">
+                      <div className="h-20 w-20 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <MessageSquare className="h-10 w-10 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-foreground mb-3">
+                        Welcome to Norvis AI
+                      </h3>
+                      <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                        Start a conversation with our AI assistant. Ask anything, get creative, or explore new ideas.
+                      </p>
                     </div>
-                    <h3 className="text-2xl font-bold text-foreground mb-3">
-                      Welcome to Norvis AI
-                    </h3>
-                    <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                      Start a conversation with our AI assistant. Ask anything, get creative, or explore new ideas.
-                    </p>
-
-                    {/* Suggestion Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                      <div className="p-4 bg-card border border-border rounded-xl hover:shadow-md transition-all cursor-pointer group">
-                        <div className="text-lg mb-2">📝</div>
-                        <h4 className="font-medium text-sm mb-1">Help me write</h4>
-                        <p className="text-xs text-muted-foreground">Get assistance with writing tasks</p>
-                      </div>
-                      <div className="p-4 bg-card border border-border rounded-xl hover:shadow-md transition-all cursor-pointer group">
-                        <div className="text-lg mb-2">💡</div>
-                        <h4 className="font-medium text-sm mb-1">Give me ideas</h4>
-                        <p className="text-xs text-muted-foreground">Brainstorm creative solutions</p>
-                      </div>
-                      <div className="p-4 bg-card border border-border rounded-xl hover:shadow-md transition-all cursor-pointer group">
-                        <div className="text-lg mb-2">📊</div>
-                        <h4 className="font-medium text-sm mb-1">Analyze data</h4>
-                        <p className="text-xs text-muted-foreground">Help with data interpretation</p>
-                      </div>
-                      <div className="p-4 bg-card border border-border rounded-xl hover:shadow-md transition-all cursor-pointer group">
-                        <div className="text-lg mb-2">✨</div>
-                        <h4 className="font-medium text-sm mb-1">Surprise me</h4>
-                        <p className="text-xs text-muted-foreground">Random interesting topic</p>
-                      </div>
-                    </div>
-                  </div>
+                    
+                    {/* AI Loading States for empty chat */}
+                    <AILoadingStates
+                      isAIThinking={isAIThinking}
+                      showWaitingMessage={showWaitingMessage}
+                      isAIResponding={isAIResponding}
+                      streamingMessageId={streamingMessageId}
+                      streamingContent={streamingContent}
+                    />
+                  </>
                 )}
+                
+                {/* Invisible div at the end for auto-scrolling */}
+                <div ref={messagesEndRef} className="h-1" />
               </div>
             </ScrollArea>
 
-            {/* Message Input - Compact Claude Style */}
-            <div className="px-6 pb-6">
+        {/* Message Input - Fixed Bottom - Original Design Restored */}
+        <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-background backdrop-blur-sm px-6 py-4 z-50">
               <div className="max-w-4xl mx-auto">
                 {/* Outer Container - Compact */}
                 <div
-                  className="rounded-2xl p-2 space-y-3"
+                  className="rounded-2xl p-1 space-y-3"
                   style={{ backgroundColor: 'color-mix(in oklab, var(--primary) 10%, transparent)' }}
                 >
-                  {/* Upgrade Prompt - Top Left */}
-                  <div className="flex items-start">
-                    <div className="text-xs text-muted-foreground flex items-center gap-2 ml-1 mt-0.5">
-                      <span>Use our faster AI on Pro Plan</span>
-                      <span className="text-muted-foreground">•</span>
-                      <button className="text-foreground hover:underline font-medium">Upgrade</button>
-                    </div>
+                  {/* Upgrade Pro Text */}
+                  <div className="text-xs font-medium mr-4" style={{ color: '#fff' }}>
+                    Upgrade Pro
                   </div>
 
                   {/* Main Input Container */}
@@ -250,7 +315,7 @@ const ChatPage: React.FC = () => {
                     <Textarea
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder="Ask me anything..."
+                      placeholder="Norvis AI'ya bir şey sorun..."
                       className="w-full min-h-[40px] max-h-32 resize-none border-0 px-0 py-1 text-sm placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 leading-relaxed mb-3"
                       style={{ backgroundColor: 'oklch(14.1% .004 285.83)' }}
                       rows={1}
@@ -264,85 +329,62 @@ const ChatPage: React.FC = () => {
 
                     {/* Bottom Row - Controls */}
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {/* Attachment Button */}
+                      {/* Left Side - Action Buttons */}
+                      <div className="flex items-center space-x-2">
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 rounded-full hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                              className="h-8 w-8 rounded-full hover:bg-accent"
                             >
-                              <Paperclip className="h-3 w-3" />
+                              <Paperclip className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Attach files</TooltipContent>
+                          <TooltipContent>Attach file</TooltipContent>
                         </Tooltip>
-
-                        {/* Model Selector */}
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="h-8 px-3 rounded-full bg-muted/40 hover:bg-muted/60 text-xs font-medium text-foreground border border-border/30"
-                            >
-                              <span>Claude 3.5 sonnet</span>
-                              <ChevronDown className="h-3 w-3 ml-1" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-56">
-                            <DropdownMenuItem>
-                              <div className="flex flex-col">
-                                <span className="font-medium">Claude 3.5 Sonnet</span>
-                                <span className="text-xs text-muted-foreground">Most capable model</span>
-                              </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <div className="flex flex-col">
-                                <span className="font-medium">GPT-4 Turbo</span>
-                                <span className="text-xs text-muted-foreground">OpenAI's latest</span>
-                              </div>
-                            </DropdownMenuItem>
-                            <DropdownMenuItem>
-                              <div className="flex flex-col">
-                                <span className="font-medium">GPT-3.5 Turbo</span>
-                                <span className="text-xs text-muted-foreground">Fast and efficient</span>
-                              </div>
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {/* Voice Button */}
+                        
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
                               variant="ghost"
                               size="sm"
-                              className="h-8 w-8 rounded-full hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+                              className="h-8 w-8 rounded-full hover:bg-accent"
                             >
-                              <Mic className="h-3 w-3" />
+                              <Mic className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Voice message</TooltipContent>
+                          <TooltipContent>Voice input</TooltipContent>
                         </Tooltip>
-
-                        {/* Send Button */}
+                        
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button
-                              onClick={handleSendMessage}
+                              variant="ghost"
                               size="sm"
-                              disabled={!inputMessage.trim()}
-                              className="h-8 w-8 rounded-full bg-foreground hover:bg-foreground/90 text-background disabled:opacity-30 disabled:cursor-not-allowed"
+                              className="h-8 w-8 rounded-full hover:bg-accent"
                             >
-                              <ArrowUp className="h-3 w-3" />
+                              <Search className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Send message</TooltipContent>
+                          <TooltipContent>Web search</TooltipContent>
                         </Tooltip>
                       </div>
+                      
+                      {/* Right Side - Send Button */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleSendClick}
+                            size="sm"
+                            disabled={!inputMessage.trim() || isAIThinking || isAIResponding}
+                            className="h-8 w-8 rounded-full bg-foreground hover:bg-foreground/90 text-background disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Send message</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </div>
@@ -350,6 +392,20 @@ const ChatPage: React.FC = () => {
             </div>
           </div>
         </SidebarInset>
+        
+        {/* Search Modal */}
+        <SearchModal
+          isOpen={isSearchOpen}
+          onClose={handleSearchClose}
+          onChatSelect={handleChatSelectFromSearch}
+        />
+        
+        {/* API Key Management Modal */}
+        {/* <ApiKeyModal
+          open={showApiKeyModal}
+          onOpenChange={setShowApiKeyModal}
+          onApiKeysUpdated={fetchAvailableModels}
+        /> */}
       </SidebarProvider>
     </TooltipProvider>
   );

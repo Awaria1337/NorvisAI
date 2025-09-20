@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
+import { generateChatTitle } from '@/utils/titleGenerator';
 
 export interface Message {
   id: string;
@@ -26,8 +27,15 @@ interface ChatState {
   isLoading: boolean;
   error: string | null;
   
+  // AI Loading States
+  isAIThinking: boolean;
+  isAIResponding: boolean;
+  showWaitingMessage: boolean;
+  streamingMessageId: string | null;
+  streamingContent: string;
+  
   // Computed
-  currentChat: Chat | null;
+  getCurrentChat: () => Chat | null;
   
   // Actions
   setChats: (chats: Chat[]) => void;
@@ -42,10 +50,21 @@ interface ChatState {
   setError: (error: string | null) => void;
   clearError: () => void;
   
+  // AI Loading Actions
+  setAIThinking: (thinking: boolean) => void;
+  setAIResponding: (responding: boolean) => void;
+  setShowWaitingMessage: (show: boolean) => void;
+  resetAIStates: () => void;
+  
+  // Streaming Actions
+  startStreaming: (messageId: string) => void;
+  updateStreamingContent: (content: string) => void;
+  finishStreaming: () => void;
+  
   // API Actions
   fetchChats: () => Promise<void>;
   createNewChat: (title?: string, model?: string) => Promise<Chat>;
-  sendMessage: (content: string) => Promise<void>;
+  sendMessage: (content: string, createNewChatIfNeeded?: boolean, model?: string) => Promise<void>;
   regenerateMessage: (messageId: string) => Promise<void>;
 }
 
@@ -58,8 +77,15 @@ export const useChatStore = create<ChatState>()(
       isLoading: false,
       error: null,
       
+      // AI Loading States
+      isAIThinking: false,
+      isAIResponding: false,
+      showWaitingMessage: false,
+      streamingMessageId: null,
+      streamingContent: '',
+      
       // Computed
-      get currentChat() {
+      getCurrentChat: () => {
         const { chats, currentChatId } = get();
         return chats.find(chat => chat.id === currentChatId) || null;
       },
@@ -128,72 +154,58 @@ export const useChatStore = create<ChatState>()(
       
       clearError: () => set({ error: null }),
       
+      // AI Loading Actions
+      setAIThinking: (thinking) => set({ isAIThinking: thinking }),
+      
+      setAIResponding: (responding) => set({ isAIResponding: responding }),
+      
+      setShowWaitingMessage: (show) => set({ showWaitingMessage: show }),
+      
+      resetAIStates: () => set({ 
+        isAIThinking: false, 
+        isAIResponding: false, 
+        showWaitingMessage: false,
+        streamingMessageId: null,
+        streamingContent: ''
+      }),
+      
+      // Streaming Actions
+      startStreaming: (messageId: string) => set({ 
+        streamingMessageId: messageId, 
+        streamingContent: '', 
+        isAIResponding: true 
+      }),
+      
+      updateStreamingContent: (content: string) => set({ streamingContent: content }),
+      
+      finishStreaming: () => set({ 
+        streamingMessageId: null, 
+        streamingContent: '', 
+        isAIResponding: false 
+      }),
+      
       // API Actions
       fetchChats: async () => {
         try {
           set({ isLoading: true, error: null });
           
-          // Mock data for now
-          const mockChats: Chat[] = [
-            {
-              id: '1',
-              title: 'Create Html Game Environment...',
-              model: 'gpt-3.5-turbo',
-              messages: [],
-              createdAt: new Date(),
-              updatedAt: new Date()
-            },
-            {
-              id: '2',
-              title: 'Apply To Leave For Emergency',
-              model: 'gpt-4',
-              messages: [],
-              createdAt: new Date(),
-              updatedAt: new Date()
-            },
-            {
-              id: '3',
-              title: 'What Is UI UX Design?',
-              model: 'gpt-3.5-turbo',
-              messages: [],
-              createdAt: new Date(),
-              updatedAt: new Date()
-            },
-            {
-              id: '4',
-              title: 'Create Chatbot GPT...',
-              model: 'gpt-4',
-              messages: [
-                {
-                  id: '1',
-                  content: 'Create a chatbot gpt using python language what will be step for that',
-                  role: 'user',
-                  createdAt: new Date()
-                },
-                {
-                  id: '2',
-                  content: `Sure, I can help you get started with creating a chatbot using GPT in Python. Here are the basic steps you'll need to follow:
+          const token = localStorage.getItem('token');
+          if (!token) {
+            throw new Error('No authentication token');
+          }
 
-1. Install the required libraries: You'll need to install the transformers library from Hugging Face to use GPT. You can install it using pip.
-
-2. Load the pre-trained model: GPT comes in several sizes and versions, so you'll need to choose the one that fits your needs. You can load a pre-trained GPT model.
-
-3. Create a chatbot loop: You'll need to create a loop that takes user input, generates a response using the GPT model, and outputs it to the user.
-
-4. Add some personality to the chatbot: While GPT can generate text, it doesn't have any inherent personality or style.
-
-These are just the basic steps to get started with a GPT chatbot in Python. Good luck!`,
-                  role: 'assistant',
-                  model: 'gpt-4',
-                  createdAt: new Date()
-                }
-              ],
-              createdAt: new Date(),
-              updatedAt: new Date()
+          const response = await fetch('/api/chats', {
+            headers: {
+              'Authorization': `Bearer ${token}`
             }
-          ];
-          
-          set({ chats: mockChats, isLoading: false });
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to fetch chats');
+          }
+
+          const result = await response.json();
+          set({ chats: result.data || [], isLoading: false });
         } catch (error) {
           set({ 
             error: error instanceof Error ? error.message : 'Failed to fetch chats',
@@ -204,17 +216,46 @@ These are just the basic steps to get started with a GPT chatbot in Python. Good
       
       createNewChat: async (title = 'New Chat', model = 'gpt-3.5-turbo') => {
         try {
+          console.log('🆕 Creating new chat with:', { title, model });
           set({ isLoading: true, error: null });
           
-          // Mock new chat creation
-          const newChat: Chat = {
-            id: `chat-${Date.now()}`,
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.error('❌ No authentication token for new chat');
+            throw new Error('No authentication token');
+          }
+          console.log('🔑 Token found for new chat, length:', token.length);
+
+          const requestBody = {
             title,
-            model,
-            messages: [],
-            createdAt: new Date(),
-            updatedAt: new Date()
+            aiModel: model
           };
+          console.log('📤 Sending new chat request:', requestBody);
+
+          const response = await fetch('/api/chats', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify(requestBody)
+          });
+
+          console.log('📥 New chat response status:', response.status);
+
+          if (!response.ok) {
+            const errorData = await response.text();
+            console.error('❌ New chat API error:', {
+              status: response.status,
+              statusText: response.statusText,
+              body: errorData
+            });
+            throw new Error(`Failed to create chat: ${response.status} ${response.statusText}`);
+          }
+
+          const result = await response.json();
+          console.log('✅ New chat created successfully:', result);
+          const newChat = result.data;
           
           set((state) => ({
             chats: [newChat, ...state.chats],
@@ -224,6 +265,7 @@ These are just the basic steps to get started with a GPT chatbot in Python. Good
           
           return newChat;
         } catch (error) {
+          console.error('❌ New chat creation failed:', error);
           set({ 
             error: error instanceof Error ? error.message : 'Failed to create chat',
             isLoading: false 
@@ -232,45 +274,177 @@ These are just the basic steps to get started with a GPT chatbot in Python. Good
         }
       },
       
-      sendMessage: async (content) => {
-        const { currentChatId, currentChat } = get();
+      sendMessage: async (content: string, createNewChatIfNeeded = false, model = 'gemini-1.5-flash') => {
+        console.log('🚀 sendMessage called with:', { content, createNewChatIfNeeded, model });
+        let { currentChatId } = get();
+        let currentChat = get().getCurrentChat();
+        console.log('📝 Current chat ID:', currentChatId);
         
-        if (!currentChatId || !currentChat) {
-          throw new Error('No active chat');
-        }
+        // Declare timeout variable in the correct scope
+        let timeoutId: NodeJS.Timeout | null = null;
         
         try {
-          set({ isLoading: true, error: null });
+          // Reset AI states and start thinking animation immediately
+          get().resetAIStates();
+          get().setAIThinking(true);
           
-          // Add user message immediately
+          // Only create a new chat if explicitly requested or if there are no chats at all
+          if (createNewChatIfNeeded || (!currentChatId && get().chats.length === 0)) {
+            console.log('🆕 Creating new chat...');
+            // Generate smart title from user message
+            const smartTitle = generateChatTitle(content);
+            const newChat = await get().createNewChat(smartTitle, model);
+            currentChatId = newChat.id;
+            currentChat = newChat;
+            console.log('✅ New chat created with smart title:', smartTitle, 'ID:', currentChatId);
+          } else if (!currentChatId && get().chats.length > 0) {
+            // If no current chat selected but chats exist, select the first one
+            const firstChat = get().chats[0];
+            currentChatId = firstChat.id;
+            set({ currentChatId: firstChat.id });
+            currentChat = get().getCurrentChat();
+            console.log('📌 Selected existing chat with ID:', currentChatId);
+          }
+          
+          if (!currentChatId) {
+            console.error('❌ No active chat available');
+            get().resetAIStates();
+            throw new Error('No active chat available');
+          }
+
+          // 1. FIRST: Add user message to UI immediately (ChatGPT style)
           const userMessage: Message = {
-            id: `msg-${Date.now()}`,
+            id: `temp-${Date.now()}`,
             content,
             role: 'user',
             createdAt: new Date()
           };
           
+          // Add user message to UI instantly
           get().addMessage(currentChatId, userMessage);
+          console.log('✅ User message added to UI instantly');
+
+          // 2. SECOND: Start AI thinking state
+          const startTime = Date.now();
           
-          // Simulate AI response
+          // Set up a timeout to switch to waiting message after 3 seconds max
+          timeoutId = setTimeout(() => {
+            const elapsed = Date.now() - startTime;
+            if (elapsed >= 3000 && get().isAIThinking) {
+              get().setAIThinking(false);
+              get().setShowWaitingMessage(true);
+              console.log('⏰ Switched to waiting message after 3s');
+            }
+          }, 3000);
+          
+          // Add timeout for maximum wait time (10 seconds)
+          const maxTimeoutId = setTimeout(() => {
+            if (get().isAIThinking || get().showWaitingMessage) {
+              console.log('⚠️ Maximum timeout reached (10s)');
+              get().resetAIStates();
+              // Add error message to chat
+              const errorMessage: Message = {
+                id: `error-${Date.now()}`,
+                content: 'Request timed out. Please try again.',
+                role: 'assistant',
+                createdAt: new Date()
+              };
+              get().addMessage(currentChatId!, errorMessage);
+            }
+          }, 10000);
+          
+          set({ isLoading: true, error: null });
+          
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.error('❌ No authentication token');
+            get().resetAIStates();
+            throw new Error('No authentication token');
+          }
+          console.log('🔑 Token found, making API request...');
+
+          // 3. THIRD: Make API request
+          console.log('🌐 Making API request to:', `/api/chats/${currentChatId}/messages`);
+          const response = await fetch(`/api/chats/${currentChatId}/messages`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              content,
+              model
+            })
+          });
+
+          console.log('📡 API response status:', response.status);
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('❌ API error:', errorData);
+            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+          }
+
+          const result = await response.json();
+          console.log('✅ API response received:', result);
+          
+          // Clear both timeouts since we got a response
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = null;
+          }
+          clearTimeout(maxTimeoutId);
+          
+          // 4. FOURTH: Switch to responding state for typing effect
+          get().setAIThinking(false);
+          get().setShowWaitingMessage(false);
+          get().setAIResponding(true);
+          
+          // 5. FIFTH: Update chat with actual messages from server
+          const updatedChat = result.data.chat;
+          if (updatedChat && updatedChat.messages) {
+            set(state => ({
+              chats: state.chats.map(chat => 
+                chat.id === updatedChat.id ? {
+                  ...updatedChat,
+                  messages: updatedChat.messages.map((msg: any) => ({
+                    ...msg,
+                    createdAt: new Date(msg.createdAt)
+                  }))
+                } : chat
+              ),
+              isLoading: false
+            }));
+          }
+          
+          // 6. FINAL: Reset AI states after brief delay for smooth UX
           setTimeout(() => {
-            const aiMessage: Message = {
-              id: `msg-${Date.now() + 1}`,
-              content: "I'm a demo AI assistant. This is a sample response to show the chat interface working with the new dynamic system!",
-              role: 'assistant',
-              model: currentChat.model,
-              createdAt: new Date()
-            };
-            
-            get().addMessage(currentChatId, aiMessage);
-            set({ isLoading: false });
-          }, 1000);
+            get().resetAIStates();
+            console.log('🎉 Message flow completed successfully');
+          }, 300);
           
         } catch (error) {
+          // Clear timeout on error
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
+          get().resetAIStates();
+          
+          // Add error message to chat if we have a currentChatId
+          if (currentChatId) {
+            const errorMessage: Message = {
+              id: `error-${Date.now()}`,
+              content: 'Sorry, I encountered an error. Please try again.',
+              role: 'assistant',
+              createdAt: new Date()
+            };
+            get().addMessage(currentChatId, errorMessage);
+          }
+          
           set({ 
             error: error instanceof Error ? error.message : 'Failed to send message',
             isLoading: false 
           });
+          console.error('❌ sendMessage error:', error);
           throw error;
         }
       },
@@ -315,3 +489,5 @@ These are just the basic steps to get started with a GPT chatbot in Python. Good
     }
   )
 );
+
+

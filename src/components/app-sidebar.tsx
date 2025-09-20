@@ -23,7 +23,8 @@ import {
   MessageSquare, 
   Settings, 
   LogOut,
-  User
+  User,
+  Search
 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
@@ -41,13 +42,15 @@ interface AppSidebarProps {
   currentChatId?: string | null;
   onChatSelect?: (chatId: string) => void;
   onNewChat?: () => void;
+  onSearchOpen?: () => void;
 }
 
 export function AppSidebar({ 
   chats = [], 
   currentChatId, 
   onChatSelect, 
-  onNewChat 
+  onNewChat,
+  onSearchOpen
 }: AppSidebarProps) {
   const router = useRouter();
   const { user, logout } = useAuthStore();
@@ -90,87 +93,44 @@ export function AppSidebar({
           <Plus className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
           <span className="group-data-[collapsible=icon]:hidden">New chat</span>
         </Button>
+        
+        <Button 
+          className="w-full mt-2 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:mx-auto" 
+          variant="ghost" 
+          onClick={onSearchOpen}
+        >
+          <Search className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
+          <span className="group-data-[collapsible=icon]:hidden">Sohbetleri ara</span>
+        </Button>
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-xs text-muted-foreground px-2 mb-2 group-data-[collapsible=icon]:hidden">
-            Platform
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="group-data-[collapsible=icon]:hidden">Playground</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="group-data-[collapsible=icon]:hidden">History</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="group-data-[collapsible=icon]:hidden">Starred</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Settings className="h-4 w-4" />
-                  <span className="group-data-[collapsible=icon]:hidden">Settings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="group-data-[collapsible=icon]:hidden">Models</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <MessageSquare className="h-4 w-4" />
-                  <span className="group-data-[collapsible=icon]:hidden">Documentation</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-              <SidebarMenuItem>
-                <SidebarMenuButton>
-                  <Settings className="h-4 w-4" />
-                  <span className="group-data-[collapsible=icon]:hidden">Settings</span>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
         <SidebarGroup>
           <SidebarGroupLabel className="text-xs text-muted-foreground px-2 mb-2 group-data-[collapsible=icon]:hidden">
             Your conversations
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {chats.map((chat) => (
-                <SidebarMenuItem key={chat.id}>
-                  <SidebarMenuButton 
-                    className={`w-full justify-start ${
-                      currentChatId === chat.id ? 'bg-sidebar-accent' : ''
-                    }`}
-                    onClick={() => handleChatClick(chat.id)}
-                  >
-                    <MessageSquare className="h-4 w-4" />
-                    <span className="truncate group-data-[collapsible=icon]:hidden">{chat.title}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {chats.length === 0 ? (
+                <div className="px-2 py-4 text-center group-data-[collapsible=icon]:hidden">
+                  <p className="text-xs text-muted-foreground">No conversations yet</p>
+                  <p className="text-xs text-muted-foreground mt-1">Start a new chat to begin</p>
+                </div>
+              ) : (
+                chats.map((chat) => (
+                  <SidebarMenuItem key={chat.id}>
+                    <SidebarMenuButton 
+                      className={`w-full justify-start ${
+                        currentChatId === chat.id ? 'bg-sidebar-accent' : ''
+                      }`}
+                      onClick={() => handleChatClick(chat.id)}
+                    >
+                      <MessageSquare className="h-4 w-4" />
+                      <span className="truncate group-data-[collapsible=icon]:hidden">{chat.title}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
@@ -188,7 +148,7 @@ export function AppSidebar({
               {user?.name || 'norvis'}
             </p>
             <p className="text-xs text-muted-foreground truncate">
-              m@example.com
+              {user?.email || 'user@norvis.ai'}
             </p>
           </div>
           <div className="flex items-center space-x-1 group-data-[collapsible=icon]:hidden">
