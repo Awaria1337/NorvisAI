@@ -1,43 +1,46 @@
-import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcryptjs';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-key';
-const JWT_EXPIRE = process.env.JWT_EXPIRE || '7d';
+const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
 
-// Hash password
-export async function hashPassword(password: string): Promise<string> {
-  const saltRounds = 12;
-  return bcrypt.hash(password, saltRounds);
+export interface TokenPayload {
+  userId: string;
+  email: string;
+  iat?: number;
+  exp?: number;
 }
 
-// Compare password
-export async function comparePassword(password: string, hashedPassword: string): Promise<boolean> {
-  return bcrypt.compare(password, hashedPassword);
+export function signToken(payload: Omit<TokenPayload, 'iat' | 'exp'>): string {
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
 
-// Generate JWT token
-export function generateToken(userId: string): string {
-  return jwt.sign(
-    { userId },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRE }
-  );
-}
+// Alias for backward compatibility
+export const generateToken = signToken;
 
-// Verify JWT token
-export function verifyToken(token: string): { userId: string } | null {
+export function verifyToken(token: string): TokenPayload | null {
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string };
-    return decoded;
+    return jwt.verify(token, JWT_SECRET) as TokenPayload;
   } catch (error) {
     return null;
   }
 }
 
-// Extract token from Authorization header
-export function extractTokenFromHeader(authHeader: string | null): string | null {
+export function getTokenFromRequest(request: Request): string | null {
+  const authHeader = request.headers.get('authorization');
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return null;
   }
   return authHeader.substring(7);
+}
+
+// Alias for backward compatibility
+export const extractTokenFromHeader = getTokenFromRequest;
+
+export async function hashPassword(password: string): Promise<string> {
+  const saltRounds = 12;
+  return await bcrypt.hash(password, saltRounds);
+}
+
+export async function comparePassword(password: string, hashedPassword: string): Promise<boolean> {
+  return await bcrypt.compare(password, hashedPassword);
 }

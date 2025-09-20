@@ -1,63 +1,53 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
-import { comparePassword, generateToken } from '@/lib/auth';
+import { authenticateUser } from '@/lib/db';
+import { signToken } from '@/lib/auth';
 import { loginSchema } from '@/lib/validations';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-
-        // Validate input
+        
+        // Validate input data
         const { error, value } = loginSchema.validate(body);
+        
         if (error) {
             return NextResponse.json(
-                {
-                    success: false,
-                    error: error.details[0].message
-                },
+                { success: false, error: error.details[0].message },
                 { status: 400 }
             );
         }
 
         const { email, password } = value;
 
-        // Find user
-        const user = await prisma.user.findUnique({
-            where: { email }
-        });
+        console.log('Login attempt:', { email });
+
+        // Authenticate user with database
+        const user = await authenticateUser(email, password);
 
         if (!user) {
             return NextResponse.json(
-                {
-                    success: false,
-                    error: 'Invalid email or password'
-                },
-                { status: 401 }
-            );
-        }
-
-        // Verify password
-        const isValidPassword = await comparePassword(password, user.password);
-        if (!isValidPassword) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'Invalid email or password'
-                },
+                { success: false, error: 'Invalid email or password' },
                 { status: 401 }
             );
         }
 
         // Generate JWT token
-        const token = generateToken(user.id);
+        const token = signToken({
+            userId: user.id,
+            email: user.email
+        });
 
-        // Return user data (without password)
-        const { password: _, ...userWithoutPassword } = user;
+        console.log('Login successful for:', user.email);
 
         return NextResponse.json({
             success: true,
             data: {
-                user: userWithoutPassword,
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    name: user.name,
+                    createdAt: user.createdAt
+                },
                 token
             }
         });
@@ -65,10 +55,7 @@ export async function POST(request: NextRequest) {
     } catch (error) {
         console.error('Login error:', error);
         return NextResponse.json(
-            {
-                success: false,
-                error: 'Internal server error'
-            },
+            { success: false, error: 'Internal server error' },
             { status: 500 }
         );
     }

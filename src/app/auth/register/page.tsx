@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { useAuthStore } from '@/store/authStore';
 import { ROUTES } from '@/constants';
 
@@ -70,66 +71,94 @@ const RegisterPage: React.FC = () => {
         
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
-            <Input
-              label="Full name"
-              type="text"
-              autoComplete="name"
-              placeholder="Enter your full name"
-              error={errors.name?.message}
-              {...register('name', {
-                required: 'Name is required',
-                minLength: {
-                  value: 2,
-                  message: 'Name must be at least 2 characters'
-                }
-              })}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="name">Full name</Label>
+              <Input
+                id="name"
+                type="text"
+                autoComplete="name"
+                placeholder="Enter your full name"
+                {...register('name', {
+                  required: 'Name is required',
+                  minLength: {
+                    value: 2,
+                    message: 'Name must be at least 2 characters'
+                  }
+                })}
+              />
+              {errors.name && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {errors.name.message}
+                </p>
+              )}
+            </div>
             
-            <Input
-              label="Email address"
-              type="email"
-              autoComplete="email"
-              placeholder="Enter your email"
-              error={errors.email?.message}
-              {...register('email', {
-                required: 'Email is required',
-                pattern: {
-                  value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                  message: 'Invalid email address'
-                }
-              })}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="Enter your email"
+                {...register('email', {
+                  required: 'Email is required',
+                  pattern: {
+                    value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                    message: 'Invalid email address'
+                  }
+                })}
+              />
+              {errors.email && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {errors.email.message}
+                </p>
+              )}
+            </div>
             
-            <Input
-              label="Password"
-              type="password"
-              autoComplete="new-password"
-              placeholder="Create a password"
-              error={errors.password?.message}
-              {...register('password', {
-                required: 'Password is required',
-                minLength: {
-                  value: 8,
-                  message: 'Password must be at least 8 characters'
-                },
-                pattern: {
-                  value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
-                  message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-                }
-              })}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Create a password"
+                {...register('password', {
+                  required: 'Password is required',
+                  minLength: {
+                    value: 8,
+                    message: 'Password must be at least 8 characters'
+                  },
+                  pattern: {
+                    value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+                    message: 'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+                  }
+                })}
+              />
+              {errors.password && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {errors.password.message}
+                </p>
+              )}
+            </div>
             
-            <Input
-              label="Confirm password"
-              type="password"
-              autoComplete="new-password"
-              placeholder="Confirm your password"
-              error={errors.confirmPassword?.message}
-              {...register('confirmPassword', {
-                required: 'Please confirm your password',
-                validate: (value) => value === password || 'Passwords do not match'
-              })}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                autoComplete="new-password"
+                placeholder="Confirm your password"
+                {...register('confirmPassword', {
+                  required: 'Please confirm your password',
+                  validate: (value) => value === password || 'Passwords do not match'
+                })}
+              />
+              {errors.confirmPassword && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {errors.confirmPassword.message}
+                </p>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center">
@@ -155,10 +184,9 @@ const RegisterPage: React.FC = () => {
           <Button
             type="submit"
             className="w-full"
-            isLoading={isLoading}
             disabled={isLoading}
           >
-            Create account
+            {isLoading ? 'Creating account...' : 'Create account'}
           </Button>
 
           <div className="text-center">

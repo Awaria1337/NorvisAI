@@ -158,9 +158,18 @@
     @apply bg-background text-foreground min-h-screen;
     overflow-x: hidden;
   }
-  
+
   /* Ensure no extra padding or margins that could cause gaps */
   #__next {
     @apply min-h-screen;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
   }
 }

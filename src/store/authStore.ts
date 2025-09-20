@@ -126,19 +126,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   loginUser: async (data) => {
     try {
+      console.log('🚀 Starting login process with:', { email: data.email });
       set({ isLoading: true });
+      
       const response = await authAPI.login(data);
+      console.log('📡 API Response:', response);
       
       if (response.success) {
         const { user, token } = response.data;
+        console.log('✅ Login successful, setting user data:', { user, tokenLength: token?.length });
         get().login(user, token);
         toast.success('Successfully logged in!');
         return true;
       } else {
+        console.log('❌ Login failed:', response.error);
         toast.error(response.error || 'Login failed');
         return false;
       }
     } catch (error: any) {
+      console.error('💥 Login error:', error);
+      console.error('💥 Error response:', error.response?.data);
       const errorMessage = error.response?.data?.error || 'Login failed. Please try again.';
       toast.error(errorMessage);
       return false;

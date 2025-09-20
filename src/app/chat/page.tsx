@@ -1,125 +1,197 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { useChatStore } from '@/store/chatStore';
 import { ROUTES } from '@/constants';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuTrigger 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
 } from '@/components/ui/dropdown-menu';
-import { 
-  Plus, 
-  MessageSquare, 
-  Settings, 
-  LogOut, 
-  Send, 
-  Share, 
-  ThumbsUp, 
-  ThumbsDown, 
-  Copy, 
-  RotateCcw,
+import {
+  SidebarProvider,
+  SidebarInset,
+  SidebarTrigger,
+} from '@/components/ui/sidebar';
+import { AppSidebar } from '@/components/app-sidebar';
+import {
+  Share,
+  Copy,
   Paperclip,
   MoreHorizontal,
   Mic,
-  Square
+  MessageSquare,
+  ArrowUp,
+  Key,
+  Search
 } from 'lucide-react';
-import { ThemeToggle } from '@/components/ui/theme-toggle';
+import MessageBubble from '@/components/ui/message-bubble';
+import AILoadingStates from '@/components/ui/ai-loading-states';
+import SearchModal from '@/components/ui/search-modal';
+// import { ApiKeyModal } from '@/components/api-key-modal';
 
-interface Message {
-  id: string;
-  content: string;
-  isUser: boolean;
-  timestamp: Date;
-}
 
-interface Chat {
-  id: string;
-  title: string;
-  messages: Message[];
-  timestamp: Date;
-}
+
 
 const ChatPage: React.FC = () => {
   const router = useRouter();
-  const { isAuthenticated, isLoading, user, logout } = useAuthStore();
-  const [chats, setChats] = useState<Chat[]>([
-    {
-      id: '1',
-      title: 'Create Html Game Environment...',
-      messages: [],
-      timestamp: new Date()
-    },
-    {
-      id: '2', 
-      title: 'Apply To Leave For Emergency',
-      messages: [],
-      timestamp: new Date()
-    },
-    {
-      id: '3',
-      title: 'What Is UI UX Design?',
-      messages: [],
-      timestamp: new Date()
-    },
-    {
-      id: '4',
-      title: 'Create POS System',
-      messages: [],
-      timestamp: new Date()
-    },
-    {
-      id: '5',
-      title: 'What Is UX Audit?',
-      messages: [],
-      timestamp: new Date()
-    },
-    {
-      id: '6',
-      title: 'Create Chatbot GPT...',
-      messages: [{
-        id: '1',
-        content: 'Create a chatbot gpt using python language what will be step for that',
-        isUser: true,
-        timestamp: new Date()
-      }, {
-        id: '2',
-        content: `Sure, I can help you get started with creating a chatbot using GPT in Python. Here are the basic steps you'll need to follow:
-
-1. Install the required libraries: You'll need to install the transformers library from Hugging Face to use GPT. You can install it using pip.
-
-2. Load the pre-trained model: GPT comes in several sizes and versions, so you'll need to choose the one that fits your needs. You can load a pre-trained GPT model. This loads the 1.3B parameter version of GPT-Neo, which is a powerful and relatively recent model.
-
-3. Create a chatbot loop: You'll need to create a loop that takes user input, generates a response using the GPT model, and outputs it to the user. Here's an example loop that uses the input() function to get user input and the gpt() function to generate a response. This loop will keep running until the user exits the program or the loop is interrupted.
-
-4. Add some personality to the chatbot: While GPT can generate text, it doesn't have any inherent personality or style. You can make your chatbot more interesting by adding custom prompts or responses that reflect your desired personality. You can then modify the chatbot loop to use these prompts and responses when appropriate. This will make the chatbot seem more human-like and engaging.
-
-These are just the basic steps to get started with a GPT chatbot in Python. Depending on your requirements, you may need to add more features or complexity to the chatbot. Good luck!`,
-        isUser: false,
-        timestamp: new Date()
-      }],
-      timestamp: new Date()
-    },
-    {
-      id: '7',
-      title: 'How Chat GPT Work?',
-      messages: [],
-      timestamp: new Date()
-    }
-  ]);
-  const [currentChatId, setCurrentChatId] = useState<string>('6');
+  const { isAuthenticated, isLoading, logout } = useAuthStore();
+  const {
+    chats,
+    getCurrentChat,
+    currentChatId,
+    fetchChats,
+    createNewChat,
+    sendMessage,
+    setCurrentChatId
+  } = useChatStore();
+  
+  // Memoize currentChat to ensure proper re-rendering when chats or currentChatId changes
+  const currentChat = useMemo(() => getCurrentChat(), [chats, currentChatId, getCurrentChat]);
   const [inputMessage, setInputMessage] = useState('');
-  const [showRecentChats, setShowRecentChats] = useState(true);
+  // const [showApiKeyModal, setShowApiKeyModal] = useState(false);
+  const [availableModels, setAvailableModels] = useState<Array<{id: string, name: string, provider: string}>>([]);
+  const [selectedModel, setSelectedModel] = useState('deepseek-chat');
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  
+  // Scroll reference for auto-scrolling to bottom
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  
+  // Get AI loading states from store
+  const { isAIThinking, isAIResponding, showWaitingMessage, streamingMessageId, streamingContent } = useChatStore();
+  
+  // Auto-scroll to bottom when new messages arrive or AI states change
+  const scrollToBottom = () => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+  
+  // Scroll to bottom when messages change or AI states change
+  useEffect(() => {
+    scrollToBottom();
+  }, [currentChat?.messages, isAIThinking, isAIResponding, showWaitingMessage, streamingContent]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + K for search
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setIsSearchOpen(true);
+      }
+      // Escape to close search
+      if (e.key === 'Escape' && isSearchOpen) {
+        setIsSearchOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isSearchOpen]);
+
+  const handleSendMessage = async (messageContent?: string) => {
+    const content = messageContent || inputMessage.trim();
+    if (!content) return;
+
+    // Don't send if AI is already processing
+    if (isAIThinking || isAIResponding) {
+      console.log('AI is busy, please wait...');
+      return;
+    }
+
+    // Clear input immediately for better UX
+    setInputMessage('');
+    
+    try {
+      console.log('🚀 Starting message send process...');
+      await sendMessage(content, false, selectedModel);
+      console.log('✅ Message sent successfully');
+    } catch (error) {
+      console.error('❌ Failed to send message:', error);
+      // If message fails, restore the input content
+      setInputMessage(content);
+    }
+  };
+
+  const handleSendClick = () => {
+    // if (!hasApiKeys) {
+    //   setShowApiKeyModal(true);
+    //   return;
+    // }
+    handleSendMessage();
+  };
+
+  const handleNewChat = async () => {
+    try {
+      const newChat = await createNewChat('New Chat', selectedModel || 'gemini-1.5-flash');
+      // Clear input when creating new chat
+      setInputMessage('');
+    } catch (error) {
+      console.error('Failed to create new chat:', error);
+    }
+  };
+
+  const handleSearchOpen = () => {
+    setIsSearchOpen(true);
+  };
+
+  const handleSearchClose = () => {
+    setIsSearchOpen(false);
+  };
+
+  const handleChatSelectFromSearch = (chatId: string) => {
+    setCurrentChatId(chatId);
+    setIsSearchOpen(false);
+  };
+
+  const fetchAvailableModels = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/user/models', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setAvailableModels(result.data || []);
+        // setHasApiKeys((result.data || []).length > 0);
+        
+        // Set DeepSeek Chat v3.1 as default model if available
+        if (result.data && result.data.length > 0) {
+          const deepSeekModel = result.data.find((model: any) => model.id === 'deepseek/deepseek-chat-v3.1:free');
+          if (deepSeekModel) {
+            setSelectedModel(deepSeekModel.id);
+          } else {
+            setSelectedModel(result.data[0].id);
+          }
+        } else {
+          // No API keys available, show modal after a short delay
+          // setTimeout(() => {
+          //   setShowApiKeyModal(true);
+          // }, 1000);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch models:', error);
+      // setHasApiKeys(false);
+    }
+  };
+
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -127,13 +199,13 @@ These are just the basic steps to get started with a GPT chatbot in Python. Depe
     }
   }, [isAuthenticated, isLoading, router]);
 
-  const handleLogout = () => {
-    logout();
-    router.push(ROUTES.LOGIN);
-  };
-
-  const currentChat = chats.find(chat => chat.id === currentChatId);
-  const recentChats = chats.filter(chat => chat.id !== currentChatId).slice(0, 6);
+  // Fetch chats when authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchChats();
+      fetchAvailableModels();
+    }
+  }, [isAuthenticated, fetchChats]);
 
   if (isLoading) {
     return (
@@ -153,420 +225,188 @@ These are just the basic steps to get started with a GPT chatbot in Python. Depe
 
   return (
     <TooltipProvider>
-      <div className="h-screen flex bg-background overflow-hidden">
-        {/* Sidebar */}
-        <div className="w-80 bg-sidebar flex flex-col border-r border-sidebar-border">
-            {/* Logo and Title */}
-            <div className="p-6">
-              <h1 className="text-2xl font-bold text-sidebar-foreground tracking-wide">
-                CHAT A.I+
-              </h1>
+      <SidebarProvider>
+        <AppSidebar
+          chats={chats}
+          currentChatId={currentChatId}
+          onChatSelect={setCurrentChatId}
+          onNewChat={handleNewChat}
+          onSearchOpen={handleSearchOpen}
+        />
+
+
+        <SidebarInset>
+          {/* Main Chat Area */}
+          <div className="flex-1 flex flex-col bg-background h-screen overflow-hidden relative">
+            {/* ChatGPT-style Fixed Top Left */}
+            <div className="fixed top-0 left-0 md:left-64 z-30 flex items-center space-x-3 p-4">
+              <SidebarTrigger className="bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent" />
+              <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">Norvis AI</h1>
             </div>
 
-            {/* New Chat Button */}
-            <div className="px-6 mb-6">
-              <Button 
-                className="w-full justify-center" 
-                variant="outline"
-                size="lg"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                New chat
-              </Button>
-            </div>
-
-            {/* Your conversations */}
-            <div className="px-6 mb-4">
-              <p className="text-muted-foreground text-sm font-medium mb-3">Your conversations</p>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => setShowRecentChats(!showRecentChats)}
-                className="text-muted-foreground hover:text-foreground p-0 h-auto"
-              >
-                Clear All
-              </Button>
-            </div>
-
-            {/* Chat List */}
-            <ScrollArea className="flex-1 px-6">
-              <div className="space-y-2">
-                {chats.map((chat) => (
-                  <Button
-                    key={chat.id}
-                    variant={currentChatId === chat.id ? "secondary" : "ghost"}
-                    className={`w-full justify-start p-3 h-auto ${
-                      currentChatId === chat.id 
-                        ? 'bg-sidebar-accent border border-sidebar-border' 
-                        : 'hover:bg-sidebar-accent'
-                    }`}
-                    onClick={() => setCurrentChatId(chat.id)}
-                  >
-                    <MessageSquare className="h-4 w-4 mr-3 flex-shrink-0" />
-                    <span className="text-sm font-medium truncate flex-1 text-left">
-                      {chat.title}
-                    </span>
-                  </Button>
-                ))}
+            {/* Messages Area - ChatGPT style, starts from top */}
+            <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
+              <div className="p-6 pt-16 space-y-6 max-w-4xl mx-auto min-h-full pb-48">
+                {currentChat?.messages && currentChat.messages.length > 0 ? (
+                  <>
+                    {currentChat.messages.map((message) => (
+                      <MessageBubble
+                        key={message.id}
+                        message={message}
+                        isUser={message.role === 'user'}
+                      />
+                    ))}
+                    
+                    {/* AI Loading States */}
+                    <AILoadingStates
+                      isAIThinking={isAIThinking}
+                      showWaitingMessage={showWaitingMessage}
+                      isAIResponding={isAIResponding}
+                      streamingMessageId={streamingMessageId}
+                      streamingContent={streamingContent}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <div className="text-center py-20">
+                      <div className="h-20 w-20 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <MessageSquare className="h-10 w-10 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <h3 className="text-2xl font-bold text-foreground mb-3">
+                        Welcome to Norvis AI
+                      </h3>
+                      <p className="text-muted-foreground mb-8 max-w-md mx-auto">
+                        Start a conversation with our AI assistant. Ask anything, get creative, or explore new ideas.
+                      </p>
+                    </div>
+                    
+                    {/* AI Loading States for empty chat */}
+                    <AILoadingStates
+                      isAIThinking={isAIThinking}
+                      showWaitingMessage={showWaitingMessage}
+                      isAIResponding={isAIResponding}
+                      streamingMessageId={streamingMessageId}
+                      streamingContent={streamingContent}
+                    />
+                  </>
+                )}
+                
+                {/* Invisible div at the end for auto-scrolling */}
+                <div ref={messagesEndRef} className="h-1" />
               </div>
             </ScrollArea>
 
-            {/* Recent Section */}
-            {showRecentChats && (
-              <div className="px-6 py-4">
-                <Separator className="mb-4" />
-                <p className="text-muted-foreground text-xs mb-3">Last 7 Days</p>
-                <div className="space-y-1">
-                  {recentChats.slice(0, 4).map((chat) => (
-                    <Button
-                      key={`recent-${chat.id}`}
-                      variant="ghost"
-                      size="sm"
-                      className="w-full justify-start p-2 h-auto text-xs"
-                    >
-                      <MessageSquare className="h-3 w-3 mr-2 flex-shrink-0" />
-                      <span className="truncate text-left">
-                        {chat.title.length > 25 ? chat.title.substring(0, 25) + '...' : chat.title}
-                      </span>
-                    </Button>
-                  ))}
-                </div>
-              </div>
-            )}
+        {/* Message Input - Fixed Bottom - Original Design Restored */}
+        <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-background backdrop-blur-sm px-6 py-4 z-50">
+              <div className="max-w-4xl mx-auto">
+                {/* Outer Container - Compact */}
+                <div
+                  className="rounded-2xl p-1 space-y-3"
+                  style={{ backgroundColor: 'color-mix(in oklab, var(--primary) 10%, transparent)' }}
+                >
+                  {/* Upgrade Pro Text */}
+                  <div className="text-xs font-medium mr-4" style={{ color: '#fff' }}>
+                    Upgrade Pro
+                  </div>
 
-            {/* Settings and Profile */}
-            <div className="p-6 border-t border-sidebar-border">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-2">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" className="p-2">
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Settings</p>
-                    </TooltipContent>
-                  </Tooltip>
-                  <ThemeToggle />
-                </div>
-              </div>
-              
-              <div className="flex items-center space-x-3">
-                <Avatar className="h-10 w-10">
-                  <AvatarFallback className="bg-sidebar-accent text-sidebar-foreground">
-                    {user?.name?.charAt(0).toUpperCase() || 'A'}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1">
-                  <p className="text-sidebar-foreground text-sm font-medium">
-                    {user?.name || 'Andrew Nelson'}
-                  </p>
-                </div>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleLogout}
-                      className="p-2 text-muted-foreground hover:text-foreground"
-                    >
-                      <LogOut className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Logout</p>
-                  </TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-          </div>
+                  {/* Main Input Container */}
+                  <div className="rounded-xl border border-border/40 p-3" style={{ backgroundColor: 'oklch(0.141 0.004 285.83)' }}>
+                    {/* Textarea - Compact */}
+                    <Textarea
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      placeholder="Norvis AI'ya bir şey sorun..."
+                      className="w-full min-h-[40px] max-h-32 resize-none border-0 px-0 py-1 text-sm placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 leading-relaxed mb-3"
+                      style={{ backgroundColor: 'oklch(14.1% .004 285.83)' }}
+                      rows={1}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                    />
 
-        {/* Main Chat Area */}
-        <div className="flex-1 flex flex-col bg-background min-h-0">
-          {/* Chat Header */}
-          <div className="bg-background/95 backdrop-blur-sm border-b border-border p-6 flex items-center justify-between sticky top-0 z-10">
-            <div className="flex items-center space-x-4">
-              <Avatar className="h-10 w-10">
-                <AvatarFallback className="bg-gradient-to-r from-emerald-500 to-blue-500 text-white font-semibold">
-                  AI
-                </AvatarFallback>
-              </Avatar>
-              <div>
-                <h2 className="text-lg font-semibold text-foreground">
-                  Norvis AI Assistant
-                </h2>
-                <div className="flex items-center space-x-2">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-muted-foreground">Online</span>
-                  <Badge variant="secondary" className="text-xs ml-2">
-                    GPT-4 Turbo
-                  </Badge>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="rounded-lg">
-                    <Share className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Share conversation</p>
-                </TooltipContent>
-              </Tooltip>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="rounded-lg">
-                    <MoreHorizontal className="h-4 w-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem>
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    New conversation
-                  </DropdownMenuItem>
-                  <DropdownMenuItem>
-                    <Copy className="h-4 w-4 mr-2" />
-                    Copy conversation
-                  </DropdownMenuItem>
-                  <DropdownMenuItem className="text-destructive">
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Clear conversation
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-
-          {/* Messages Area */}
-          <ScrollArea className="flex-1 min-h-0 overflow-hidden">
-            <div className="p-6 space-y-6 max-w-4xl mx-auto">
-              {currentChat?.messages && currentChat.messages.length > 0 ? (
-                currentChat.messages.map((message) => (
-                  <div key={message.id} className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`flex space-x-3 max-w-3xl ${message.isUser ? 'flex-row-reverse space-x-reverse' : ''}`}>
-                      <Avatar className="h-8 w-8 flex-shrink-0">
-                        <AvatarFallback className={`${message.isUser 
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white' 
-                          : 'bg-gradient-to-r from-emerald-500 to-blue-500 text-white'
-                        } font-semibold`}>
-                          {message.isUser ? (user?.name?.charAt(0).toUpperCase() || 'U') : 'AI'}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className={`group relative rounded-2xl px-4 py-3 max-w-full ${
-                        message.isUser 
-                          ? 'bg-primary text-primary-foreground' 
-                          : 'bg-card border border-border shadow-sm hover:shadow-md transition-shadow'
-                      }`}>
-                        <div className="text-sm whitespace-pre-wrap text-foreground leading-relaxed">
-                          {message.content}
-                        </div>
-                        {/* Message Actions */}
-                        <div className={`absolute -bottom-8 ${message.isUser ? 'right-0' : 'left-0'} opacity-0 group-hover:opacity-100 transition-opacity flex space-x-1`}>
-                          <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                            <Copy className="h-3 w-3" />
-                          </Button>
-                          {!message.isUser && (
-                            <>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                <ThumbsUp className="h-3 w-3" />
-                              </Button>
-                              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                                <ThumbsDown className="h-3 w-3" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
+                    {/* Bottom Row - Controls */}
+                    <div className="flex items-center justify-between">
+                      {/* Left Side - Action Buttons */}
+                      <div className="flex items-center space-x-2">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 rounded-full hover:bg-accent"
+                            >
+                              <Paperclip className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Attach file</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 rounded-full hover:bg-accent"
+                            >
+                              <Mic className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Voice input</TooltipContent>
+                        </Tooltip>
+                        
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 rounded-full hover:bg-accent"
+                            >
+                              <Search className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Web search</TooltipContent>
+                        </Tooltip>
                       </div>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-20">
-                  <div className="h-20 w-20 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <MessageSquare className="h-10 w-10 text-purple-600 dark:text-purple-400" />
-                  </div>
-                  <h3 className="text-2xl font-bold text-foreground mb-3">
-                    Welcome to Norvis AI
-                  </h3>
-                  <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                    Start a conversation with our AI assistant. Ask anything, get creative, or explore new ideas.
-                  </p>
-                  
-                  {/* Suggestion Cards */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl mx-auto">
-                    <div className="p-4 bg-card border border-border rounded-xl hover:shadow-md transition-all cursor-pointer group">
-                      <div className="text-lg mb-2">📝</div>
-                      <h4 className="font-medium text-sm mb-1">Help me write</h4>
-                      <p className="text-xs text-muted-foreground">Get assistance with writing tasks</p>
-                    </div>
-                    <div className="p-4 bg-card border border-border rounded-xl hover:shadow-md transition-all cursor-pointer group">
-                      <div className="text-lg mb-2">💡</div>
-                      <h4 className="font-medium text-sm mb-1">Give me ideas</h4>
-                      <p className="text-xs text-muted-foreground">Brainstorm creative solutions</p>
-                    </div>
-                    <div className="p-4 bg-card border border-border rounded-xl hover:shadow-md transition-all cursor-pointer group">
-                      <div className="text-lg mb-2">📊</div>
-                      <h4 className="font-medium text-sm mb-1">Analyze data</h4>
-                      <p className="text-xs text-muted-foreground">Help with data interpretation</p>
-                    </div>
-                    <div className="p-4 bg-card border border-border rounded-xl hover:shadow-md transition-all cursor-pointer group">
-                      <div className="text-lg mb-2">✨</div>
-                      <h4 className="font-medium text-sm mb-1">Surprise me</h4>
-                      <p className="text-xs text-muted-foreground">Random interesting topic</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </ScrollArea>
-
-          {/* Follow-up Actions */}
-          {currentChat?.messages && currentChat.messages.length > 0 && (
-            <div className="px-6 py-4 border-t border-border">
-              <div className="flex items-center space-x-2 max-w-4xl mx-auto">
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <ThumbsUp className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>Good response</p></TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <ThumbsDown className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>Bad response</p></TooltipContent>
-                </Tooltip>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <Copy className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>Copy</p></TooltipContent>
-                </Tooltip>
-                <div className="flex-1" />
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button variant="ghost" size="sm">
-                      <RotateCcw className="h-4 w-4 mr-2" />
-                      Regenerate
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent><p>Regenerate response</p></TooltipContent>
-                </Tooltip>
-              </div>
-            </div>
-          )}
-
-          {/* Message Input - Beautiful Prompt Area */}
-          <div className="bg-background px-6 pb-4">
-            <div className="max-w-4xl mx-auto">
-              <div className="relative">
-                {/* Main Input Container */}
-                <div className="relative bg-card border border-border rounded-3xl shadow-lg hover:shadow-xl transition-all duration-200 overflow-hidden">
-                  <div className="flex items-end p-4">
-                    {/* Add Button */}
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="flex-shrink-0 mr-3 p-2.5 rounded-xl hover:bg-muted"
-                        >
-                          <Plus className="h-5 w-5" />
-                        </Button>
-                      </TooltipTrigger>
-                      <TooltipContent><p>Add content</p></TooltipContent>
-                    </Tooltip>
-
-                    {/* Text Input */}
-                    <div className="flex-1 min-h-[50px] flex items-center">
-                      <Textarea
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="Herhangi bir şey sor"
-                        className="border-0 bg-transparent resize-none text-base placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 min-h-[50px] py-3"
-                        rows={1}
-                        style={{ 
-                          minHeight: '50px',
-                          maxHeight: '200px',
-                          overflow: 'hidden'
-                        }}
-                        onInput={(e) => {
-                          e.currentTarget.style.height = 'auto';
-                          e.currentTarget.style.height = e.currentTarget.scrollHeight + 'px';
-                        }}
-                      />
-                    </div>
-
-                    {/* Action Buttons */}
-                    <div className="flex items-center space-x-2 ml-3">
-                      {inputMessage.trim() ? (
-                        <>
-                          {/* Send Button */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                onClick={() => {
-                                  // Handle send message
-                                  console.log('Sending:', inputMessage);
-                                  setInputMessage('');
-                                }}
-                                size="sm"
-                                className="rounded-xl px-4 py-2.5 bg-primary hover:bg-primary/90"
-                              >
-                                <Send className="h-4 w-4" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Send message</p></TooltipContent>
-                          </Tooltip>
-                        </>
-                      ) : (
-                        <>
-                          {/* Microphone Button */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="rounded-xl p-2.5 hover:bg-muted"
-                              >
-                                <Mic className="h-5 w-5" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Voice input</p></TooltipContent>
-                          </Tooltip>
-
-                          {/* Stop Button */}
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="rounded-xl p-2.5 hover:bg-muted"
-                              >
-                                <Square className="h-4 w-4 fill-current" />
-                              </Button>
-                            </TooltipTrigger>
-                            <TooltipContent><p>Stop</p></TooltipContent>
-                          </Tooltip>
-                        </>
-                      )}
+                      
+                      {/* Right Side - Send Button */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Button
+                            onClick={handleSendClick}
+                            size="sm"
+                            disabled={!inputMessage.trim() || isAIThinking || isAIResponding}
+                            className="h-8 w-8 rounded-full bg-foreground hover:bg-foreground/90 text-background disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <ArrowUp className="h-3 w-3" />
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Send message</TooltipContent>
+                      </Tooltip>
                     </div>
                   </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </div>
+        </SidebarInset>
+        
+        {/* Search Modal */}
+        <SearchModal
+          isOpen={isSearchOpen}
+          onClose={handleSearchClose}
+          onChatSelect={handleChatSelectFromSearch}
+        />
+        
+        {/* API Key Management Modal */}
+        {/* <ApiKeyModal
+          open={showApiKeyModal}
+          onOpenChange={setShowApiKeyModal}
+          onApiKeysUpdated={fetchAvailableModels}
+        /> */}
+      </SidebarProvider>
     </TooltipProvider>
   );
 };
