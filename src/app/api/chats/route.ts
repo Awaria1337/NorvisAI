@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth';
+import { generateChatId } from '@/utils/uuid';
 
 // GET /api/chats - Fetch user's chats
 export async function GET(request: NextRequest) {
@@ -78,9 +79,11 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { title = 'New Chat', aiModel = 'gpt-3.5-turbo' } = body;
 
-    // Create new chat
+    // Create new chat with unique UUID
+    const chatId = generateChatId();
     const newChat = await prisma.chat.create({
       data: {
+        id: chatId,
         title,
         aiModel,
         userId: payload.userId

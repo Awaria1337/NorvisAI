@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import { generateChatTitle } from '@/utils/titleGenerator';
+import { generateChatId } from '@/utils/uuid';
 
 export interface Message {
   id: string;
@@ -9,6 +10,7 @@ export interface Message {
   model?: string;
   tokensUsed?: number;
   createdAt: Date;
+  images?: string[]; // Array of image URLs or base64 strings
 }
 
 export interface Chat {
@@ -40,6 +42,7 @@ interface ChatState {
   // Actions
   setChats: (chats: Chat[]) => void;
   setCurrentChatId: (chatId: string | null) => void;
+  navigateToChat: (chatId: string) => void;
   addChat: (chat: Chat) => void;
   updateChat: (chatId: string, updates: Partial<Chat>) => void;
   deleteChat: (chatId: string) => void;
@@ -64,7 +67,7 @@ interface ChatState {
   // API Actions
   fetchChats: () => Promise<void>;
   createNewChat: (title?: string, model?: string) => Promise<Chat>;
-  sendMessage: (content: string, createNewChatIfNeeded?: boolean, model?: string) => Promise<void>;
+  sendMessage: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
   regenerateMessage: (messageId: string) => Promise<void>;
 }
 
@@ -94,6 +97,15 @@ export const useChatStore = create<ChatState>()(
       setChats: (chats) => set({ chats }),
       
       setCurrentChatId: (chatId) => set({ currentChatId: chatId }),
+      
+      navigateToChat: (chatId) => {
+        set({ currentChatId: chatId });
+        // Update URL without causing page reload
+        if (typeof window !== 'undefined') {
+          const newUrl = `/chat/${chatId}`;
+          window.history.pushState({}, '', newUrl);
+        }
+      },
       
       addChat: (chat) => set((state) => ({
         chats: [chat, ...state.chats]
@@ -263,6 +275,12 @@ export const useChatStore = create<ChatState>()(
             isLoading: false
           }));
           
+          // Navigate to the new chat URL
+          if (typeof window !== 'undefined') {
+            const newUrl = `/chat/${newChat.id}`;
+            window.history.pushState({}, '', newUrl);
+          }
+          
           return newChat;
         } catch (error) {
           console.error('❌ New chat creation failed:', error);
@@ -274,11 +292,27 @@ export const useChatStore = create<ChatState>()(
         }
       },
       
-      sendMessage: async (content: string, createNewChatIfNeeded = false, model = 'gemini-1.5-flash') => {
-        console.log('🚀 sendMessage called with:', { content, createNewChatIfNeeded, model });
+      sendMessage: async (content: string, createNewChatIfNeeded = false, files: File[] = []) => {
+        console.log('🚀 sendMessage called with:', { content, createNewChatIfNeeded, files: files.length });
         let { currentChatId } = get();
         let currentChat = get().getCurrentChat();
         console.log('📝 Current chat ID:', currentChatId);
+        
+        // Convert files to base64 for display and processing
+        let imageUrls: string[] = [];
+        if (files.length > 0) {
+          for (const file of files) {
+            if (file.type.startsWith('image/')) {
+              const base64 = await new Promise<string>((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result as string);
+                reader.readAsDataURL(file);
+              });
+              imageUrls.push(base64);
+            }
+          }
+          console.log('🇮Converted', imageUrls.length, 'images to base64');
+        }
         
         // Declare timeout variable in the correct scope
         let timeoutId: NodeJS.Timeout | null = null;
@@ -317,7 +351,8 @@ export const useChatStore = create<ChatState>()(
             id: `temp-${Date.now()}`,
             content,
             role: 'user',
-            createdAt: new Date()
+            createdAt: new Date(),
+            images: imageUrls.length > 0 ? imageUrls : undefined
           };
           
           // Add user message to UI instantly
@@ -365,16 +400,22 @@ export const useChatStore = create<ChatState>()(
 
           // 3. THIRD: Make API request
           console.log('🌐 Making API request to:', `/api/chats/${currentChatId}/messages`);
+          const requestBody: any = {
+            content
+          };
+          
+          // Add images if any
+          if (imageUrls.length > 0) {
+            requestBody.images = imageUrls;
+          }
+          
           const response = await fetch(`/api/chats/${currentChatId}/messages`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-              content,
-              model
-            })
+            body: JSON.stringify(requestBody)
           });
 
           console.log('📡 API response status:', response.status);
