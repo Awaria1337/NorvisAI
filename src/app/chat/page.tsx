@@ -52,16 +52,17 @@ const ChatPage: React.FC = () => {
     fetchChats,
     createNewChat,
     sendMessage,
-    setCurrentChatId
+    setCurrentChatId,
+    navigateToChat,
+    setChats
   } = useChatStore();
   
   // Memoize currentChat to ensure proper re-rendering when chats or currentChatId changes
   const currentChat = useMemo(() => getCurrentChat(), [chats, currentChatId, getCurrentChat]);
   const [inputMessage, setInputMessage] = useState('');
   // const [showApiKeyModal, setShowApiKeyModal] = useState(false);
-  const [availableModels, setAvailableModels] = useState<Array<{id: string, name: string, provider: string}>>([]);
-  const [selectedModel, setSelectedModel] = useState('deepseek-chat');
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   
   // Scroll reference for auto-scrolling to bottom
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -102,7 +103,7 @@ const ChatPage: React.FC = () => {
 
   const handleSendMessage = async (messageContent?: string) => {
     const content = messageContent || inputMessage.trim();
-    if (!content) return;
+    if (!content && uploadedFiles.length === 0) return;
 
     // Don't send if AI is already processing
     if (isAIThinking || isAIResponding) {
@@ -110,17 +111,20 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    // Clear input immediately for better UX
+    // Clear input and files immediately for better UX
     setInputMessage('');
+    const filesToSend = [...uploadedFiles];
+    setUploadedFiles([]);
     
     try {
       console.log('🚀 Starting message send process...');
-      await sendMessage(content, false, selectedModel);
+      await sendMessage(content, false, filesToSend);
       console.log('✅ Message sent successfully');
     } catch (error) {
       console.error('❌ Failed to send message:', error);
-      // If message fails, restore the input content
+      // If message fails, restore the input content and files
       setInputMessage(content);
+      setUploadedFiles(filesToSend);
     }
   };
 
@@ -134,7 +138,7 @@ const ChatPage: React.FC = () => {
 
   const handleNewChat = async () => {
     try {
-      const newChat = await createNewChat('New Chat', selectedModel || 'gemini-1.5-flash');
+      const newChat = await createNewChat('New Chat');
       // Clear input when creating new chat
       setInputMessage('');
     } catch (error) {
@@ -151,46 +155,218 @@ const ChatPage: React.FC = () => {
   };
 
   const handleChatSelectFromSearch = (chatId: string) => {
-    setCurrentChatId(chatId);
+    navigateToChat(chatId);
     setIsSearchOpen(false);
   };
 
-  const fetchAvailableModels = async () => {
-    try {
-      const token = localStorage.getItem('token');
-      if (!token) return;
-
-      const response = await fetch('/api/user/models', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📎 handleFileUpload çağrıldı');
+    const files = event.target.files;
+    console.log('📁 Seçilen dosyalar:', files ? files.length : 0);
+    
+    if (files) {
+      Array.from(files).forEach((file, index) => {
+        console.log(`Dosya ${index + 1}:`, file.name, file.type, file.size);
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        setAvailableModels(result.data || []);
-        // setHasApiKeys((result.data || []).length > 0);
+      
+      const newFiles = Array.from(files).filter(file => {
+        // Accept images and documents
+        const isValid = file.type.startsWith('image/') || 
+               file.type === 'application/pdf' || 
+               file.type.startsWith('text/') ||
+               file.type === 'application/msword' ||
+               file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+               file.type === 'application/vnd.ms-excel' ||
+               file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         
-        // Set DeepSeek Chat v3.1 as default model if available
-        if (result.data && result.data.length > 0) {
-          const deepSeekModel = result.data.find((model: any) => model.id === 'deepseek/deepseek-chat-v3.1:free');
-          if (deepSeekModel) {
-            setSelectedModel(deepSeekModel.id);
-          } else {
-            setSelectedModel(result.data[0].id);
-          }
-        } else {
-          // No API keys available, show modal after a short delay
-          // setTimeout(() => {
-          //   setShowApiKeyModal(true);
-          // }, 1000);
+        if (!isValid) {
+          console.log(`❌ Desteklenmeyen dosya türü: ${file.name} (${file.type})`);
         }
+        return isValid;
+      });
+      
+      // Check file limit (max 3)
+      const totalFiles = uploadedFiles.length + newFiles.length;
+      if (totalFiles > 3) {
+        console.error('❌ Maksimum 3 dosya yükleyebilirsiniz!');
+        alert('⚠️ Maksimum 3 dosya yükleyebilirsiniz!');
+        return;
       }
-    } catch (error) {
-      console.error('Failed to fetch models:', error);
-      // setHasApiKeys(false);
+      
+      setUploadedFiles(prev => [...prev, ...newFiles]);
+      console.log(`✅ ${newFiles.length} dosya yüklendi (Toplam: ${totalFiles})`);
     }
   };
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const createFilePreview = (file: File) => {
+    if (file.type.startsWith('image/')) {
+      return URL.createObjectURL(file);
+    }
+    return null;
+  };
+
+  const getFileType = (file: File) => {
+    if (file.type.startsWith('image/')) return 'image';
+    if (file.type === 'application/pdf') return 'pdf';
+    if (
+      file.type === 'application/msword' || 
+      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    ) return 'word';
+    if (
+      file.type === 'application/vnd.ms-excel' || 
+      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    ) return 'excel';
+    return 'document';
+  };
+
+  const getFileIcon = (fileType: string) => {
+    switch (fileType) {
+      case 'pdf':
+        return '/pdf_icon.png';
+      case 'word':
+        return '/word_icon.png';
+      case 'excel':
+        return '/excel_icon.png';
+      default:
+        return '/pdf_icon.png'; // default olarak pdf icon
+    }
+  };
+
+  const getFileColor = (fileType: string) => {
+    switch (fileType) {
+      case 'pdf':
+        return 'bg-red-500';
+      case 'word':
+        return 'bg-blue-500';
+      case 'excel':
+        return 'bg-green-500';
+      default:
+        return 'bg-gray-500';
+    }
+  };
+
+  // Drag & Drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('📎 Drag over');
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('📎 Drag enter');
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('📎 Drag leave');
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log('📎 Drop event');
+    
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      console.log('📁 Drop edilen dosyalar:', files.length);
+      // Create fake event object for handleFileUpload
+      const fakeEvent = {
+        target: { files: files }
+      } as React.ChangeEvent<HTMLInputElement>;
+      handleFileUpload(fakeEvent);
+    }
+  };
+
+  // Paste handler for Ctrl+V
+  const handlePaste = (e: React.ClipboardEvent) => {
+    console.log('📎 Paste event');
+    const items = e.clipboardData?.items;
+    if (items) {
+      const files: File[] = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.kind === 'file') {
+          const file = item.getAsFile();
+          if (file) {
+            files.push(file);
+          }
+        }
+      }
+      
+      if (files.length > 0) {
+        console.log('📁 Paste edilen dosyalar:', files.length);
+        
+        // Create DataTransfer to properly create FileList
+        const dataTransfer = new DataTransfer();
+        files.forEach(file => {
+          dataTransfer.items.add(file);
+        });
+        
+        const fakeEvent = {
+          target: { files: dataTransfer.files }
+        } as React.ChangeEvent<HTMLInputElement>;
+        handleFileUpload(fakeEvent);
+      }
+    }
+  };
+
+  const handleChatRename = async (chatId: string, newTitle: string) => {
+    try {
+      // TODO: Backend API hazır olunca gerçek PATCH isteği yapılacak
+      // Şimdilik local state'te güncelle
+      const updatedChats = chats.map(chat => 
+        chat.id === chatId ? { ...chat, title: newTitle } : chat
+      );
+      
+      // Local state'i güncelle
+      setChats(updatedChats);
+      
+      console.log('✅ Sohbet başlığı güncellendi (local)');
+    } catch (error) {
+      console.error('Failed to rename chat:', error);
+    }
+  };
+
+  const handleChatDelete = async (chatId: string) => {
+    try {
+      // TODO: Backend API hazır olunca gerçek DELETE isteği yapılacak
+      
+      // If we're deleting the current chat, clear it
+      if (currentChatId === chatId) {
+        setCurrentChatId(null);
+      }
+      
+      // Local state'ten chat'i kaldır
+      const updatedChats = chats.filter(chat => chat.id !== chatId);
+      setChats(updatedChats);
+      
+      console.log('✅ Sohbet silindi (local)');
+    } catch (error) {
+      console.error('Failed to delete chat:', error);
+    }
+  };
+
+  const handleChatArchive = async (chatId: string) => {
+    try {
+      // TODO: Backend API hazır olunca gerçek archive isteği yapılacak
+      
+      // Local state'ten chat'i kaldır (arşivlenmiş chat'ler görünmez)
+      const updatedChats = chats.filter(chat => chat.id !== chatId);
+      setChats(updatedChats);
+      
+      console.log('✅ Sohbet arşivlendi (local)');
+    } catch (error) {
+      console.error('Failed to archive chat:', error);
+    }
+  };
+
 
 
   useEffect(() => {
@@ -203,9 +379,21 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     if (isAuthenticated) {
       fetchChats();
-      fetchAvailableModels();
     }
   }, [isAuthenticated, fetchChats]);
+
+  // Redirect to specific chat URL if we have a current chat but are on general /chat page
+  useEffect(() => {
+    if (currentChatId && typeof window !== 'undefined') {
+      const currentPath = window.location.pathname;
+      const expectedPath = `/chat/${currentChatId}`;
+      
+      // Only redirect if we're on /chat (not on a specific chat page)
+      if (currentPath === '/chat') {
+        router.push(expectedPath);
+      }
+    }
+  }, [currentChatId, router]);
 
   if (isLoading) {
     return (
@@ -229,9 +417,12 @@ const ChatPage: React.FC = () => {
         <AppSidebar
           chats={chats}
           currentChatId={currentChatId}
-          onChatSelect={setCurrentChatId}
+          onChatSelect={navigateToChat}
           onNewChat={handleNewChat}
           onSearchOpen={handleSearchOpen}
+          onChatRename={handleChatRename}
+          onChatDelete={handleChatDelete}
+          onChatArchive={handleChatArchive}
         />
 
 
@@ -291,6 +482,7 @@ const ChatPage: React.FC = () => {
                   </>
                 )}
                 
+                
                 {/* Invisible div at the end for auto-scrolling */}
                 <div ref={messagesEndRef} className="h-1" />
               </div>
@@ -304,20 +496,95 @@ const ChatPage: React.FC = () => {
                   className="rounded-2xl p-1 space-y-3"
                   style={{ backgroundColor: 'color-mix(in oklab, var(--primary) 10%, transparent)' }}
                 >
-                  {/* Upgrade Pro Text */}
-                  <div className="text-xs font-medium mr-4" style={{ color: '#fff' }}>
-                    Upgrade Pro
+                  {/* Pro Plan Text */}
+                  <div className="px-3 mb-1">
+                    <div className="text-xs text-muted-foreground/80">
+                      Use our faster AI on Pro Plan • <span className="text-primary hover:underline cursor-pointer">Upgrade</span>
+                    </div>
                   </div>
 
+
                   {/* Main Input Container */}
-                  <div className="rounded-xl border border-border/40 p-3" style={{ backgroundColor: 'oklch(0.141 0.004 285.83)' }}>
+                  <div 
+                    className="rounded-xl border border-border/40 p-3" 
+                    style={{ backgroundColor: 'oklch(0.141 0.004 285.83)' }}
+                    onDragOver={handleDragOver}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onPaste={handlePaste}
+                  >
+                    {/* File Previews */}
+                    {uploadedFiles.length > 0 && (
+                      <div className="mb-3">
+                        <div className="flex gap-2 flex-wrap">
+                          {uploadedFiles.map((file, index) => {
+                            const preview = createFilePreview(file);
+                            const fileType = getFileType(file);
+                            const fileIcon = getFileIcon(fileType);
+                            const fileColor = getFileColor(fileType);
+                            
+                            return (
+                              <div 
+                                key={index} 
+                                className="relative bg-muted/50 rounded-lg overflow-hidden border border-border/30"
+                                style={{ width: '80px', height: '80px' }}
+                                draggable={false}
+                                onDragStart={(e) => e.preventDefault()}
+                              >
+                                {preview ? (
+                                  <img 
+                                    src={preview} 
+                                    alt={file.name}
+                                    className="w-full h-full object-cover"
+                                    draggable={false}
+                                    onDragStart={(e) => e.preventDefault()}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center p-1">
+                                    <div className="w-10 h-10 flex items-center justify-center mb-1">
+                                      <img 
+                                        src={fileIcon} 
+                                        alt={fileType} 
+                                        className="w-8 h-8 object-contain"
+                                        draggable={false}
+                                        onDragStart={(e) => e.preventDefault()}
+                                      />
+                                    </div>
+                                    <span className="text-xs text-muted-foreground/70 text-center truncate w-full">
+                                      {file.name.length > 12 ? file.name.substring(0, 8) + '...' : file.name}
+                                    </span>
+                                  </div>
+                                )}
+                                <button
+                                  onClick={() => removeFile(index)}
+                                  className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-destructive/90 shadow-sm"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Textarea - Compact */}
                     <Textarea
                       value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value.length <= 2000) {
+                          setInputMessage(value);
+                        } else {
+                          console.error('❌ Maksimum 2000 karakter girebilirsiniz!');
+                          alert('⚠️ Maksimum 2000 karakter girebilirsiniz!');
+                        }
+                      }}
                       placeholder="Norvis AI'ya bir şey sorun..."
                       className="w-full min-h-[40px] max-h-32 resize-none border-0 px-0 py-1 text-sm placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 leading-relaxed mb-3"
                       style={{ backgroundColor: 'oklch(14.1% .004 285.83)' }}
+                      maxLength={2000}
                       rows={1}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' && !e.shiftKey) {
@@ -325,6 +592,16 @@ const ChatPage: React.FC = () => {
                           handleSendMessage();
                         }
                       }}
+                    />
+
+                    {/* Hidden file input */}
+                    <input
+                      type="file"
+                      id="file-upload"
+                      className="hidden"
+                      multiple
+                      accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx"
+                      onChange={handleFileUpload}
                     />
 
                     {/* Bottom Row - Controls */}
@@ -337,11 +614,21 @@ const ChatPage: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 rounded-full hover:bg-accent"
+                              onClick={() => {
+                                console.log('📎 Paperclip butonuna tıklandı');
+                                const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+                                if (fileInput) {
+                                  console.log('📁 File input bulundu, tıklanıyor...');
+                                  fileInput.click();
+                                } else {
+                                  console.error('❌ File input bulunamadı!');
+                                }
+                              }}
                             >
                               <Paperclip className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Attach file</TooltipContent>
+                          <TooltipContent>Dosya ekle</TooltipContent>
                         </Tooltip>
                         
                         <Tooltip>
@@ -377,7 +664,7 @@ const ChatPage: React.FC = () => {
                           <Button
                             onClick={handleSendClick}
                             size="sm"
-                            disabled={!inputMessage.trim() || isAIThinking || isAIResponding}
+                            disabled={(!inputMessage.trim() && uploadedFiles.length === 0) || isAIThinking || isAIResponding}
                             className="h-8 w-8 rounded-full bg-foreground hover:bg-foreground/90 text-background disabled:opacity-30 disabled:cursor-not-allowed"
                           >
                             <ArrowUp className="h-3 w-3" />

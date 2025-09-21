@@ -2,9 +2,11 @@
 
 import React from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
 import { ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { 
   Sidebar,
@@ -20,12 +22,21 @@ import {
 } from '@/components/ui/sidebar';
 import { 
   Plus, 
-  MessageSquare, 
   Settings, 
   LogOut,
   User,
-  Search
+  Search,
+  MoreVertical,
+  Edit,
+  Trash2,
+  Archive
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 interface Chat {
@@ -43,6 +54,9 @@ interface AppSidebarProps {
   onChatSelect?: (chatId: string) => void;
   onNewChat?: () => void;
   onSearchOpen?: () => void;
+  onChatRename?: (chatId: string, newTitle: string) => void;
+  onChatDelete?: (chatId: string) => void;
+  onChatArchive?: (chatId: string) => void;
 }
 
 export function AppSidebar({ 
@@ -50,10 +64,15 @@ export function AppSidebar({
   currentChatId, 
   onChatSelect, 
   onNewChat,
-  onSearchOpen
+  onSearchOpen,
+  onChatRename,
+  onChatDelete,
+  onChatArchive
 }: AppSidebarProps) {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const [editingChatId, setEditingChatId] = React.useState<string | null>(null);
+  const [editTitle, setEditTitle] = React.useState('');
 
   const handleLogout = () => {
     logout();
@@ -72,42 +91,70 @@ export function AppSidebar({
     }
   };
 
+  const startEditing = (chat: Chat) => {
+    setEditingChatId(chat.id);
+    setEditTitle(chat.title);
+  };
+
+  const cancelEditing = () => {
+    setEditingChatId(null);
+    setEditTitle('');
+  };
+
+  const saveEdit = () => {
+    if (editingChatId && editTitle.trim() && onChatRename) {
+      onChatRename(editingChatId, editTitle.trim());
+    }
+    cancelEditing();
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      saveEdit();
+    } else if (e.key === 'Escape') {
+      cancelEditing();
+    }
+  };
+
   const recentChats = chats.slice(0, 4);
   const olderChats = chats.slice(4);
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4">
-        <div className="flex items-center space-x-3 group-data-[collapsible=icon]:justify-center">
-          <div className="h-8 w-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <MessageSquare className="h-4 w-4 text-white" />
-          </div>
-          <div className="group-data-[collapsible=icon]:hidden">
-            <h1 className="text-sm font-semibold text-sidebar-foreground">
-              Norvis AI
-            </h1>
-            <p className="text-xs text-muted-foreground">Enterprise</p>
-          </div>
-        </div>
-        <Button className="w-full mt-4 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:mx-auto" variant="outline" onClick={handleNewChat}>
-          <Plus className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
-          <span className="group-data-[collapsible=icon]:hidden">New chat</span>
+      <div className="flex justify-left">
+        <Link href="/chat" className="no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-16 w-16 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 transition-colors">
+          <img 
+            src="/norvis_logo.png" 
+            alt="Norvis AI" 
+            className="h-17 w-17 object-contain brightness-0 invert"
+          />
+        </Link>
+      </div>
+      
+      <div className="px-1 pb-3 space-y-0.5">
+        <Button 
+          className="w-full justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0" 
+          variant="ghost" 
+          onClick={handleNewChat}
+        >
+          <Plus className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-1" />
+          <span className="group-data-[collapsible=icon]:hidden font-medium">Yeni sohbet</span>
         </Button>
         
         <Button 
-          className="w-full mt-2 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:h-8 group-data-[collapsible=icon]:p-0 group-data-[collapsible=icon]:mx-auto" 
+          className="w-full justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0" 
           variant="ghost" 
           onClick={onSearchOpen}
         >
-          <Search className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
-          <span className="group-data-[collapsible=icon]:hidden">Sohbetleri ara</span>
+          <Search className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-1" />
+          <span className="group-data-[collapsible=icon]:hidden font-medium">Sohbetleri ara</span>
         </Button>
-      </SidebarHeader>
+      </div>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs text-muted-foreground px-2 mb-2 group-data-[collapsible=icon]:hidden">
-            Your conversations
+          <SidebarGroupLabel className="text-xs text-muted-foreground px-2 group-data-[collapsible=icon]:hidden">
+            Sohbetler
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -119,15 +166,62 @@ export function AppSidebar({
               ) : (
                 chats.map((chat) => (
                   <SidebarMenuItem key={chat.id}>
-                    <SidebarMenuButton 
-                      className={`w-full justify-start ${
-                        currentChatId === chat.id ? 'bg-sidebar-accent' : ''
-                      }`}
-                      onClick={() => handleChatClick(chat.id)}
-                    >
-                      <MessageSquare className="h-4 w-4" />
-                      <span className="truncate group-data-[collapsible=icon]:hidden">{chat.title}</span>
-                    </SidebarMenuButton>
+                    <div className="flex items-center w-full group/item hover:bg-sidebar-accent rounded-md transition-colors">
+                      {editingChatId === chat.id ? (
+                        <div className="flex-1 px-2 py-1">
+                          <Input
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            onKeyDown={handleKeyPress}
+                            onBlur={saveEdit}
+                            className="h-8 text-sm border-sidebar-border bg-sidebar focus-visible:ring-1"
+                            autoFocus
+                          />
+                        </div>
+                      ) : (
+                        <SidebarMenuButton 
+                          className={`flex-1 justify-start border-0 shadow-none hover:bg-transparent px-2 ${
+                            currentChatId === chat.id ? 'bg-sidebar-accent' : ''
+                          }`}
+                          onClick={() => handleChatClick(chat.id)}
+                        >
+                          <span className="truncate group-data-[collapsible=icon]:hidden">{chat.title}</span>
+                        </SidebarMenuButton>
+                      )}
+                      
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 w-8 p-0 mr-2 opacity-0 group-hover/item:opacity-100 transition-opacity group-data-[collapsible=icon]:hidden"
+                          >
+                            <MoreVertical className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-48">
+                          <DropdownMenuItem 
+                            onClick={() => startEditing(chat)}
+                          >
+                            <Edit className="mr-2 h-4 w-4" />
+                            Yeniden adlandır
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => onChatArchive && onChatArchive(chat.id)}
+                          >
+                            <Archive className="mr-2 h-4 w-4" />
+                            Arşivle
+                          </DropdownMenuItem>
+                          <DropdownMenuItem 
+                            onClick={() => onChatDelete && onChatDelete(chat.id)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Sil
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </SidebarMenuItem>
                 ))
               )}

@@ -9,6 +9,40 @@ interface MessageBubbleProps {
   isUser: boolean
 }
 
+const getFileTypeFromUrl = (url: string) => {
+  if (url.startsWith('data:image/')) return 'image';
+  if (url.includes('pdf') || url.startsWith('data:application/pdf')) return 'pdf';
+  if (url.includes('word') || url.includes('docx')) return 'word';
+  if (url.includes('excel') || url.includes('xlsx')) return 'excel';
+  return 'document';
+};
+
+const getFileIcon = (fileType: string) => {
+  switch (fileType) {
+    case 'pdf':
+      return '/pdf_icon.png';
+    case 'word':
+      return '/word_icon.png';
+    case 'excel':
+      return '/excel_icon.png';
+    default:
+      return '/pdf_icon.png';
+  }
+};
+
+const getFileColor = (fileType: string) => {
+  switch (fileType) {
+    case 'pdf':
+      return 'bg-red-500';
+    case 'word':
+      return 'bg-blue-500';
+    case 'excel':
+      return 'bg-green-500';
+    default:
+      return 'bg-gray-500';
+  }
+};
+
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser }) => {
   if (isUser) {
     // User message - Right side with bubble
@@ -16,9 +50,58 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
       <div className="flex justify-end mb-6">
         <div className="flex items-start space-x-3 max-w-[80%]">
           <div className="bg-gray-800 text-gray-100 rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
-            <div className="text-sm leading-relaxed whitespace-pre-wrap">
-              {message.content}
-            </div>
+            {/* Display images and documents if any */}
+            {message.images && message.images.length > 0 && (
+              <div className="mb-3 space-y-2">
+                {message.images.map((imageUrl, index) => {
+                  const fileType = getFileTypeFromUrl(imageUrl);
+                  
+                  if (fileType === 'image') {
+                    return (
+                      <img 
+                        key={index}
+                        src={imageUrl}
+                        alt={`Uploaded image ${index + 1}`}
+                        className="max-w-full h-auto rounded-lg border border-gray-600"
+                        style={{ maxHeight: '200px' }}
+                        draggable={false}
+                        onDragStart={(e) => e.preventDefault()}
+                      />
+                    );
+                  } else {
+                    const fileIcon = getFileIcon(fileType);
+                    const fileColor = getFileColor(fileType);
+                    
+                    return (
+                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg border border-gray-600">
+                        <div className="w-10 h-10 flex items-center justify-center">
+                          <img 
+                            src={fileIcon} 
+                            alt={fileType} 
+                            className="w-8 h-8 object-contain"
+                            draggable={false}
+                            onDragStart={(e) => e.preventDefault()}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-100">
+                            {fileType.toUpperCase()} Dosyası
+                          </p>
+                          <p className="text-xs text-gray-300">
+                            Dosya yüklendi
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            )}
+            {message.content && (
+              <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                {message.content}
+              </div>
+            )}
           </div>
           <Avatar className="h-8 w-8 flex-shrink-0">
             <AvatarFallback className="bg-gray-800 text-gray-100 font-bold text-sm">
