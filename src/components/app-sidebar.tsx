@@ -19,6 +19,8 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarTrigger,
+  useSidebar,
 } from '@/components/ui/sidebar';
 import { 
   Plus, 
@@ -38,6 +40,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface Chat {
   id: string;
@@ -57,6 +60,7 @@ interface AppSidebarProps {
   onChatRename?: (chatId: string, newTitle: string) => void;
   onChatDelete?: (chatId: string) => void;
   onChatArchive?: (chatId: string) => void;
+  onSidebarStateChange?: (state: 'expanded' | 'collapsed') => void;
 }
 
 export function AppSidebar({ 
@@ -67,10 +71,12 @@ export function AppSidebar({
   onSearchOpen,
   onChatRename,
   onChatDelete,
-  onChatArchive
+  onChatArchive,
+  onSidebarStateChange
 }: AppSidebarProps) {
   const router = useRouter();
   const { user, logout } = useAuthStore();
+  const { state } = useSidebar();
   const [editingChatId, setEditingChatId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState('');
 
@@ -119,16 +125,32 @@ export function AppSidebar({
   const recentChats = chats.slice(0, 4);
   const olderChats = chats.slice(4);
 
+  // Notify parent about sidebar state changes
+  React.useEffect(() => {
+    if (onSidebarStateChange) {
+      onSidebarStateChange(state);
+    }
+  }, [state, onSidebarStateChange]);
+
   return (
-    <Sidebar collapsible="icon">
-      <div className="flex justify-left">
-        <Link href="/chat" className="no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-16 w-16 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 transition-colors">
+    <TooltipProvider>
+      <Sidebar collapsible="icon">
+      <div className="flex justify-between items-center">
+        <Link href="/chat" className={`no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-14 w-14 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 transition-colors ${state === 'collapsed' ? 'group-data-[collapsible=icon]:hidden' : ''}`}>
           <img 
             src="/norvis_logo.png" 
             alt="Norvis AI" 
             className="h-17 w-17 object-contain brightness-0 invert"
           />
         </Link>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <SidebarTrigger className="bg-transparent hover:bg-sidebar-accent border-0 p-2 rounded-md transition-colors mr-2 group-data-[collapsible=icon]:mx-auto group-data-[collapsible=icon]:mt-2" />
+          </TooltipTrigger>
+          <TooltipContent>
+            {state === 'expanded' ? 'Kenar çubuğunu kapat' : 'Kenar çubuğunu aç'}
+          </TooltipContent>
+        </Tooltip>
       </div>
       
       <div className="px-1 pb-3 space-y-0.5">
@@ -258,6 +280,7 @@ export function AppSidebar({
           </div>
         </div>
       </SidebarFooter>
-    </Sidebar>
+      </Sidebar>
+    </TooltipProvider>
   );
 }

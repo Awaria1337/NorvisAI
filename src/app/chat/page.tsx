@@ -57,6 +57,9 @@ const ChatPage: React.FC = () => {
     setChats
   } = useChatStore();
   
+  // Sidebar state will be passed from AppSidebar
+  const [sidebarState, setSidebarState] = useState<'expanded' | 'collapsed'>('expanded');
+  
   // Memoize currentChat to ensure proper re-rendering when chats or currentChatId changes
   const currentChat = useMemo(() => getCurrentChat(), [chats, currentChatId, getCurrentChat]);
   const [inputMessage, setInputMessage] = useState('');
@@ -423,6 +426,7 @@ const ChatPage: React.FC = () => {
           onChatRename={handleChatRename}
           onChatDelete={handleChatDelete}
           onChatArchive={handleChatArchive}
+          onSidebarStateChange={setSidebarState}
         />
 
 
@@ -430,8 +434,9 @@ const ChatPage: React.FC = () => {
           {/* Main Chat Area */}
           <div className="flex-1 flex flex-col bg-background h-screen overflow-hidden relative">
             {/* ChatGPT-style Fixed Top Left */}
-            <div className="fixed top-0 left-0 md:left-64 z-30 flex items-center space-x-3 p-4">
-              <SidebarTrigger className="bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent" />
+            <div className={`fixed top-0 left-0 z-30 flex items-center space-x-3 p-4 transition-all duration-300 ${
+              sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
+            }`}>
               <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">Norvis AI</h1>
             </div>
 
@@ -489,7 +494,9 @@ const ChatPage: React.FC = () => {
             </ScrollArea>
 
         {/* Message Input - Fixed Bottom - Original Design Restored */}
-        <div className="fixed bottom-0 left-0 right-0 md:left-64 bg-background backdrop-blur-sm px-6 py-4 z-50">
+        <div className={`fixed bottom-0 left-0 right-0 bg-background backdrop-blur-sm px-6 py-4 z-50 transition-all duration-300 ${
+          sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
+        }`}>
               <div className="max-w-4xl mx-auto">
                 {/* Outer Container - Compact */}
                 <div
