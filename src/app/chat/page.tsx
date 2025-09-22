@@ -54,7 +54,9 @@ const ChatPage: React.FC = () => {
     sendMessage,
     setCurrentChatId,
     navigateToChat,
-    setChats
+    setChats,
+    deleteChat,
+    renameChat
   } = useChatStore();
   
   // Sidebar state will be passed from AppSidebar
@@ -322,37 +324,25 @@ const ChatPage: React.FC = () => {
 
   const handleChatRename = async (chatId: string, newTitle: string) => {
     try {
-      // TODO: Backend API hazır olunca gerçek PATCH isteği yapılacak
-      // Şimdilik local state'te güncelle
-      const updatedChats = chats.map(chat => 
-        chat.id === chatId ? { ...chat, title: newTitle } : chat
-      );
-      
-      // Local state'i güncelle
-      setChats(updatedChats);
-      
-      console.log('✅ Sohbet başlığı güncellendi (local)');
+      console.log('📝 Renaming chat:', chatId, 'to:', newTitle);
+      await renameChat(chatId, newTitle);
+      console.log('✅ Chat renamed successfully in database and UI');
     } catch (error) {
-      console.error('Failed to rename chat:', error);
+      console.error('❌ Failed to rename chat:', error);
+      // Show user-friendly error message
+      alert('Sohbet adlandırılırken bir hata oluştu. Lütfen tekrar deneyin.');
     }
   };
 
   const handleChatDelete = async (chatId: string) => {
     try {
-      // TODO: Backend API hazır olunca gerçek DELETE isteği yapılacak
-      
-      // If we're deleting the current chat, clear it
-      if (currentChatId === chatId) {
-        setCurrentChatId(null);
-      }
-      
-      // Local state'ten chat'i kaldır
-      const updatedChats = chats.filter(chat => chat.id !== chatId);
-      setChats(updatedChats);
-      
-      console.log('✅ Sohbet silindi (local)');
+      console.log('🗑️ Deleting chat:', chatId);
+      await deleteChat(chatId);
+      console.log('✅ Chat deleted successfully from database and UI');
     } catch (error) {
-      console.error('Failed to delete chat:', error);
+      console.error('❌ Failed to delete chat:', error);
+      // Show user-friendly error message
+      alert('Sohbet silinirken bir hata oluştu. Lütfen tekrar deneyin.');
     }
   };
 
@@ -434,9 +424,11 @@ const ChatPage: React.FC = () => {
           {/* Main Chat Area */}
           <div className="flex-1 flex flex-col bg-background h-screen overflow-hidden relative">
             {/* ChatGPT-style Fixed Top Left */}
-            <div className={`fixed top-0 left-0 z-30 flex items-center space-x-3 p-4 transition-all duration-300 ${
+            <div className={`fixed top-0 left-0 z-30 flex items-center space-x-3 p-3 transition-all duration-300 ${
               sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
             }`}>
+              {/* Mobile Sidebar Trigger - only show on mobile */}
+              <SidebarTrigger className="md:hidden bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent" />
               <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">Norvis AI</h1>
             </div>
 

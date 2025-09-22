@@ -86,5 +86,6 @@ export const ROUTES = {
   REGISTER: '/auth/register',
   CHAT: '/chat',
   PROFILE: '/profile',
-  SETTINGS: '/settings'
+  SETTINGS: '/settings',
+  PRICING: '/pricing'
 } as const;

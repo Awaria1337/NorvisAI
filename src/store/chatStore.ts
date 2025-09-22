@@ -45,7 +45,8 @@ interface ChatState {
   navigateToChat: (chatId: string) => void;
   addChat: (chat: Chat) => void;
   updateChat: (chatId: string, updates: Partial<Chat>) => void;
-  deleteChat: (chatId: string) => void;
+  deleteChat: (chatId: string) => Promise<void>;
+  renameChat: (chatId: string, newTitle: string) => Promise<void>;
   addMessage: (chatId: string, message: Message) => void;
   updateMessage: (chatId: string, messageId: string, updates: Partial<Message>) => void;
   deleteMessage: (chatId: string, messageId: string) => void;
@@ -117,10 +118,111 @@ export const useChatStore = create<ChatState>()(
         )
       })),
       
-      deleteChat: (chatId) => set((state) => ({
-        chats: state.chats.filter(chat => chat.id !== chatId),
-        currentChatId: state.currentChatId === chatId ? null : state.currentChatId
-      })),
+      deleteChat: async (chatId) => {
+        try {
+          console.log('🗑️ Starting chat deletion:', chatId);
+          set({ isLoading: true, error: null });
+          
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.error('❌ No authentication token for delete');
+            throw new Error('No authentication token');
+          }
+          
+          console.log('📤 Making DELETE request to API');
+          const response = await fetch(`/api/chats/${chatId}`, {
+            method: 'DELETE',
+            headers: {
+              'Authorization': `Bearer ${token}`
+            }
+          });
+          
+          console.log('📥 Delete response status:', response.status);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('❌ Delete API error:', errorData);
+            throw new Error(errorData.error || `Failed to delete chat: ${response.status}`);
+          }
+          
+          const result = await response.json();
+          console.log('✅ Chat deleted successfully from database:', result);
+          
+          // Update local state after successful API call
+          set((state) => ({
+            chats: state.chats.filter(chat => chat.id !== chatId),
+            currentChatId: state.currentChatId === chatId ? null : state.currentChatId,
+            isLoading: false
+          }));
+          
+          // Navigate away from deleted chat if we're currently viewing it
+          if (get().currentChatId === chatId && typeof window !== 'undefined') {
+            window.history.pushState({}, '', '/chat');
+          }
+          
+          console.log('✅ Local state updated after chat deletion');
+          
+        } catch (error) {
+          console.error('❌ Chat deletion failed:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to delete chat',
+            isLoading: false 
+          });
+          throw error;
+        }
+      },
+      
+      renameChat: async (chatId: string, newTitle: string) => {
+        try {
+          console.log('✏️ Renaming chat:', chatId, 'to:', newTitle);
+          set({ error: null });
+          
+          const token = localStorage.getItem('token');
+          if (!token) {
+            console.error('❌ No authentication token for rename');
+            throw new Error('No authentication token');
+          }
+          
+          console.log('📤 Making PATCH request to API');
+          const response = await fetch(`/api/chats/${chatId}`, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ title: newTitle })
+          });
+          
+          console.log('📥 Rename response status:', response.status);
+          
+          if (!response.ok) {
+            const errorData = await response.json();
+            console.error('❌ Rename API error:', errorData);
+            throw new Error(errorData.error || `Failed to rename chat: ${response.status}`);
+          }
+          
+          const result = await response.json();
+          console.log('✅ Chat renamed successfully in database:', result);
+          
+          // Update local state after successful API call
+          set((state) => ({
+            chats: state.chats.map(chat =>
+              chat.id === chatId 
+                ? { ...chat, title: newTitle, updatedAt: new Date() }
+                : chat
+            )
+          }));
+          
+          console.log('✅ Local state updated after chat rename');
+          
+        } catch (error) {
+          console.error('❌ Chat rename failed:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to rename chat'
+          });
+          throw error;
+        }
+      },
       
       addMessage: (chatId, message) => set((state) => ({
         chats: state.chats.map(chat =>
