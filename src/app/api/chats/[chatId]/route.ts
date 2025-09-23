@@ -5,7 +5,7 @@ import { verifyToken } from '@/lib/auth';
 // DELETE /api/chats/[chatId] - Delete a specific chat
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -26,7 +26,7 @@ export async function DELETE(
       );
     }
 
-    const { chatId } = params;
+    const { chatId } = await params;
 
     // Verify chat exists and belongs to user
     const existingChat = await prisma.chat.findFirst({
@@ -69,7 +69,7 @@ export async function DELETE(
 // GET /api/chats/[chatId] - Get a specific chat with messages
 export async function GET(
   request: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -90,7 +90,7 @@ export async function GET(
       );
     }
 
-    const { chatId } = params;
+    const { chatId } = await params;
 
     // Fetch specific chat with messages
     const chat = await prisma.chat.findFirst({
@@ -131,7 +131,7 @@ export async function GET(
 // PATCH /api/chats/[chatId] - Update chat title
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { chatId: string } }
+  { params }: { params: Promise<{ chatId: string }> }
 ) {
   try {
     const authHeader = request.headers.get('authorization');
@@ -152,7 +152,7 @@ export async function PATCH(
       );
     }
 
-    const { chatId } = params;
+    const { chatId } = await params;
     const body = await request.json();
     const { title } = body;
 

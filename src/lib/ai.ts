@@ -317,37 +317,59 @@ export async function sendToAI(
   messages: Array<{ role: string; content: string }>,
   model: string,
   userId: string
-): Promise<string> {
+): Promise<AIResponse> {
   try {
+    console.log(`=== SENDING TO AI ===`);
+    console.log(`Model: ${model}`);
+    console.log(`User ID: ${userId}`);
+    
     const provider = getProviderFromModel(model);
+    console.log(`Provider: ${provider}`);
     
     // Use environment variable for OpenRouter API key
     const apiKey = process.env.OPENROUTER_API_KEY;
     
     if (!apiKey) {
+      console.error('OpenRouter API key not found in environment variables');
       throw new Error('OpenRouter API key not configured in environment variables');
     }
     
+    console.log(`Using API key: ${apiKey.substring(0, 10)}...`);
+    
+    let result: AIResponse;
+    
     switch (provider) {
       case 'openrouter':
-        return await sendToOpenRouter(messages, model, apiKey);
+        result = await sendToOpenRouter(messages, model, apiKey);
+        break;
       case 'openai':
         const openaiKey = process.env.OPENAI_API_KEY;
         if (!openaiKey) throw new Error('OpenAI API key not configured');
-        return await sendToOpenAI(messages, model, openaiKey);
+        result = await sendToOpenAI(messages, model, openaiKey);
+        break;
       case 'anthropic':
         const anthropicKey = process.env.ANTHROPIC_API_KEY;
         if (!anthropicKey) throw new Error('Anthropic API key not configured');
-        return await sendToAnthropic(messages, model, anthropicKey);
+        result = await sendToAnthropic(messages, model, anthropicKey);
+        break;
       case 'google':
         const googleKey = process.env.GOOGLE_API_KEY;
         if (!googleKey) throw new Error('Google API key not configured');
-        return await sendToGemini(messages, model, googleKey);
+        result = await sendToGemini(messages, model, googleKey);
+        break;
       default:
         throw new Error(`Unsupported AI provider: ${provider}`);
     }
+    
+    console.log(`=== AI RESPONSE SUCCESS ===`);
+    console.log(`Response length: ${result.content.length}`);
+    console.log(`========================`);
+    
+    return result;
   } catch (error) {
-    console.error('AI Service Error:', error);
+    console.error('=== AI SERVICE ERROR ===');
+    console.error('Error details:', error);
+    console.error('======================');
     throw error;
   }
 }
@@ -395,13 +417,18 @@ export async function getAvailableModels(userId: string): Promise<Array<{id: str
       );
     }
 
+    // Always show OpenRouter models since we have API key in env
+    models.push(
+      { id: 'deepseek/deepseek-chat-v3.1:free', name: 'DeepSeek Chat v3.1 (Free)', provider: 'openrouter' },
+      { id: 'google/gemma-2-9b-it:free', name: 'Gemma 2 9B (Free)', provider: 'openrouter' },
+      { id: 'meta-llama/llama-3.1-8b-instruct:free', name: 'Llama 3.1 8B (Free)', provider: 'openrouter' },
+      { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B (Free)', provider: 'openrouter' },
+      { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Paid)', provider: 'openrouter' },
+      { id: 'openai/gpt-4o', name: 'GPT-4o (Paid)', provider: 'openrouter' }
+    );
+    
     if (providers.includes('openrouter')) {
-      models.push(
-        { id: 'deepseek/deepseek-chat-v3.1:free', name: 'DeepSeek Chat v3.1 (Free)', provider: 'openrouter' },
-        { id: 'deepseek/deepseek-coder', name: 'DeepSeek Coder', provider: 'openrouter' },
-        { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (OpenRouter)', provider: 'openrouter' },
-        { id: 'openai/gpt-4o', name: 'GPT-4o (OpenRouter)', provider: 'openrouter' }
-      );
+      console.log('User has OpenRouter API key configured');
     }
 
     if (providers.includes('mistral')) {

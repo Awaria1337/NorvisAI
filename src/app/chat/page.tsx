@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import toast from 'react-hot-toast';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -32,7 +33,14 @@ import {
   MessageSquare,
   ArrowUp,
   Key,
-  Search
+  Search,
+  Upload,
+  CheckCircle,
+  AlertTriangle,
+  XCircle,
+  Clock,
+  Trash2,
+  FileText
 } from 'lucide-react';
 import MessageBubble from '@/components/ui/message-bubble';
 import AILoadingStates from '@/components/ui/ai-loading-states';
@@ -45,6 +53,34 @@ import SearchModal from '@/components/ui/search-modal';
 const ChatPage: React.FC = () => {
   const router = useRouter();
   const { isAuthenticated, isLoading, logout } = useAuthStore();
+  
+  // Custom toast helper with Lucide icons
+  const showToast = {
+    success: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
+      toast.success(message, {
+        icon: (options?.icon || <CheckCircle className="w-4 h-4" />) as any, 
+        duration: options?.duration || 3000,
+      });
+    },
+    error: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
+      toast.error(message, {
+        icon: (options?.icon || <XCircle className="w-4 h-4" />) as any,
+        duration: options?.duration || 4000,
+      });
+    },
+    warning: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
+      toast.error(message, {
+        icon: (options?.icon || <AlertTriangle className="w-4 h-4" />) as any,
+        duration: options?.duration || 4000,
+      });
+    },
+    info: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
+      toast(message, {
+        icon: (options?.icon || <FileText className="w-4 h-4" />) as any,
+        duration: options?.duration || 3000,
+      });
+    }
+  };
   const {
     chats,
     getCurrentChat,
@@ -112,7 +148,10 @@ const ChatPage: React.FC = () => {
 
     // Don't send if AI is already processing
     if (isAIThinking || isAIResponding) {
-      console.log('AI is busy, please wait...');
+      showToast.warning('AI şu anda meşgul, lütfen bekleyin...', {
+        icon: <Clock className="w-4 h-4" />,
+        duration: 2000,
+      });
       return;
     }
 
@@ -122,14 +161,12 @@ const ChatPage: React.FC = () => {
     setUploadedFiles([]);
     
     try {
-      console.log('🚀 Starting message send process...');
       await sendMessage(content, false, filesToSend);
-      console.log('✅ Message sent successfully');
     } catch (error) {
-      console.error('❌ Failed to send message:', error);
       // If message fails, restore the input content and files
       setInputMessage(content);
       setUploadedFiles(filesToSend);
+      showToast.error('Mesaj gönderilemedi, lütfen tekrar deneyin.');
     }
   };
 
@@ -147,7 +184,7 @@ const ChatPage: React.FC = () => {
       // Clear input when creating new chat
       setInputMessage('');
     } catch (error) {
-      console.error('Failed to create new chat:', error);
+      showToast.error('Yeni sohbet oluşturulamadı, lütfen tekrar deneyin.');
     }
   };
 
@@ -165,14 +202,9 @@ const ChatPage: React.FC = () => {
   };
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    console.log('📎 handleFileUpload çağrıldı');
     const files = event.target.files;
-    console.log('📁 Seçilen dosyalar:', files ? files.length : 0);
     
     if (files) {
-      Array.from(files).forEach((file, index) => {
-        console.log(`Dosya ${index + 1}:`, file.name, file.type, file.size);
-      });
       
       const newFiles = Array.from(files).filter(file => {
         // Accept images and documents
@@ -185,26 +217,51 @@ const ChatPage: React.FC = () => {
                file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         
         if (!isValid) {
-          console.log(`❌ Desteklenmeyen dosya türü: ${file.name} (${file.type})`);
+          showToast.error(`Desteklenmeyen dosya türü: ${file.name}`, {
+            icon: <AlertTriangle className="w-4 h-4" />
+          });
         }
         return isValid;
       });
       
+      // Check if we have any unsupported files
+      if (newFiles.length < Array.from(files).length) {
+        const unsupportedCount = Array.from(files).length - newFiles.length;
+        showToast.warning(`${unsupportedCount} dosya desteklenmeyen formatta`, {
+          icon: <AlertTriangle className="w-4 h-4" />
+        });
+      }
+      
       // Check file limit (max 3)
       const totalFiles = uploadedFiles.length + newFiles.length;
       if (totalFiles > 3) {
-        console.error('❌ Maksimum 3 dosya yükleyebilirsiniz!');
-        alert('⚠️ Maksimum 3 dosya yükleyebilirsiniz!');
+        showToast.warning('Maksimum 3 dosya yükleyebilirsiniz!', {
+          icon: <AlertTriangle className="w-4 h-4" />,
+          duration: 4000,
+        });
         return;
       }
       
-      setUploadedFiles(prev => [...prev, ...newFiles]);
-      console.log(`✅ ${newFiles.length} dosya yüklendi (Toplam: ${totalFiles})`);
+      if (newFiles.length > 0) {
+        setUploadedFiles(prev => [...prev, ...newFiles]);
+        const fileText = newFiles.length === 1 ? 'dosya' : 'dosya';
+        showToast.success(`${newFiles.length} ${fileText} başarıyla yüklendi!`, {
+          icon: <Upload className="w-4 h-4" />,
+          duration: 3000,
+        });
+      }
     }
+    
+    // Clear the input value to allow re-uploading the same file
+    event.target.value = '';
   };
 
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
+    showToast.success('Dosya kaldırıldı', {
+      icon: <Trash2 className="w-4 h-4" />,
+      duration: 2000,
+    });
   };
 
   const createFilePreview = (file: File) => {
@@ -258,29 +315,24 @@ const ChatPage: React.FC = () => {
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('📎 Drag over');
   };
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('📎 Drag enter');
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('📎 Drag leave');
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    console.log('📎 Drop event');
     
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
-      console.log('📁 Drop edilen dosyalar:', files.length);
       // Create fake event object for handleFileUpload
       const fakeEvent = {
         target: { files: files }
@@ -291,7 +343,6 @@ const ChatPage: React.FC = () => {
 
   // Paste handler for Ctrl+V
   const handlePaste = (e: React.ClipboardEvent) => {
-    console.log('📎 Paste event');
     const items = e.clipboardData?.items;
     if (items) {
       const files: File[] = [];
@@ -505,8 +556,8 @@ const ChatPage: React.FC = () => {
 
                   {/* Main Input Container */}
                   <div 
-                    className="rounded-xl border border-border/40 p-3" 
-                    style={{ backgroundColor: 'oklch(0.141 0.004 285.83)' }}
+                    className="rounded-xl border border-border/10 p-3" 
+                    style={{ backgroundColor: 'rgb(4, 4, 6)' }}
                     onDragOver={handleDragOver}
                     onDragEnter={handleDragEnter}
                     onDragLeave={handleDragLeave}
@@ -526,7 +577,7 @@ const ChatPage: React.FC = () => {
                             return (
                               <div 
                                 key={index} 
-                                className="relative bg-muted/50 rounded-lg overflow-hidden border border-border/30"
+                                className="relative bg-muted/20 rounded-lg overflow-hidden border border-border/20"
                                 style={{ width: '80px', height: '80px' }}
                                 draggable={false}
                                 onDragStart={(e) => e.preventDefault()}
@@ -581,8 +632,8 @@ const ChatPage: React.FC = () => {
                         }
                       }}
                       placeholder="Norvis AI'ya bir şey sorun..."
-                      className="w-full min-h-[40px] max-h-32 resize-none border-0 px-0 py-1 text-sm placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 leading-relaxed mb-3"
-                      style={{ backgroundColor: 'oklch(14.1% .004 285.83)' }}
+                      className="w-full min-h-[40px] max-h-32 resize-none border-0 px-0 py-1 text-sm placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 leading-relaxed mb-3 bg-transparent"
+                      style={{ backgroundColor: 'transparent' }}
                       maxLength={2000}
                       rows={1}
                       onKeyDown={(e) => {

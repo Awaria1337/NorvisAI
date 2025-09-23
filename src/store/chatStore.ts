@@ -328,7 +328,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
       
-      createNewChat: async (title = 'New Chat', model = 'gpt-3.5-turbo') => {
+      createNewChat: async (title = 'New Chat', model = 'deepseek/deepseek-chat-v3.1:free') => {
         try {
           console.log('🆕 Creating new chat with:', { title, model });
           set({ isLoading: true, error: null });

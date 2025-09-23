@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTheme } from 'next-themes';
+import ModernSettingsModal from '@/components/ui/modern-settings-modal';
 
 interface Chat {
   id: string;
@@ -86,6 +87,7 @@ export function AppSidebar({
   const { theme, setTheme } = useTheme();
   const [editingChatId, setEditingChatId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState('');
+  const [showSettingsModal, setShowSettingsModal] = React.useState(false);
 
   const handleLogout = () => {
     logout();
@@ -140,14 +142,15 @@ export function AppSidebar({
   }, [state, onSidebarStateChange]);
 
   return (
-    <TooltipProvider>
-      <Sidebar collapsible="icon">
+    <>
+      <TooltipProvider>
+        <Sidebar collapsible="icon">
       <div className="flex justify-between items-center">
         <Link href="/chat" className={`no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-14 w-14 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 transition-colors ${state === 'collapsed' ? 'group-data-[collapsible=icon]:hidden' : ''}`}>
           <img 
             src="/norvis_logo.png" 
             alt="Norvis AI" 
-            className="h-17 w-17 object-contain brightness-0 invert"
+            className="h-17 w-17 object-contain brightness-0 invert mr-2"
           />
         </Link>
         <Tooltip>
@@ -370,7 +373,10 @@ export function AppSidebar({
               
               <div className="border-t my-2"></div>
               
-              <DropdownMenuItem className="cursor-pointer">
+              <DropdownMenuItem 
+                className="cursor-pointer"
+                onClick={() => setShowSettingsModal(true)}
+              >
                 <Settings className="mr-3 h-4 w-4" />
                 Ayarlar
               </DropdownMenuItem>
@@ -393,8 +399,16 @@ export function AppSidebar({
             </div>
           </DropdownMenuContent>
         </DropdownMenu>
-      </SidebarFooter>
+        </SidebarFooter>
       </Sidebar>
     </TooltipProvider>
+      
+    {/* Settings Modal */}
+    <ModernSettingsModal 
+      isOpen={showSettingsModal}
+      onClose={() => setShowSettingsModal(false)}
+      user={user}
+    />
+    </>
   );
 }

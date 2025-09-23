@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { title = 'New Chat', aiModel = 'gpt-3.5-turbo' } = body;
+    const { title = 'New Chat', aiModel = 'deepseek/deepseek-chat-v3.1:free' } = body;
 
     // Create new chat with unique UUID
     const chatId = generateChatId();
