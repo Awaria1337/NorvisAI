@@ -48,6 +48,7 @@ import {
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTheme } from 'next-themes';
 import ModernSettingsModal from '@/components/ui/modern-settings-modal';
+import HelpMenu from '@/components/ui/help-menu';
 
 interface Chat {
   id: string;
@@ -145,12 +146,12 @@ export function AppSidebar({
     <>
       <TooltipProvider>
         <Sidebar collapsible="icon">
-      <div className="flex justify-between items-center">
-        <Link href="/chat" className={`no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-14 w-14 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 transition-colors ${state === 'collapsed' ? 'group-data-[collapsible=icon]:hidden' : ''}`}>
+      <div className="flex justify-between items-center my-4">
+        <Link href="/chat" className={`no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-8 w-8 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 ml-2 transition-colors ${state === 'collapsed' ? 'group-data-[collapsible=icon]:hidden' : ''}`}>
           <img 
             src="/norvis_logo.png" 
             alt="Norvis AI" 
-            className="h-17 w-17 object-contain brightness-0 invert mr-2"
+            className="h-17 w-17 object-contain brightness-0 invert"
           />
         </Link>
         <Tooltip>
@@ -381,10 +382,17 @@ export function AppSidebar({
                 Ayarlar
               </DropdownMenuItem>
               
-              <DropdownMenuItem className="cursor-pointer">
-                <HelpCircle className="mr-3 h-4 w-4" />
-                Yardım
-              </DropdownMenuItem>
+              <HelpMenu 
+                trigger={
+                  <DropdownMenuItem 
+                    className="cursor-pointer"
+                    onSelect={(e) => e.preventDefault()}
+                  >
+                    <HelpCircle className="mr-3 h-4 w-4" />
+                    Yardım
+                  </DropdownMenuItem>
+                }
+              />
             </div>
             
             {/* Logout */}
@@ -407,7 +415,7 @@ export function AppSidebar({
     <ModernSettingsModal 
       isOpen={showSettingsModal}
       onClose={() => setShowSettingsModal(false)}
-      user={user}
+      user={user || undefined}
     />
     </>
   );
