@@ -45,6 +45,7 @@ import {
 import MessageBubble from '@/components/ui/message-bubble';
 import AILoadingStates from '@/components/ui/ai-loading-states';
 import SearchModal from '@/components/ui/search-modal';
+import KeyboardShortcutsModal from '@/components/ui/keyboard-shortcuts-modal';
 // import { ApiKeyModal } from '@/components/api-key-modal';
 
 
@@ -58,25 +59,25 @@ const ChatPage: React.FC = () => {
   const showToast = {
     success: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
       toast.success(message, {
-        icon: (options?.icon || <CheckCircle className="w-4 h-4" />) as any, 
+        icon: options?.icon || <CheckCircle className="w-4 h-4" />, 
         duration: options?.duration || 3000,
       });
     },
     error: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
       toast.error(message, {
-        icon: (options?.icon || <XCircle className="w-4 h-4" />) as any,
+        icon: options?.icon || <XCircle className="w-4 h-4" />,
         duration: options?.duration || 4000,
       });
     },
     warning: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
       toast.error(message, {
-        icon: (options?.icon || <AlertTriangle className="w-4 h-4" />) as any,
+        icon: options?.icon || <AlertTriangle className="w-4 h-4" />,
         duration: options?.duration || 4000,
       });
     },
     info: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
       toast(message, {
-        icon: (options?.icon || <FileText className="w-4 h-4" />) as any,
+        icon: options?.icon || <FileText className="w-4 h-4" />,
         duration: options?.duration || 3000,
       });
     }
@@ -125,6 +126,8 @@ const ChatPage: React.FC = () => {
   }, [currentChat?.messages, isAIThinking, isAIResponding, showWaitingMessage, streamingContent]);
 
   // Keyboard shortcuts
+  const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
+  
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       // Cmd/Ctrl + K for search
@@ -132,15 +135,25 @@ const ChatPage: React.FC = () => {
         e.preventDefault();
         setIsSearchOpen(true);
       }
-      // Escape to close search
-      if (e.key === 'Escape' && isSearchOpen) {
-        setIsSearchOpen(false);
+      // Cmd/Ctrl + / for keyboard shortcuts
+      if ((e.metaKey || e.ctrlKey) && e.key === '/') {
+        e.preventDefault();
+        setShowKeyboardShortcuts(true);
+      }
+      // Escape to close modals
+      if (e.key === 'Escape') {
+        if (isSearchOpen) {
+          setIsSearchOpen(false);
+        }
+        if (showKeyboardShortcuts) {
+          setShowKeyboardShortcuts(false);
+        }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isSearchOpen]);
+  }, [isSearchOpen, showKeyboardShortcuts]);
 
   const handleSendMessage = async (messageContent?: string) => {
     const content = messageContent || inputMessage.trim();
@@ -735,6 +748,12 @@ const ChatPage: React.FC = () => {
           isOpen={isSearchOpen}
           onClose={handleSearchClose}
           onChatSelect={handleChatSelectFromSearch}
+        />
+        
+        {/* Keyboard Shortcuts Modal */}
+        <KeyboardShortcutsModal
+          isOpen={showKeyboardShortcuts}
+          onClose={() => setShowKeyboardShortcuts(false)}
         />
         
         {/* API Key Management Modal */}

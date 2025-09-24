@@ -37,17 +37,26 @@ import {
   HelpCircle,
   Sun,
   Moon,
-  Monitor
+  Monitor,
+  Info,
+  Shield,
+  Bug,
+  Keyboard
 } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubTrigger,
+  DropdownMenuSubContent,
 } from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useTheme } from 'next-themes';
 import ModernSettingsModal from '@/components/ui/modern-settings-modal';
+import BugReportModal from '@/components/ui/bug-report-modal';
+import KeyboardShortcutsModal from '@/components/ui/keyboard-shortcuts-modal';
 
 interface Chat {
   id: string;
@@ -88,6 +97,8 @@ export function AppSidebar({
   const [editingChatId, setEditingChatId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState('');
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
+  const [showBugReport, setShowBugReport] = React.useState(false);
+  const [showShortcuts, setShowShortcuts] = React.useState(false);
 
   const handleLogout = () => {
     logout();
@@ -145,12 +156,12 @@ export function AppSidebar({
     <>
       <TooltipProvider>
         <Sidebar collapsible="icon">
-      <div className="flex justify-between items-center">
-        <Link href="/chat" className={`no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-14 w-14 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 transition-colors ${state === 'collapsed' ? 'group-data-[collapsible=icon]:hidden' : ''}`}>
+      <div className="flex justify-between items-center my-4">
+        <Link href="/chat" className={`no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-8 w-8 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 ml-2 transition-colors ${state === 'collapsed' ? 'group-data-[collapsible=icon]:hidden' : ''}`}>
           <img 
             src="/norvis_logo.png" 
             alt="Norvis AI" 
-            className="h-17 w-17 object-contain brightness-0 invert mr-2"
+            className="h-17 w-17 object-contain brightness-0 invert"
           />
         </Link>
         <Tooltip>
@@ -381,10 +392,68 @@ export function AppSidebar({
                 Ayarlar
               </DropdownMenuItem>
               
-              <DropdownMenuItem className="cursor-pointer">
-                <HelpCircle className="mr-3 h-4 w-4" />
-                Yardım
-              </DropdownMenuItem>
+              <DropdownMenuSub>
+<DropdownMenuSubTrigger className="cursor-pointer" hideChevron>
+                  <HelpCircle className="mr-3 h-4 w-4" />
+                  Yardım
+                </DropdownMenuSubTrigger>
+                <DropdownMenuSubContent align="start" side="right" sideOffset={8} className="w-64">
+                  <DropdownMenuItem className="cursor-pointer py-3" onClick={() => { /* TODO: link to help center */ }}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-blue-100 dark:bg-blue-900/30">
+                        <HelpCircle className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Yardım merkezi</p>
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem className="cursor-pointer py-3" onClick={() => { /* TODO: release notes link */ }}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-green-100 dark:bg-green-900/30">
+                        <Info className="h-4 w-4 text-green-600 dark:text-green-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Sürüm notları</p>
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem className="cursor-pointer py-3" onClick={() => { /* TODO: terms link */ }}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-purple-100 dark:bg-purple-900/30">
+                        <Shield className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Şartlar ve politikalar</p>
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem className="cursor-pointer py-3" onClick={() => setShowBugReport(true)}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-red-100 dark:bg-red-900/30">
+                        <Bug className="h-4 w-4 text-red-600 dark:text-red-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Hata bildir</p>
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+
+                  <DropdownMenuItem className="cursor-pointer py-3" onClick={() => setShowShortcuts(true)}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-md bg-gray-100 dark:bg-gray-800">
+                        <Keyboard className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-medium">Klavye kısayolları</p>
+                      </div>
+                    </div>
+                  </DropdownMenuItem>
+                </DropdownMenuSubContent>
+              </DropdownMenuSub>
             </div>
             
             {/* Logout */}
@@ -407,8 +476,12 @@ export function AppSidebar({
     <ModernSettingsModal 
       isOpen={showSettingsModal}
       onClose={() => setShowSettingsModal(false)}
-      user={user}
+      user={user || undefined}
     />
+
+    {/* Help related modals */}
+    <BugReportModal isOpen={showBugReport} onClose={() => setShowBugReport(false)} />
+    <KeyboardShortcutsModal isOpen={showShortcuts} onClose={() => setShowShortcuts(false)} />
     </>
   );
 }

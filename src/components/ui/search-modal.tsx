@@ -155,7 +155,7 @@ export const SearchModal: React.FC<SearchModalProps> = ({ isOpen, onClose, onCha
                       Sonuç bulunamadı
                     </h3>
                     <p className="text-xs text-muted-foreground">
-                      "{searchQuery}" için eşleşen sohbet bulunamadı
+                      &ldquo;{searchQuery}&rdquo; için eşleşen sohbet bulunamadı
                     </p>
                   </div>
                 )}
