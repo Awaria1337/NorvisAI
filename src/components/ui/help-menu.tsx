@@ -47,9 +47,10 @@ const HelpMenu: React.FC<HelpMenuProps> = ({ trigger }) => {
     console.log('Terms and policies clicked');
   };
 
+
   return (
     <>
-      <DropdownMenu open={isOpen} onOpenChange={setIsOpen}>
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <div 
             onMouseEnter={() => setIsOpen(true)}
@@ -62,12 +63,15 @@ const HelpMenu: React.FC<HelpMenuProps> = ({ trigger }) => {
             )}
           </div>
         </DropdownMenuTrigger>
-        <DropdownMenuContent 
-          align="end" 
-          className="w-64"
-          onMouseEnter={() => setIsOpen(true)}
-          onMouseLeave={() => setIsOpen(false)}
-        >
+        {isOpen && (
+          <DropdownMenuContent 
+            align="start" 
+            side="right"
+            className="w-64"
+            sideOffset={8}
+            onMouseEnter={() => setIsOpen(true)}
+            onMouseLeave={() => setIsOpen(false)}
+          >
           {/* Help Center */}
           <DropdownMenuItem 
             className="cursor-pointer py-3"
@@ -151,7 +155,8 @@ const HelpMenu: React.FC<HelpMenuProps> = ({ trigger }) => {
               </div>
             </div>
           </DropdownMenuItem>
-        </DropdownMenuContent>
+          </DropdownMenuContent>
+        )}
       </DropdownMenu>
 
       {/* Bug Report Modal - Render with portal */}
