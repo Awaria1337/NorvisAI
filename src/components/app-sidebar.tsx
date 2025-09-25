@@ -181,7 +181,7 @@ export function AppSidebar({
           onClick={handleNewChat}
         >
           <PenSquare className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-1" />
-          <span className="group-data-[collapsible=icon]:hidden font-medium">Yeni sohbet</span>
+          <span className="group-data-[collapsible=icon]:hidden font-medium font-ui">Yeni sohbet</span>
         </Button>
         
         <Button 
@@ -190,13 +190,13 @@ export function AppSidebar({
           onClick={onSearchOpen}
         >
           <Search className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-1" />
-          <span className="group-data-[collapsible=icon]:hidden font-medium">Sohbetleri ara</span>
+          <span className="group-data-[collapsible=icon]:hidden font-medium font-ui">Sohbetleri ara</span>
         </Button>
       </div>
 
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel className="text-xs text-muted-foreground px-2 group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel className="text-xs text-muted-foreground px-2 group-data-[collapsible=icon]:hidden font-heading">
             Sohbetler
           </SidebarGroupLabel>
           <SidebarGroupContent>

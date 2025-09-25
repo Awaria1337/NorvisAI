@@ -47,10 +47,17 @@ export interface AIResponse {
   model: string;
 }
 
-// Message interface for AI providers
+// Message interface for AI providers (updated for vision support)
 export interface AIMessage {
   role: 'user' | 'assistant' | 'system';
-  content: string;
+  content: string | Array<{
+    type: 'text' | 'image';
+    text?: string;
+    image_url?: {
+      url: string;
+      detail?: 'low' | 'high' | 'auto';
+    };
+  }>;
 }
 
 // Get user's API key for a specific provider
@@ -94,7 +101,7 @@ async function sendToOpenAI(messages: AIMessage[], model: string, apiKey: string
 
     const response = await openai.chat.completions.create({
       model: model,
-      messages: messages,
+      messages: messages as any, // OpenAI SDK handles vision format
       max_tokens: 1000,
       temperature: 0.7,
     });
@@ -190,7 +197,7 @@ async function sendToOpenRouter(messages: AIMessage[], model: string, apiKey: st
 
     const response = await openai.chat.completions.create({
       model: model,
-      messages: messages,
+      messages: messages as any, // OpenRouter supports OpenAI format including vision
       max_tokens: 1000,
       temperature: 0.7,
     });
@@ -314,7 +321,7 @@ function getProviderFromModel(model: string): string {
 }
 
 export async function sendToAI(
-  messages: Array<{ role: string; content: string }>,
+  messages: Array<{ role: string; content: string; images?: string[] }>,
   model: string,
   userId: string
 ): Promise<AIResponse> {
@@ -325,6 +332,38 @@ export async function sendToAI(
     
     const provider = getProviderFromModel(model);
     console.log(`Provider: ${provider}`);
+    
+    // Format messages for AI providers (handle images)
+    const formattedMessages: AIMessage[] = messages.map(msg => {
+      if (msg.images && msg.images.length > 0) {
+        // Create multimodal content for vision models
+        const content: Array<{ type: 'text' | 'image'; text?: string; image_url?: { url: string; detail?: 'auto' } }> = [
+          { type: 'text', text: msg.content }
+        ];
+        
+        // Add images
+        msg.images.forEach(imageUrl => {
+          content.push({
+            type: 'image',
+            image_url: {
+              url: imageUrl,
+              detail: 'auto'
+            }
+          });
+        });
+        
+        return {
+          role: msg.role as 'user' | 'assistant' | 'system',
+          content: content
+        };
+      } else {
+        // Text-only message
+        return {
+          role: msg.role as 'user' | 'assistant' | 'system',
+          content: msg.content
+        };
+      }
+    });
     
     // Use environment variable for OpenRouter API key
     const apiKey = process.env.OPENROUTER_API_KEY;
@@ -340,22 +379,22 @@ export async function sendToAI(
     
     switch (provider) {
       case 'openrouter':
-        result = await sendToOpenRouter(messages, model, apiKey);
+        result = await sendToOpenRouter(formattedMessages, model, apiKey);
         break;
       case 'openai':
         const openaiKey = process.env.OPENAI_API_KEY;
         if (!openaiKey) throw new Error('OpenAI API key not configured');
-        result = await sendToOpenAI(messages, model, openaiKey);
+        result = await sendToOpenAI(formattedMessages, model, openaiKey);
         break;
       case 'anthropic':
         const anthropicKey = process.env.ANTHROPIC_API_KEY;
         if (!anthropicKey) throw new Error('Anthropic API key not configured');
-        result = await sendToAnthropic(messages, model, anthropicKey);
+        result = await sendToAnthropic(formattedMessages, model, anthropicKey);
         break;
       case 'google':
         const googleKey = process.env.GOOGLE_API_KEY;
         if (!googleKey) throw new Error('Google API key not configured');
-        result = await sendToGemini(messages, model, googleKey);
+        result = await sendToGemini(formattedMessages, model, googleKey);
         break;
       default:
         throw new Error(`Unsupported AI provider: ${provider}`);
