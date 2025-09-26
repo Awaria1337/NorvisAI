@@ -180,7 +180,7 @@ export function AppSidebar({
           variant="ghost" 
           onClick={handleNewChat}
         >
-          <PenSquare className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-1" />
+          <PenSquare className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
           <span className="group-data-[collapsible=icon]:hidden font-medium font-ui">Yeni sohbet</span>
         </Button>
         
@@ -189,7 +189,7 @@ export function AppSidebar({
           variant="ghost" 
           onClick={onSearchOpen}
         >
-          <Search className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-1" />
+          <Search className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
           <span className="group-data-[collapsible=icon]:hidden font-medium font-ui">Sohbetleri ara</span>
         </Button>
       </div>

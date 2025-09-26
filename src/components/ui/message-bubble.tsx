@@ -1,10 +1,27 @@
 'use client'
 
-import React from 'react'
+import React, { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Avatar, AvatarFallback } from './avatar'
 import { Message } from '@/store/chatStore'
+import { 
+  Copy, 
+  ThumbsUp, 
+  ThumbsDown, 
+  Share2, 
+  RefreshCw, 
+  MoreHorizontal,
+  MessageSquarePlus,
+  Volume2
+} from 'lucide-react'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { Button } from '@/components/ui/button'
+import toast from 'react-hot-toast'
 
 interface MessageBubbleProps {
   message: Message
@@ -48,6 +65,53 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+// Action button handlers
+const handleCopyMessage = (content: string) => {
+  navigator.clipboard.writeText(content);
+  toast.success('Mesaj panoya kopyalandı!');
+};
+
+const handleGoodResponse = () => {
+  toast.success('İyi yanıt olarak işaretlendi!');
+};
+
+const handleBadResponse = () => {
+  toast.error('Kötü yanıt olarak işaretlendi!');
+};
+
+const handleShareMessage = (content: string) => {
+  if (navigator.share) {
+    navigator.share({
+      title: 'Norvis AI Yanıtı',
+      text: content
+    });
+  } else {
+    navigator.clipboard.writeText(content);
+    toast.success('Mesaj paylaşım için kopyalandı!');
+  }
+};
+
+const handleRetryMessage = () => {
+  toast('Mesaj yeniden deneniyor...', { icon: '🔄' });
+  // TODO: Implement retry logic
+};
+
+const handleNewChatFromMessage = () => {
+  toast('Yeni sohbet oluşturuluyor...', { icon: '💬' });
+  // TODO: Implement new chat creation
+};
+
+const handleReadAloud = (content: string) => {
+  if ('speechSynthesis' in window) {
+    const utterance = new SpeechSynthesisUtterance(content);
+    utterance.lang = 'tr-TR';
+    speechSynthesis.speak(utterance);
+    toast.success('Sesli okuma başlatıldı!');
+  } else {
+    toast.error('Sesli okuma desteklenmiyor!');
+  }
+};
+
 const getFileIcon = (fileType: string) => {
   switch (fileType) {
     case 'pdf':
@@ -79,7 +143,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
     // User message - Right side with bubble
     return (
       <div className="flex justify-end mb-6">
-        <div className="flex items-start space-x-3 max-w-[80%]">
+        <div className="max-w-[80%]">
           <div className="bg-gray-800 text-gray-100 rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
             {/* Display files if any */}
             {message.files && message.files.length > 0 && (
@@ -115,10 +179,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
                           />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-100 truncate">
+                          <p className="text-base font-medium text-gray-100 truncate">
                             {file.name}
                           </p>
-                          <p className="text-xs text-gray-300">
+                          <p className="text-sm text-gray-300">
                             {displayName} • {formatFileSize(file.size)}
                           </p>
                         </div>
@@ -128,6 +192,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
                 })}
               </div>
             )}
+            
             {/* Legacy support for images array (backward compatibility) */}
             {!message.files && message.images && message.images.length > 0 && (
               <div className="mb-3 space-y-2">
@@ -174,17 +239,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
                 })}
               </div>
             )}
+            
             {message.content && (
-              <div className="text-sm leading-relaxed whitespace-pre-wrap">
+              <div className="text-base leading-relaxed whitespace-pre-wrap">
                 {message.content}
               </div>
             )}
           </div>
-          <Avatar className="h-8 w-8 flex-shrink-0">
-            <AvatarFallback className="bg-gray-800 text-gray-100 font-bold text-sm">
-              M
-            </AvatarFallback>
-          </Avatar>
         </div>
       </div>
     )
@@ -202,16 +263,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
           />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none font-content">
+          <div className="text-base leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none font-content">
             <ReactMarkdown 
               remarkPlugins={[remarkGfm]}
               components={{
-                h1: ({children}) => <h1 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h1>,
-                h2: ({children}) => <h2 className="text-base font-bold mb-2 text-foreground font-heading">{children}</h2>,
-                h3: ({children}) => <h3 className="text-sm font-bold mb-1 text-foreground font-heading">{children}</h3>,
-                h4: ({children}) => <h4 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h4>,
-                h5: ({children}) => <h5 className="text-xs font-semibold mb-1 text-foreground font-heading">{children}</h5>,
-                h6: ({children}) => <h6 className="text-xs font-medium mb-1 text-foreground font-heading">{children}</h6>,
+                h1: ({children}) => <h1 className="text-xl font-bold mb-2 text-foreground font-heading">{children}</h1>,
+                h2: ({children}) => <h2 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h2>,
+                h3: ({children}) => <h3 className="text-base font-bold mb-1 text-foreground font-heading">{children}</h3>,
+                h4: ({children}) => <h4 className="text-base font-semibold mb-1 text-foreground font-heading">{children}</h4>,
+                h5: ({children}) => <h5 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h5>,
+                h6: ({children}) => <h6 className="text-sm font-medium mb-1 text-foreground font-heading">{children}</h6>,
                 p: ({children}) => <p className="mb-2 text-foreground font-content leading-relaxed">{children}</p>,
                 strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
                 em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
@@ -223,10 +284,10 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
                   const match = /language-(\w+)/.exec(className || '')
                   const isInline = !match
                   return isInline ? (
-                    <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-sm font-mono text-foreground">{children}</code>
+                    <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-base font-mono text-foreground">{children}</code>
                   ) : (
                     <pre className="bg-gray-100 dark:bg-gray-800 p-3 rounded-lg overflow-x-auto mb-2">
-                      <code className="text-sm font-mono text-foreground">{children}</code>
+                      <code className="text-base font-mono text-foreground">{children}</code>
                     </pre>
                   )
                 },
@@ -237,6 +298,82 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
             >
               {message.content}
             </ReactMarkdown>
+          </div>
+
+          {/* Message Action Bar for AI */}
+          <div className="flex items-center gap-2 mt-3">
+            {/* Copy Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
+              onClick={() => handleCopyMessage(message.content)}
+            >
+              <Copy className="h-4 w-4 text-gray-500" />
+            </Button>
+
+            {/* Good Response Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-green-100 dark:hover:bg-green-900 hover:text-green-600"
+              onClick={handleGoodResponse}
+            >
+              <ThumbsUp className="h-4 w-4 text-gray-500" />
+            </Button>
+
+            {/* Bad Response Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-red-100 dark:hover:bg-red-900 hover:text-red-600"
+              onClick={handleBadResponse}
+            >
+              <ThumbsDown className="h-4 w-4 text-gray-500" />
+            </Button>
+
+            {/* Share Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-blue-100 dark:hover:bg-blue-900 hover:text-blue-600"
+              onClick={() => handleShareMessage(message.content)}
+            >
+              <Share2 className="h-4 w-4 text-gray-500" />
+            </Button>
+
+            {/* Retry Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
+              onClick={handleRetryMessage}
+            >
+              <RefreshCw className="h-4 w-4 text-gray-500" />
+            </Button>
+
+            {/* More Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  <MoreHorizontal className="h-4 w-4 text-gray-500" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleNewChatFromMessage}>
+                  <MessageSquarePlus className="h-4 w-4 mr-2" />
+                  Yeni sohbet başlat
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleReadAloud(message.content)}>
+                  <Volume2 className="h-4 w-4 mr-2" />
+                  Sesli oku
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
