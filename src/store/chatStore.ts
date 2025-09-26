@@ -11,6 +11,12 @@ export interface Message {
   tokensUsed?: number;
   createdAt: Date;
   images?: string[]; // Array of image URLs or base64 strings
+  files?: Array<{
+    name: string;
+    type: string;
+    size: number;
+    preview?: string;
+  }>; // Array of attached files info
 }
 
 export interface Chat {
@@ -394,26 +400,35 @@ export const useChatStore = create<ChatState>()(
         }
       },
       
-      sendMessage: async (content: string, createNewChatIfNeeded = false, files: File[] = []) => {
+      sendMessage: async (content: string, createNewChatIfNeeded = false, files: any[] = []) => {
         console.log('🚀 sendMessage called with:', { content, createNewChatIfNeeded, files: files.length });
         let { currentChatId } = get();
         let currentChat = get().getCurrentChat();
         console.log('📝 Current chat ID:', currentChatId);
         
-        // Convert files to base64 for display and processing
-        let imageUrls: string[] = [];
+        // Process files for AI consumption
+        let processedFiles: any[] = [];
         if (files.length > 0) {
-          for (const file of files) {
-            if (file.type.startsWith('image/')) {
-              const base64 = await new Promise<string>((resolve) => {
-                const reader = new FileReader();
-                reader.onloadend = () => resolve(reader.result as string);
-                reader.readAsDataURL(file);
-              });
-              imageUrls.push(base64);
+          for (const fileItem of files) {
+            const file = fileItem.file || fileItem;
+            if (file instanceof File) {
+              try {
+                // Convert file to buffer format for API
+                const buffer = await file.arrayBuffer();
+                const base64Buffer = Buffer.from(buffer).toString('base64');
+                
+                processedFiles.push({
+                  buffer: base64Buffer,
+                  filename: file.name,
+                  mimeType: file.type,
+                  size: file.size
+                });
+              } catch (error) {
+                console.error('Error processing file:', file.name, error);
+              }
             }
           }
-          console.log('🇮Converted', imageUrls.length, 'images to base64');
+          console.log('📎 Processed', processedFiles.length, 'files for upload');
         }
         
         // Declare timeout variable in the correct scope
@@ -454,7 +469,16 @@ export const useChatStore = create<ChatState>()(
             content,
             role: 'user',
             createdAt: new Date(),
-            images: imageUrls.length > 0 ? imageUrls : undefined
+            images: files.filter(f => f.file?.type?.startsWith('image/')).map(f => f.preview).filter(Boolean),
+            files: files.map(fileItem => {
+              const file = fileItem.file || fileItem;
+              return {
+                name: file.name || 'Unknown',
+                type: file.type || 'unknown',
+                size: file.size || 0,
+                preview: fileItem.preview
+              };
+            }).filter(f => f.name !== 'Unknown')
           };
           
           // Add user message to UI instantly
@@ -506,9 +530,9 @@ export const useChatStore = create<ChatState>()(
             content
           };
           
-          // Add images if any
-          if (imageUrls.length > 0) {
-            requestBody.images = imageUrls;
+          // Add processed files if any
+          if (processedFiles.length > 0) {
+            requestBody.files = processedFiles;
           }
           
           const response = await fetch(`/api/chats/${currentChatId}/messages`, {

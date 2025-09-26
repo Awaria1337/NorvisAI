@@ -40,12 +40,14 @@ import {
   XCircle,
   Clock,
   Trash2,
-  FileText
+  FileText,
+  X
 } from 'lucide-react';
 import MessageBubble from '@/components/ui/message-bubble';
 import AILoadingStates from '@/components/ui/ai-loading-states';
 import SearchModal from '@/components/ui/search-modal';
 import KeyboardShortcutsModal from '@/components/ui/keyboard-shortcuts-modal';
+import FileUpload from '@/components/ui/file-upload';
 // import { ApiKeyModal } from '@/components/api-key-modal';
 
 
@@ -104,7 +106,8 @@ const ChatPage: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   // const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [showFileUpload, setShowFileUpload] = useState(false);
   
   // Scroll reference for auto-scrolling to bottom
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -214,61 +217,11 @@ const ChatPage: React.FC = () => {
     setIsSearchOpen(false);
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    
-    if (files) {
-      
-      const newFiles = Array.from(files).filter(file => {
-        // Accept images and documents
-        const isValid = file.type.startsWith('image/') || 
-               file.type === 'application/pdf' || 
-               file.type.startsWith('text/') ||
-               file.type === 'application/msword' ||
-               file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
-               file.type === 'application/vnd.ms-excel' ||
-               file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        
-        if (!isValid) {
-          showToast.error(`Desteklenmeyen dosya türü: ${file.name}`, {
-            icon: <AlertTriangle className="w-4 h-4" />
-          });
-        }
-        return isValid;
-      });
-      
-      // Check if we have any unsupported files
-      if (newFiles.length < Array.from(files).length) {
-        const unsupportedCount = Array.from(files).length - newFiles.length;
-        showToast.warning(`${unsupportedCount} dosya desteklenmeyen formatta`, {
-          icon: <AlertTriangle className="w-4 h-4" />
-        });
-      }
-      
-      // Check file limit (max 3)
-      const totalFiles = uploadedFiles.length + newFiles.length;
-      if (totalFiles > 3) {
-        showToast.warning('Maksimum 3 dosya yükleyebilirsiniz!', {
-          icon: <AlertTriangle className="w-4 h-4" />,
-          duration: 4000,
-        });
-        return;
-      }
-      
-      if (newFiles.length > 0) {
-        setUploadedFiles(prev => [...prev, ...newFiles]);
-        const fileText = newFiles.length === 1 ? 'dosya' : 'dosya';
-        showToast.success(`${newFiles.length} ${fileText} başarıyla yüklendi!`, {
-          icon: <Upload className="w-4 h-4" />,
-          duration: 3000,
-        });
-      }
-    }
-    
-    // Clear the input value to allow re-uploading the same file
-    event.target.value = '';
+  const handleFilesChange = (newFiles: any[]) => {
+    setUploadedFiles(newFiles);
   };
 
+  // Simple file remove helper for existing preview system
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
     showToast.success('Dosya kaldırıldı', {
@@ -277,15 +230,14 @@ const ChatPage: React.FC = () => {
     });
   };
 
-  const createFilePreview = (file: File) => {
-    if (file.type.startsWith('image/')) {
-      return URL.createObjectURL(file);
-    }
-    return null;
+  // Simple preview helper for existing system
+  const createFilePreview = (fileItem: any) => {
+    return fileItem.preview || null;
   };
 
-  const getFileType = (file: File) => {
-    if (file.type.startsWith('image/')) return 'image';
+  const getFileType = (fileItem: any) => {
+    const file = fileItem.file || fileItem;
+    if (file.type?.startsWith('image/')) return 'image';
     if (file.type === 'application/pdf') return 'pdf';
     if (
       file.type === 'application/msword' || 
@@ -307,7 +259,7 @@ const ChatPage: React.FC = () => {
       case 'excel':
         return '/excel_icon.png';
       default:
-        return '/pdf_icon.png'; // default olarak pdf icon
+        return '/pdf_icon.png';
     }
   };
 
@@ -321,68 +273,6 @@ const ChatPage: React.FC = () => {
         return 'bg-green-500';
       default:
         return 'bg-gray-500';
-    }
-  };
-
-  // Drag & Drop handlers
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDragEnter = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    const files = e.dataTransfer.files;
-    if (files && files.length > 0) {
-      // Create fake event object for handleFileUpload
-      const fakeEvent = {
-        target: { files: files }
-      } as React.ChangeEvent<HTMLInputElement>;
-      handleFileUpload(fakeEvent);
-    }
-  };
-
-  // Paste handler for Ctrl+V
-  const handlePaste = (e: React.ClipboardEvent) => {
-    const items = e.clipboardData?.items;
-    if (items) {
-      const files: File[] = [];
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.kind === 'file') {
-          const file = item.getAsFile();
-          if (file) {
-            files.push(file);
-          }
-        }
-      }
-      
-      if (files.length > 0) {
-        console.log('📁 Paste edilen dosyalar:', files.length);
-        
-        // Create DataTransfer to properly create FileList
-        const dataTransfer = new DataTransfer();
-        files.forEach(file => {
-          dataTransfer.items.add(file);
-        });
-        
-        const fakeEvent = {
-          target: { files: dataTransfer.files }
-        } as React.ChangeEvent<HTMLInputElement>;
-        handleFileUpload(fakeEvent);
-      }
     }
   };
 
@@ -571,25 +461,22 @@ const ChatPage: React.FC = () => {
                   <div 
                     className="rounded-xl border border-border/10 p-3" 
                     style={{ backgroundColor: 'rgb(4, 4, 6)' }}
-                    onDragOver={handleDragOver}
-                    onDragEnter={handleDragEnter}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onPaste={handlePaste}
                   >
                     {/* File Previews */}
                     {uploadedFiles.length > 0 && (
                       <div className="mb-3">
                         <div className="flex gap-2 flex-wrap">
-                          {uploadedFiles.map((file, index) => {
-                            const preview = createFilePreview(file);
-                            const fileType = getFileType(file);
+                          {uploadedFiles.map((fileItem, index) => {
+                            const file = fileItem.file || fileItem;
+                            const fileName = file.name || fileItem.name || 'Unknown';
+                            const preview = createFilePreview(fileItem);
+                            const fileType = getFileType(fileItem);
                             const fileIcon = getFileIcon(fileType);
                             const fileColor = getFileColor(fileType);
                             
                             return (
                               <div 
-                                key={index} 
+                                key={fileItem.id || index} 
                                 className="relative bg-muted/20 rounded-lg overflow-hidden border border-border/20"
                                 style={{ width: '80px', height: '80px' }}
                                 draggable={false}
@@ -598,7 +485,7 @@ const ChatPage: React.FC = () => {
                                 {preview ? (
                                   <img 
                                     src={preview} 
-                                    alt={file.name}
+                                    alt={fileName}
                                     className="w-full h-full object-cover"
                                     draggable={false}
                                     onDragStart={(e) => e.preventDefault()}
@@ -615,7 +502,7 @@ const ChatPage: React.FC = () => {
                                       />
                                     </div>
                                     <span className="text-xs text-muted-foreground/70 text-center truncate w-full">
-                                      {file.name.length > 12 ? file.name.substring(0, 8) + '...' : file.name}
+                                      {fileName && fileName.length > 12 ? fileName.substring(0, 8) + '...' : fileName}
                                     </span>
                                   </div>
                                 )}
@@ -657,15 +544,6 @@ const ChatPage: React.FC = () => {
                       }}
                     />
 
-                    {/* Hidden file input */}
-                    <input
-                      type="file"
-                      id="file-upload"
-                      className="hidden"
-                      multiple
-                      accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx"
-                      onChange={handleFileUpload}
-                    />
 
                     {/* Bottom Row - Controls */}
                     <div className="flex items-center justify-between">
@@ -677,16 +555,7 @@ const ChatPage: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 rounded-full hover:bg-accent"
-                              onClick={() => {
-                                console.log('📎 Paperclip butonuna tıklandı');
-                                const fileInput = document.getElementById('file-upload') as HTMLInputElement;
-                                if (fileInput) {
-                                  console.log('📁 File input bulundu, tıklanıyor...');
-                                  fileInput.click();
-                                } else {
-                                  console.error('❌ File input bulunamadı!');
-                                }
-                              }}
+                              onClick={() => setShowFileUpload(true)}
                             >
                               <Paperclip className="h-4 w-4" />
                             </Button>
@@ -755,6 +624,51 @@ const ChatPage: React.FC = () => {
           isOpen={showKeyboardShortcuts}
           onClose={() => setShowKeyboardShortcuts(false)}
         />
+        
+        {/* File Upload Modal */}
+        {showFileUpload && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div className="bg-background rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Dosya Yükle</h2>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFileUpload(false)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <FileUpload
+                onFilesChange={handleFilesChange}
+                maxFiles={5}
+                className="mb-4"
+              />
+              
+              <div className="flex justify-end space-x-2">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowFileUpload(false)}
+                >
+                  İptal
+                </Button>
+                <Button
+                  onClick={() => {
+                    setShowFileUpload(false);
+                    // Focus textarea after closing modal
+                    setTimeout(() => {
+                      const textarea = document.querySelector('textarea');
+                      if (textarea) textarea.focus();
+                    }, 100);
+                  }}
+                >
+                  Tamam
+                </Button>
+              </div>
+            </div>
+          </div>
+        )}
         
         {/* API Key Management Modal */}
         {/* <ApiKeyModal

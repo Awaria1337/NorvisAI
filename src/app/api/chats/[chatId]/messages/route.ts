@@ -28,11 +28,11 @@ export async function POST(
 
     const { chatId } = await params;
     const body = await request.json();
-    const { content, role = 'user' } = body;
+    const { content, role = 'user', images, files } = body;
 
-    if (!content) {
+    if (!content && (!files || files.length === 0)) {
       return NextResponse.json(
-        { success: false, error: 'Message content is required' },
+        { success: false, error: 'Message content or files are required' },
         { status: 400 }
       );
     }
@@ -52,10 +52,41 @@ export async function POST(
       );
     }
 
+    // Process any attached files
+    let processedFiles: any[] = [];
+    let enhancedContent = content || '';
+    
+    if (files && files.length > 0) {
+      try {
+        const { processFile } = await import('@/lib/fileProcessor');
+        
+        for (const fileData of files) {
+          if (fileData.buffer && fileData.filename && fileData.mimeType) {
+            const buffer = Buffer.from(fileData.buffer, 'base64');
+            const result = await processFile(buffer, fileData.filename, fileData.mimeType);
+            
+            if (result.success && result.data) {
+              processedFiles.push(result.data);
+              
+              // Add file content to message
+              if (result.data.type === 'text' || result.data.type === 'table') {
+                enhancedContent += '\n\n' + result.data.content;
+              } else if (result.data.type === 'image') {
+                enhancedContent = enhancedContent || 'Please analyze this image:';
+                // Images will be handled separately in AI call
+              }
+            }
+          }
+        }
+      } catch (error) {
+        console.error('File processing error:', error);
+      }
+    }
+    
     // Create user message
     const userMessage = await prisma.message.create({
       data: {
-        content,
+        content: enhancedContent,
         role,
         chatId
       }
@@ -104,10 +135,16 @@ export async function POST(
         content: msg.content
       }));
 
-      // Add the new user message
+      // Collect image URLs from processed files
+      const imageUrls = processedFiles
+        .filter(file => file.type === 'image' && file.base64)
+        .map(file => file.base64);
+
+      // Add the new user message with images if any
       aiMessages.push({
         role: 'user',
-        content: content
+        content: enhancedContent,
+        images: imageUrls.length > 0 ? imageUrls : undefined
       });
 
       console.log('Sending to AI with model:', chat.aiModel, 'userId:', payload.userId);
