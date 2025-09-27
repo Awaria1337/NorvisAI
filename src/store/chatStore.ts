@@ -41,6 +41,7 @@ interface ChatState {
   showWaitingMessage: boolean;
   streamingMessageId: string | null;
   streamingContent: string;
+  streamingAbortController: AbortController | null;
   
   // Computed
   getCurrentChat: () => Chat | null;
@@ -70,6 +71,7 @@ interface ChatState {
   startStreaming: (messageId: string) => void;
   updateStreamingContent: (content: string) => void;
   finishStreaming: () => void;
+  stopStreaming: () => void;
   
   // API Actions
   fetchChats: () => Promise<void>;
@@ -94,6 +96,7 @@ export const useChatStore = create<ChatState>()(
       showWaitingMessage: false,
       streamingMessageId: null,
       streamingContent: '',
+      streamingAbortController: null,
       
       // Computed
       getCurrentChat: () => {
@@ -282,28 +285,64 @@ export const useChatStore = create<ChatState>()(
       
       setShowWaitingMessage: (show) => set({ showWaitingMessage: show }),
       
-      resetAIStates: () => set({ 
-        isAIThinking: false, 
-        isAIResponding: false, 
-        showWaitingMessage: false,
-        streamingMessageId: null,
-        streamingContent: ''
-      }),
+      resetAIStates: () => {
+        const { streamingAbortController } = get();
+        if (streamingAbortController) {
+          streamingAbortController.abort();
+        }
+        set({ 
+          isAIThinking: false, 
+          isAIResponding: false, 
+          showWaitingMessage: false,
+          streamingMessageId: null,
+          streamingContent: '',
+          streamingAbortController: null
+        });
+      },
       
       // Streaming Actions
-      startStreaming: (messageId: string) => set({ 
-        streamingMessageId: messageId, 
-        streamingContent: '', 
-        isAIResponding: true 
-      }),
+      startStreaming: (messageId: string) => {
+        const abortController = new AbortController();
+        set({ 
+          streamingMessageId: messageId, 
+          streamingContent: '', 
+          isAIResponding: true,
+          streamingAbortController: abortController
+        });
+      },
       
       updateStreamingContent: (content: string) => set({ streamingContent: content }),
       
       finishStreaming: () => set({ 
         streamingMessageId: null, 
         streamingContent: '', 
-        isAIResponding: false 
+        isAIResponding: false,
+        streamingAbortController: null
       }),
+      
+      stopStreaming: () => {
+        const { streamingAbortController, streamingMessageId, currentChatId } = get();
+        
+        if (streamingAbortController) {
+          console.log('🛑 Stopping streaming...');
+          streamingAbortController.abort();
+        }
+        
+        // Add "stopped" message to current streaming message if exists
+        if (streamingMessageId && currentChatId) {
+          const currentContent = get().streamingContent;
+          get().updateMessage(currentChatId, streamingMessageId, {
+            content: currentContent + '\n\n[Mesaj durduruldu]'
+          });
+        }
+        
+        set({ 
+          streamingMessageId: null, 
+          streamingContent: '', 
+          isAIResponding: false,
+          streamingAbortController: null
+        });
+      },
       
       // API Actions
       fetchChats: async () => {
@@ -514,6 +553,9 @@ export const useChatStore = create<ChatState>()(
           
           console.log('🌊 Starting Server-Sent Events connection...');
           
+          // Get AbortController for this streaming request
+          const { streamingAbortController } = get();
+          
           // Use the streaming endpoint
           const response = await fetch(`/api/chats/${currentChatId}/messages/stream`, {
             method: 'POST',
@@ -521,7 +563,8 @@ export const useChatStore = create<ChatState>()(
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
+            signal: streamingAbortController?.signal
           });
 
           if (!response.ok) {

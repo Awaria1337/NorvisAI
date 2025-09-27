@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Plus, Mic, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useChatStore } from '@/store/chatStore';
 
 interface PromptInputProps {
   onSendMessage?: (message: string) => void;
@@ -21,6 +22,9 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Get streaming state from chat store
+  const { isAIResponding, stopStreaming } = useChatStore();
 
   // Auto-resize textarea
   useEffect(() => {
@@ -47,6 +51,10 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
+  };
+  
+  const handleStopStreaming = () => {
+    stopStreaming();
   };
 
   return (
@@ -93,7 +101,21 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
-              {message.trim() ? (
+              {isAIResponding ? (
+                /* Stop Streaming Button - Show when AI is responding */
+                <Button
+                  onClick={handleStopStreaming}
+                  size="sm"
+                  className={cn(
+                    "rounded-xl px-4 py-2.5 h-auto",
+                    "bg-red-600 hover:bg-red-700 text-white",
+                    "transition-all duration-200"
+                  )}
+                  title="Mesajı durdur"
+                >
+                  <Square className="h-4 w-4 fill-current" />
+                </Button>
+              ) : message.trim() ? (
                 /* Send Button */
                 <Button
                   onClick={handleSend}
@@ -127,12 +149,13 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                     )} />
                   </Button>
 
-                  {/* Stop Button */}
+                  {/* Placeholder Stop Button (inactive when not streaming) */}
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={disabled}
-                    className="rounded-xl p-2.5 hover:bg-muted transition-colors"
+                    disabled={true}
+                    className="rounded-xl p-2.5 opacity-30 cursor-not-allowed"
+                    title="AI yanıt verirken durdurmak için kullanılabilir"
                   >
                     <Square className="h-4 w-4 text-muted-foreground fill-current" />
                   </Button>
