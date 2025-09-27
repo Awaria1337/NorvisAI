@@ -14,6 +14,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import MessageEditSidebar from '@/components/ui/message-edit-sidebar'
+import MessageEditModal from '@/components/ui/message-edit-modal'
+import MessageHoverActions from '@/components/ui/message-hover-actions'
 import TypingSkeleton, { AITypingIndicator } from '@/components/ui/typing-skeleton'
 import {
   Copy,
@@ -170,9 +172,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 }) => {
   const [isEditSidebarOpen, setIsEditSidebarOpen] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   
   // Get streaming state from store
-  const { streamingMessageId, streamingContent: storeStreamingContent, isAIResponding } = useChatStore();
+  const { streamingMessageId, streamingContent: storeStreamingContent, isAIResponding, editMessage } = useChatStore();
   
   // Determine if this message is currently streaming
   const isCurrentlyStreaming = isAIResponding && streamingMessageId === message.id;
@@ -187,6 +191,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   
   // Message action handlers
   const handleEditMessage = (messageId: string) => {
+    setEditingMessageId(messageId);
+    setIsEditModalOpen(true);
+  };
+  
+  const handleEditMessageOld = (messageId: string) => {
     setEditingMessageId(messageId);
     setIsEditSidebarOpen(true);
   };
@@ -277,12 +286,35 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     toast.success('Mesaj kaydedildi! (Geliştirme aşamasında)');
   };
   
+  // Close edit modal
+  const handleCloseEditModal = () => {
+    setIsEditModalOpen(false);
+    setEditingMessageId(null);
+  };
+  
+  // Save edited message from modal
+  const handleSaveEditedMessageFromModal = async (newContent: string) => {
+    if (!editingMessageId) return;
+    
+    try {
+      await editMessage(editingMessageId, newContent);
+      toast.success('Mesaj düzenlendi ve AI yeniden cevap veriyor!');
+    } catch (error) {
+      toast.error('Mesaj düzenleme başarısız!');
+      console.error('Edit message error:', error);
+    }
+  };
+  
   if (isUser) {
     // User message - Right side with bubble
     return (
       <>
-      <div className="flex justify-end mb-6">
-        <div className="max-w-[80%] relative">
+      <div className="flex justify-end mb-8">
+        <div 
+          className="max-w-[80%] relative pb-8"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
           <div className="bg-gray-800 text-gray-100 rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
             {/* Display files if any */}
             {message.files && message.files.length > 0 && (
@@ -355,6 +387,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               </div>
             )}
           </div>
+          
+          {/* Hover Actions - mesajın hemen altında */}
+          {isHovered && (
+            <div className="absolute bottom-2 right-0 opacity-100 transition-opacity duration-150 mt-3">
+              <MessageHoverActions
+                messageId={message.id}
+                content={message.content}
+                onEdit={handleEditMessage}
+                className=""
+              />
+            </div>
+          )}
         </div>
       </div>
       
@@ -366,6 +410,14 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         messageId={message.id}
         onSave={handleSaveEditedMessage}
       />
+      
+      {/* Edit Modal for user messages */}
+      <MessageEditModal
+        isOpen={isEditModalOpen && editingMessageId === message.id}
+        onClose={handleCloseEditModal}
+        originalMessage={message.content}
+        onSave={handleSaveEditedMessageFromModal}
+      />
       </>
     );
   }
@@ -373,7 +425,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   // AI message - Left side without bubble (ChatGPT style)
   return (
     <>
-    <div className="flex justify-start mb-6">
+    <div className="flex justify-start mb-8">
       <div className="flex items-start space-x-4 max-w-[90%] w-full">
         <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center">
           <img 

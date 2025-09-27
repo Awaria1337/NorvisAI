@@ -116,6 +116,15 @@ export async function POST(
 
     const stream = new ReadableStream({
       async start(controller) {
+        let isAborted = false;
+        
+        // Listen for abort signal
+        request.signal?.addEventListener('abort', () => {
+          console.log('🛑 Stream aborted by client - stopping AI generation');
+          isAborted = true;
+          controller.close();
+        });
+        
         try {
           // Send initial user message
           const userMessageData = JSON.stringify({
@@ -170,37 +179,61 @@ export async function POST(
 
           console.log('🚀 Starting streaming AI response for chat:', chatId);
           
-          // Stream AI response
-          await sendToAIStreaming(
-            aiMessages,
-            chat.aiModel,
-            payload.userId,
-            (chunk: string) => {
-              fullAiResponse += chunk;
-              
-              // Send chunk to client
-              const chunkData = JSON.stringify({
-                type: 'chunk',
-                data: { id: aiMessage.id, chunk, fullContent: fullAiResponse }
-              });
-              controller.enqueue(encoder.encode(`data: ${chunkData}\n\n`));
+          // Stream AI response with abort handling
+          try {
+            await sendToAIStreaming(
+              aiMessages,
+              chat.aiModel,
+              payload.userId,
+              (chunk: string) => {
+                // Check if stream was aborted
+                if (isAborted) {
+                  console.log('🛑 Skipping chunk - stream aborted');
+                  throw new Error('STREAMING_ABORTED'); // Stop AI streaming
+                }
+                
+                fullAiResponse += chunk;
+                
+                // Send chunk to client
+                const chunkData = JSON.stringify({
+                  type: 'chunk',
+                  data: { id: aiMessage.id, chunk, fullContent: fullAiResponse }
+                });
+                controller.enqueue(encoder.encode(`data: ${chunkData}\n\n`));
+              }
+            );
+          } catch (error) {
+            // If streaming was aborted, that's expected
+            if (error instanceof Error && error.message === 'STREAMING_ABORTED') {
+              console.log('🛑 AI streaming stopped due to client abort');
+            } else {
+              throw error; // Re-throw other errors
             }
-          );
+          }
 
-          // Update the AI message with full content
-          await prisma.message.update({
-            where: { id: aiMessage.id },
-            data: { content: fullAiResponse }
-          });
+          // Update the AI message with full content (only if not aborted)
+          if (!isAborted) {
+            await prisma.message.update({
+              where: { id: aiMessage.id },
+              data: { content: fullAiResponse }
+            });
 
-          // Send completion signal
-          const completeData = JSON.stringify({
-            type: 'complete',
-            data: { id: aiMessage.id, content: fullAiResponse }
-          });
-          controller.enqueue(encoder.encode(`data: ${completeData}\n\n`));
+            // Send completion signal
+            const completeData = JSON.stringify({
+              type: 'complete',
+              data: { id: aiMessage.id, content: fullAiResponse }
+            });
+            controller.enqueue(encoder.encode(`data: ${completeData}\n\n`));
 
-          console.log('✅ Streaming completed successfully');
+            console.log('✅ Streaming completed successfully');
+          } else {
+            // Save partial content if aborted
+            await prisma.message.update({
+              where: { id: aiMessage.id },
+              data: { content: fullAiResponse } // This will be the partial content
+            });
+            console.log('🛑 Streaming aborted - saved partial content:', fullAiResponse.length, 'characters');
+          }
           controller.close();
 
         } catch (error) {
