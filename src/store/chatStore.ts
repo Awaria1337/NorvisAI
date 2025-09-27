@@ -75,6 +75,7 @@ interface ChatState {
   fetchChats: () => Promise<void>;
   createNewChat: (title?: string, model?: string) => Promise<Chat>;
   sendMessage: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
+  sendMessageStreaming: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
   regenerateMessage: (messageId: string) => Promise<void>;
 }
 
@@ -401,7 +402,11 @@ export const useChatStore = create<ChatState>()(
       },
       
       sendMessage: async (content: string, createNewChatIfNeeded = false, files: any[] = []) => {
-        console.log('🚀 sendMessage called with:', { content, createNewChatIfNeeded, files: files.length });
+        return get().sendMessageStreaming(content, createNewChatIfNeeded, files);
+      },
+
+      sendMessageStreaming: async (content: string, createNewChatIfNeeded = false, files: any[] = []) => {
+        console.log('🚀 Starting STREAMING message send with:', { content, createNewChatIfNeeded, files: files.length });
         let { currentChatId } = get();
         let currentChat = get().getCurrentChat();
         console.log('📝 Current chat ID:', currentChatId);
@@ -413,7 +418,6 @@ export const useChatStore = create<ChatState>()(
             const file = fileItem.file || fileItem;
             if (file instanceof File) {
               try {
-                // Convert file to buffer format for API
                 const buffer = await file.arrayBuffer();
                 const base64Buffer = Buffer.from(buffer).toString('base64');
                 
@@ -428,44 +432,42 @@ export const useChatStore = create<ChatState>()(
               }
             }
           }
-          console.log('📎 Processed', processedFiles.length, 'files for upload');
+          console.log('📎 Processed', processedFiles.length, 'files for streaming upload');
         }
         
-        // Declare timeout variable in the correct scope
         let timeoutId: NodeJS.Timeout | null = null;
+        let streamingMessageId: string | null = null;
         
         try {
-          // Reset AI states and start thinking animation immediately
+          // Reset AI states and start thinking
           get().resetAIStates();
           get().setAIThinking(true);
           
-          // Only create a new chat if explicitly requested or if there are no chats at all
+          // Create new chat if needed
           if (createNewChatIfNeeded || (!currentChatId && get().chats.length === 0)) {
-            console.log('🆕 Creating new chat...');
-            // Generate smart title from user message
+            console.log('🆕 Creating new chat for streaming...');
             const smartTitle = generateChatTitle(content);
             const newChat = await get().createNewChat(smartTitle, 'google/gemma-2-9b-it:free');
             currentChatId = newChat.id;
             currentChat = newChat;
-            console.log('✅ New chat created with smart title:', smartTitle, 'ID:', currentChatId);
+            console.log('✅ New chat created for streaming:', smartTitle, 'ID:', currentChatId);
           } else if (!currentChatId && get().chats.length > 0) {
-            // If no current chat selected but chats exist, select the first one
             const firstChat = get().chats[0];
             currentChatId = firstChat.id;
             set({ currentChatId: firstChat.id });
             currentChat = get().getCurrentChat();
-            console.log('📌 Selected existing chat with ID:', currentChatId);
+            console.log('📌 Selected existing chat for streaming:', currentChatId);
           }
           
           if (!currentChatId) {
-            console.error('❌ No active chat available');
+            console.error('❌ No active chat for streaming');
             get().resetAIStates();
             throw new Error('No active chat available');
           }
 
-          // 1. FIRST: Add user message to UI immediately (ChatGPT style)
+          // Add user message immediately
           const userMessage: Message = {
-            id: `temp-${Date.now()}`,
+            id: `user-${Date.now()}`,
             content,
             role: 'user',
             createdAt: new Date(),
@@ -481,175 +483,177 @@ export const useChatStore = create<ChatState>()(
             }).filter(f => f.name !== 'Unknown')
           };
           
-          // Add user message to UI instantly
           get().addMessage(currentChatId, userMessage);
-          console.log('✅ User message added to UI instantly');
+          console.log('✅ User message added for streaming');
 
-          // 2. SECOND: Start AI thinking state
-          const startTime = Date.now();
-          
-          // Set up a timeout to switch to waiting message after 3 seconds max
+          // Set timeout for thinking state
           timeoutId = setTimeout(() => {
-            const elapsed = Date.now() - startTime;
-            if (elapsed >= 3000 && get().isAIThinking) {
+            if (get().isAIThinking) {
               get().setAIThinking(false);
               get().setShowWaitingMessage(true);
-              console.log('⏰ Switched to waiting message after 3s');
+              console.log('⏰ Switched to waiting for streaming response');
             }
           }, 3000);
           
-          // Add timeout for maximum wait time (75 seconds for AI responses)
-          const maxTimeoutId = setTimeout(() => {
-            if (get().isAIThinking || get().showWaitingMessage || get().isAIResponding) {
-              console.log('⚠️ Maximum timeout reached (75s)');
-              get().resetAIStates();
-              // Add error message to chat
-              const errorMessage: Message = {
-                id: `error-${Date.now()}`,
-                content: 'Request timed out. The AI service might be busy. Please try again.',
-                role: 'assistant',
-                createdAt: new Date()
-              };
-              get().addMessage(currentChatId!, errorMessage);
-            }
-          }, 75000);
-          
-          set({ isLoading: true, error: null });
-          
           const token = localStorage.getItem('token');
           if (!token) {
-            console.error('❌ No authentication token');
+            console.error('❌ No authentication token for streaming');
             get().resetAIStates();
             throw new Error('No authentication token');
           }
-          console.log('🔑 Token found, making API request...');
 
-          // 3. THIRD: Make API request with timeout
-          console.log('🌐 Making API request to:', `/api/chats/${currentChatId}/messages`);
           const requestBody: any = {
-            content
+            content,
+            role: 'user'
           };
           
-          // Add processed files if any
           if (processedFiles.length > 0) {
             requestBody.files = processedFiles;
-            console.log('📁 Including', processedFiles.length, 'files in request');
+            console.log('📁 Including', processedFiles.length, 'files in streaming request');
           }
           
-          // Create fetch with timeout (70s - longer than typical AI response)
-          const controller = new AbortController();
-          const fetchTimeout = setTimeout(() => {
-            controller.abort();
-            console.log('⚠️ Fetch request aborted due to timeout');
-          }, 70000); // 70 seconds timeout for fetch
+          console.log('🌊 Starting Server-Sent Events connection...');
           
-          const response = await fetch(`/api/chats/${currentChatId}/messages`, {
+          // Use the streaming endpoint
+          const response = await fetch(`/api/chats/${currentChatId}/messages/stream`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(requestBody),
-            signal: controller.signal
+            body: JSON.stringify(requestBody)
           });
-          
-          clearTimeout(fetchTimeout);
 
-          console.log('📡 API response status:', response.status);
           if (!response.ok) {
-            const errorData = await response.json();
-            console.error('❌ API error:', errorData);
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
 
-          const result = await response.json();
-          console.log('✅ API response received:', result);
+          console.log('📡 Streaming response started');
           
-          // Clear both timeouts since we got a response
+          // Clear timeouts since we got a response
           if (timeoutId) {
             clearTimeout(timeoutId);
             timeoutId = null;
           }
-          clearTimeout(maxTimeoutId);
           
-          // 4. FOURTH: Switch to responding state for typing effect
+          // Switch to AI responding state
           get().setAIThinking(false);
           get().setShowWaitingMessage(false);
-          get().setAIResponding(true);
           
-          // 5. FIFTH: Update chat with actual messages from server (PRESERVE FILE ATTACHMENTS)
-          const updatedChat = result.data.chat;
-          if (updatedChat && updatedChat.messages) {
-            set(state => ({
-              chats: state.chats.map(chat => {
-                if (chat.id === updatedChat.id) {
-                  // Merge server messages with local file attachments
-                  const localMessages = chat.messages;
-                  const mergedMessages = updatedChat.messages.map((serverMsg: any) => {
-                    // Find corresponding local message by content or timestamp
-                    const localMsg = localMessages.find(
-                      localM => localM.role === serverMsg.role && 
-                      (localM.content === serverMsg.content || 
-                       Math.abs(new Date(localM.createdAt).getTime() - new Date(serverMsg.createdAt).getTime()) < 5000)
-                    );
-                    
-                    return {
-                      ...serverMsg,
-                      createdAt: new Date(serverMsg.createdAt),
-                      // Preserve file attachments from local message
-                      images: localMsg?.images || serverMsg.images || undefined,
-                      files: localMsg?.files || serverMsg.files || undefined
-                    };
-                  });
-                  
-                  return {
-                    ...updatedChat,
-                    messages: mergedMessages
-                  };
-                }
-                return chat;
-              }),
-              isLoading: false
-            }));
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          
+          if (!reader) {
+            throw new Error('No reader available for streaming response');
           }
           
-          // 6. FINAL: Reset AI states after brief delay for smooth UX
-          setTimeout(() => {
-            get().resetAIStates();
-            console.log('🎉 Message flow completed successfully');
-          }, 300);
+          let buffer = '';
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              console.log('✅ Streaming completed');
+              break;
+            }
+            
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || ''; // Keep the incomplete line in buffer
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.substring(6));
+                  console.log('📥 Streaming data:', data.type);
+                  
+                  switch (data.type) {
+                    case 'userMessage':
+                      // User message already added, skip
+                      break;
+                    
+                    case 'aiMessageStart':
+                      // Create empty AI message and start streaming
+                      streamingMessageId = data.data.id;
+                      const aiMessage: Message = {
+                        id: streamingMessageId,
+                        content: '',
+                        role: 'assistant',
+                        createdAt: new Date()
+                      };
+                      get().addMessage(currentChatId!, aiMessage);
+                      get().startStreaming(streamingMessageId);
+                      console.log('🤖 AI message started, ID:', streamingMessageId);
+                      break;
+                    
+                    case 'chunk':
+                      // Update the streaming content
+                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                        get().updateStreamingContent(data.data.fullContent);
+                        
+                        // Update the actual message in the chat
+                        get().updateMessage(currentChatId!, streamingMessageId, {
+                          content: data.data.fullContent
+                        });
+                      }
+                      break;
+                    
+                    case 'complete':
+                      // Streaming completed
+                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                        get().finishStreaming();
+                        console.log('🎉 Streaming message completed');
+                      }
+                      break;
+                    
+                    case 'error':
+                      // Handle error
+                      console.error('❌ Streaming error:', data.data.error);
+                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                        get().updateMessage(currentChatId!, streamingMessageId, {
+                          content: data.data.content
+                        });
+                        get().finishStreaming();
+                      }
+                      break;
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing streaming data:', parseError);
+                }
+              }
+            }
+          }
+          
+          // Final cleanup
+          get().resetAIStates();
+          set({ isLoading: false });
+          console.log('🎊 Streaming message flow completed');
           
         } catch (error) {
           // Clear timeout on error
           if (timeoutId) {
             clearTimeout(timeoutId);
           }
-          // Also clear max wait timer so it doesn't fire after error
-          try { clearTimeout(maxTimeoutId); } catch {}
           get().resetAIStates();
           
-          let errorMessage = 'Sorry, I encountered an error. Please try again.';
+          let errorMessage = 'Sorry, I encountered an error with streaming. Please try again.';
           
           if (error instanceof Error) {
-            if (error.name === 'AbortError') {
-              errorMessage = 'Request timed out. The AI service might be busy. Please try again.';
-            } else if (error.message.includes('Failed to fetch')) {
-              errorMessage = 'Network error: Unable to connect to the AI service. Please check your connection and try again.';
-            } else if (error.message.includes('NetworkError')) {
-              errorMessage = 'Network error: Please check your internet connection.';
+            if (error.message.includes('Failed to fetch')) {
+              errorMessage = 'Network error: Unable to connect to the streaming service.';
             } else {
-              errorMessage = `Error: ${error.message}`;
+              errorMessage = `Streaming error: ${error.message}`;
             }
             
-            console.error('❗ Detailed error info:', {
+            console.error('❗ Streaming error details:', {
               name: error.name,
               message: error.message,
               stack: error.stack
             });
           }
           
-          // Add error message to chat if we have a currentChatId and it's not just an abort timeout
-          if (currentChatId && !(error instanceof Error && error.name === 'AbortError')) {
+          // Add error message to chat
+          if (currentChatId) {
             const chatErrorMessage: Message = {
               id: `error-${Date.now()}`,
               content: errorMessage,
@@ -660,10 +664,10 @@ export const useChatStore = create<ChatState>()(
           }
           
           set({ 
-            error: error instanceof Error ? error.message : 'Failed to send message',
+            error: error instanceof Error ? error.message : 'Streaming failed',
             isLoading: false 
           });
-          console.error('❌ sendMessage error:', error);
+          console.error('❌ sendMessageStreaming error:', error);
           throw error;
         }
       },

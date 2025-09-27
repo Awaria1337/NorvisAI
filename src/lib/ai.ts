@@ -421,6 +421,296 @@ export async function sendToAI(
   }
 }
 
+// Streaming function type
+export type StreamingCallback = (chunk: string) => void;
+
+// Send message to OpenRouter with streaming
+async function sendToOpenRouterStreaming(
+  messages: AIMessage[], 
+  model: string, 
+  apiKey: string, 
+  onChunk: StreamingCallback
+): Promise<AIResponse> {
+  try {
+    console.log(`Sending streaming request to OpenRouter with model: ${model}`);
+    
+    const openai = new OpenAI({
+      baseURL: "https://openrouter.ai/api/v1",
+      apiKey: apiKey,
+      defaultHeaders: {
+        "HTTP-Referer": "https://norvis.ai",
+        "X-Title": "Norvis AI",
+      },
+    });
+
+    const stream = await openai.chat.completions.create({
+      model: model,
+      messages: messages as any,
+      max_tokens: 1000,
+      temperature: 0.7,
+      stream: true, // Enable streaming
+    });
+
+    let fullContent = '';
+    let tokensUsed = 0;
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        fullContent += content;
+        onChunk(content); // Send each chunk to callback
+      }
+      
+      // Estimate tokens (rough approximation)
+      if (content) {
+        tokensUsed += Math.ceil(content.length / 4);
+      }
+    }
+
+    console.log(`OpenRouter streaming response completed`);
+    
+    return {
+      content: fullContent,
+      tokensUsed: tokensUsed,
+      model: model
+    };
+  } catch (error) {
+    console.error(`OpenRouter Streaming API Error:`, error);
+    if (error instanceof Error) {
+      if (error.message.includes('401')) {
+        throw new Error('Invalid API key for OpenRouter');
+      } else if (error.message.includes('429')) {
+        throw new Error('Rate limit exceeded for OpenRouter');
+      } else if (error.message.includes('quota')) {
+        throw new Error('OpenRouter quota exceeded');
+      }
+    }
+    throw error;
+  }
+}
+
+// Send message to OpenAI with streaming
+async function sendToOpenAIStreaming(
+  messages: AIMessage[], 
+  model: string, 
+  apiKey: string, 
+  onChunk: StreamingCallback
+): Promise<AIResponse> {
+  try {
+    console.log(`Sending streaming request to OpenAI with model: ${model}`);
+    
+    const openai = new OpenAI({
+      apiKey: apiKey,
+    });
+
+    const stream = await openai.chat.completions.create({
+      model: model,
+      messages: messages as any,
+      max_tokens: 1000,
+      temperature: 0.7,
+      stream: true,
+    });
+
+    let fullContent = '';
+    let tokensUsed = 0;
+
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      if (content) {
+        fullContent += content;
+        onChunk(content);
+      }
+      
+      if (content) {
+        tokensUsed += Math.ceil(content.length / 4);
+      }
+    }
+
+    console.log(`OpenAI streaming response completed`);
+    
+    return {
+      content: fullContent,
+      tokensUsed: tokensUsed,
+      model: model
+    };
+  } catch (error) {
+    console.error(`OpenAI Streaming API Error:`, error);
+    if (error instanceof Error) {
+      if (error.message.includes('401')) {
+        throw new Error('Invalid API key for OpenAI');
+      } else if (error.message.includes('429')) {
+        throw new Error('Rate limit exceeded for OpenAI');
+      }
+    }
+    throw error;
+  }
+}
+
+// Send message to Anthropic with streaming
+async function sendToAnthropicStreaming(
+  messages: AIMessage[], 
+  model: string, 
+  apiKey: string, 
+  onChunk: StreamingCallback
+): Promise<AIResponse> {
+  try {
+    console.log(`Sending streaming request to Anthropic with model: ${model}`);
+    
+    const anthropic = new Anthropic({
+      apiKey: apiKey,
+    });
+
+    const anthropicMessages = messages
+      .filter(msg => msg.role !== 'system')
+      .map(msg => ({
+        role: msg.role as 'user' | 'assistant',
+        content: msg.content
+      }));
+
+    const stream = await anthropic.messages.create({
+      model: model,
+      max_tokens: 1000,
+      messages: anthropicMessages,
+      stream: true,
+    }) as any;
+
+    let fullContent = '';
+    let tokensUsed = 0;
+
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_block_delta') {
+        const content = chunk.delta?.text;
+        if (content) {
+          fullContent += content;
+          onChunk(content);
+          tokensUsed += Math.ceil(content.length / 4);
+        }
+      }
+    }
+
+    console.log(`Anthropic streaming response completed`);
+    
+    return {
+      content: fullContent,
+      tokensUsed: tokensUsed,
+      model: model
+    };
+  } catch (error) {
+    console.error(`Anthropic Streaming API Error:`, error);
+    if (error instanceof Error) {
+      if (error.message.includes('401')) {
+        throw new Error('Invalid API key for Anthropic');
+      } else if (error.message.includes('429')) {
+        throw new Error('Rate limit exceeded for Anthropic');
+      }
+    }
+    throw error;
+  }
+}
+
+// Main streaming function
+export async function sendToAIStreaming(
+  messages: Array<{ role: string; content: string; images?: string[] }>,
+  model: string,
+  userId: string,
+  onChunk: StreamingCallback
+): Promise<AIResponse> {
+  try {
+    console.log(`=== SENDING TO AI (STREAMING) ===`);
+    console.log(`Model: ${model}`);
+    console.log(`User ID: ${userId}`);
+    
+    const provider = getProviderFromModel(model);
+    console.log(`Provider: ${provider}`);
+    
+    // Format messages for AI providers (handle images)
+    const formattedMessages: AIMessage[] = messages.map(msg => {
+      if (msg.images && msg.images.length > 0) {
+        const content: Array<{ type: 'text' | 'image'; text?: string; image_url?: { url: string; detail?: 'auto' } }> = [
+          { type: 'text', text: msg.content }
+        ];
+        
+        msg.images.forEach(imageUrl => {
+          content.push({
+            type: 'image',
+            image_url: {
+              url: imageUrl,
+              detail: 'auto'
+            }
+          });
+        });
+        
+        return {
+          role: msg.role as 'user' | 'assistant' | 'system',
+          content: content
+        };
+      } else {
+        return {
+          role: msg.role as 'user' | 'assistant' | 'system',
+          content: msg.content
+        };
+      }
+    });
+    
+    // Use environment variable for OpenRouter API key
+    const apiKey = process.env.OPENROUTER_API_KEY;
+    
+    if (!apiKey) {
+      console.error('OpenRouter API key not found in environment variables');
+      throw new Error('OpenRouter API key not configured in environment variables');
+    }
+    
+    console.log(`Using API key: ${apiKey.substring(0, 10)}...`);
+    
+    let result: AIResponse;
+    
+    switch (provider) {
+      case 'openrouter':
+        result = await sendToOpenRouterStreaming(formattedMessages, model, apiKey, onChunk);
+        break;
+      case 'openai':
+        const openaiKey = process.env.OPENAI_API_KEY;
+        if (!openaiKey) throw new Error('OpenAI API key not configured');
+        result = await sendToOpenAIStreaming(formattedMessages, model, openaiKey, onChunk);
+        break;
+      case 'anthropic':
+        const anthropicKey = process.env.ANTHROPIC_API_KEY;
+        if (!anthropicKey) throw new Error('Anthropic API key not configured');
+        result = await sendToAnthropicStreaming(formattedMessages, model, anthropicKey, onChunk);
+        break;
+      case 'google':
+        // Note: Google Gemini doesn't support streaming in the same way
+        // For now, we'll fall back to regular response but simulate streaming
+        const googleKey = process.env.GOOGLE_API_KEY;
+        if (!googleKey) throw new Error('Google API key not configured');
+        result = await sendToGemini(formattedMessages, model, googleKey);
+        
+        // Simulate streaming for Gemini by sending chunks
+        const words = result.content.split(' ');
+        for (let i = 0; i < words.length; i++) {
+          const chunk = (i === 0 ? '' : ' ') + words[i];
+          onChunk(chunk);
+          // Small delay to simulate typing
+          await new Promise(resolve => setTimeout(resolve, 50));
+        }
+        break;
+      default:
+        throw new Error(`Unsupported AI provider: ${provider}`);
+    }
+    
+    console.log(`=== AI STREAMING RESPONSE SUCCESS ===`);
+    console.log(`Response length: ${result.content.length}`);
+    console.log(`====================================`);
+    
+    return result;
+  } catch (error) {
+    console.error('=== AI STREAMING SERVICE ERROR ===');
+    console.error('Error details:', error);
+    console.error('=================================');
+    throw error;
+  }
+}
+
 // Get available models for a user
 export async function getAvailableModels(userId: string): Promise<Array<{id: string, name: string, provider: string}>> {
   try {
