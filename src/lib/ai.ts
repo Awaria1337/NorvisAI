@@ -297,23 +297,31 @@ async function sendToGemini(messages: AIMessage[], model: string, apiKey: string
 
 // Determine provider from model name
 function getProviderFromModel(model: string): string {
-  if (model.startsWith('gpt-') || model.startsWith('text-') || model.includes('openai')) {
-    return 'openai';
-  } else if (model.startsWith('claude-') || model.includes('anthropic')) {
-    return 'anthropic';
-  } else if (model.startsWith('gemini-') || model.includes('google')) {
-    return 'google';
-  } else if (model.startsWith('deepseek/') || model.includes('deepseek') || model.includes('DeepSeek') || model.includes('deepseek-chat-v3.1') || model.includes('deepseek-coder')) {
+  // OpenRouter models with provider prefixes (google/, anthropic/, openai/, etc.)
+  if (model.includes('/') && (
+    model.startsWith('google/') || 
+    model.startsWith('anthropic/') || 
+    model.startsWith('openai/') || 
+    model.startsWith('meta-llama/') || 
+    model.startsWith('mistralai/') || 
+    model.startsWith('deepseek/') ||
+    model.includes('openrouter')
+  )) {
     return 'openrouter';
-  } else if (model.startsWith('mistral-') || model.includes('mistral')) {
+  }
+  // Direct provider models without prefixes
+  else if (model.startsWith('gpt-') || model.startsWith('text-') || model.startsWith('o1-')) {
+    return 'openai';
+  } else if (model.startsWith('claude-') && !model.includes('/')) {
+    return 'anthropic';
+  } else if (model.startsWith('gemini-') && !model.includes('/')) {
+    return 'google';
+  } else if (model.startsWith('mistral-') && !model.includes('/')) {
     return 'mistral';
   } else if (model.includes('cohere')) {
     return 'cohere';
   } else if (model.includes('perplexity') || model.startsWith('pplx-')) {
     return 'perplexity';
-  } else if (model.includes('openrouter') || model.includes('/')) {
-    // Any model with slash (/) is likely from OpenRouter
-    return 'openrouter';
   } else {
     // Default to openrouter for unknown models (since we're using it as primary)
     return 'openrouter';
@@ -456,14 +464,19 @@ export async function getAvailableModels(userId: string): Promise<Array<{id: str
       );
     }
 
-    // Always show OpenRouter models since we have API key in env
+    // Always show OpenRouter models since we have API key in env - SPEED PRIORITY ORDER
     models.push(
-      { id: 'deepseek/deepseek-chat-v3.1:free', name: 'DeepSeek Chat v3.1 (Free)', provider: 'openrouter' },
-      { id: 'google/gemma-2-9b-it:free', name: 'Gemma 2 9B (Free)', provider: 'openrouter' },
-      { id: 'meta-llama/llama-3.1-8b-instruct:free', name: 'Llama 3.1 8B (Free)', provider: 'openrouter' },
-      { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B (Free)', provider: 'openrouter' },
-      { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet (Paid)', provider: 'openrouter' },
-      { id: 'openai/gpt-4o', name: 'GPT-4o (Paid)', provider: 'openrouter' }
+      // Fast and excellent models first
+      { id: 'google/gemma-2-9b-it:free', name: 'Gemma 2 9B ⚡ (En Hızlı ve Ücretsiz)', provider: 'openrouter' },
+      { id: 'meta-llama/llama-3.1-8b-instruct:free', name: 'Llama 3.1 8B ⚡ (Hızlı ve Güvenilir)', provider: 'openrouter' },
+      { id: 'mistralai/mistral-7b-instruct:free', name: 'Mistral 7B ⚡ (Hızlı ve Ücretsiz)', provider: 'openrouter' },
+      
+      // High quality but paid models
+      { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet 🧠 (Kaliteli ama Ücretli)', provider: 'openrouter' },
+      { id: 'openai/gpt-4o', name: 'GPT-4o 🧠 (Kaliteli ama Ücretli)', provider: 'openrouter' },
+      
+      // Slower but reliable free model
+      { id: 'deepseek/deepseek-chat-v3.1:free', name: 'DeepSeek Chat v3.1 🐌 (Yavaş ama Güvenilir)', provider: 'openrouter' }
     );
     
     if (providers.includes('openrouter')) {

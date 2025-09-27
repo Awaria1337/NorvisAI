@@ -68,50 +68,6 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-// Kod dosyası uzantıları - bunlar için kırmızı code icon kullanılacak
-const codeExtensions = [
-  // Web Technologies
-  'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'sass', 'less',
-  // Programming Languages
-  'py', 'java', 'cpp', 'c', 'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt',
-  // Data/Config
-  'json', 'xml', 'yaml', 'yml', 'sql', 'md', 'txt', 'csv'
-];
-
-// Bilinen dosya türleri
-const knownFileTypes = ['pdf', 'word', 'excel', 'image'];
-
-// Bilinen document uzantıları
-const documentExtensions = ['rtf', 'odt', 'pages', 'docm', 'dotx'];
-
-const getFileIcon = (filename: string, fileType: string) => {
-  const extension = filename?.split('.').pop()?.toLowerCase();
-  
-  // Kod dosyları için kırmızı code icon
-  if (extension && codeExtensions.includes(extension)) {
-    return '/code_icon.png';
-  }
-  
-  // Özel dosya türleri için specific iconlar
-  switch (fileType) {
-    case 'pdf':
-      return '/pdf_icon.png';
-    case 'word':
-      return '/word_icon.png';
-    case 'excel':
-      return '/excel_icon.png';
-    case 'image':
-      return '/image_icon.png';
-    default:
-      // Bilinen document uzantıları için document icon
-      if (extension && documentExtensions.includes(extension)) {
-        return '/document_icon.png';
-      }
-      // Bilinmeyen uzantılar için bilinmeyen dosya icon
-      return '/bilinmeyen_dosya.png';
-  }
-};
-
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser }) => {
   const [isEditSidebarOpen, setIsEditSidebarOpen] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
@@ -207,6 +163,70 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
     console.log('Saving edited message:', messageId, newContent);
     toast.success('Mesaj kaydedildi! (Geliştirme aşamasında)');
   };
+
+// Kod dosyası uzantıları - bunlar için kırmızı code icon kullanılacak
+const codeExtensions = [
+  // Web Technologies
+  'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'sass', 'less',
+  // Programming Languages
+  'py', 'java', 'cpp', 'c', 'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt',
+  // Data/Config
+  'json', 'xml', 'yaml', 'yml', 'sql', 'md', 'txt', 'csv'
+];
+
+// Bilinen dosya türleri
+const knownFileTypes = ['pdf', 'word', 'excel', 'image'];
+
+// Bilinen document uzantıları
+const documentExtensions = ['rtf', 'odt', 'pages', 'docm', 'dotx'];
+
+const getFileIcon = (filename: string, fileType: string) => {
+  const extension = filename?.split('.').pop()?.toLowerCase();
+  
+  // Kod dosyları için kırmızı code icon
+  if (extension && codeExtensions.includes(extension)) {
+    return '/code_icon.png';
+  }
+  
+  // Özel dosya türleri için specific iconlar
+  switch (fileType) {
+    case 'pdf':
+      return '/pdf_icon.png';
+    case 'word':
+      return '/word_icon.png';
+    case 'excel':
+      return '/excel_icon.png';
+    case 'image':
+      return '/image_icon.png';
+    default:
+      // Bilinen document uzantıları için document icon
+      if (extension && documentExtensions.includes(extension)) {
+        return '/document_icon.png';
+      }
+      // Bilinmeyen uzantılar için bilinmeyen dosya icon
+      return '/bilinmeyen_dosya.png';
+  }
+};
+
+const getExtensionLabel = (filename?: string) => {
+  const extension = filename?.split('.').pop()?.toLowerCase();
+  return extension ? extension.toUpperCase() : 'FILE';
+};
+
+const getFileColor = (fileType: string) => {
+  switch (fileType) {
+    case 'pdf':
+      return 'bg-red-500';
+    case 'word':
+      return 'bg-blue-500';
+    case 'excel':
+      return 'bg-green-500';
+    default:
+      return 'bg-gray-500';
+  }
+};
+
+// Helper functions for file handling
   
   if (isUser) {
     // User message - Right side with bubble
@@ -278,6 +298,72 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser })
                           </div>
                           <p className="text-sm text-gray-300">
                             {displayName} • {formatFileSize(file.size)}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            )}
+            
+            {/* Legacy support for images array (backward compatibility) */}
+            {!message.files && message.images && message.images.length > 0 && (
+              <div className="mb-3 space-y-2">
+                {message.images.map((imageUrl, index) => {
+                  const fileType = getFileTypeFromUrl(imageUrl);
+                  
+                  if (fileType === 'image') {
+                    return (
+                      <img 
+                        key={index}
+                        src={imageUrl}
+                        alt={`Uploaded image ${index + 1}`}
+                        className="max-w-full h-auto rounded-lg border border-gray-600"
+                        style={{ maxHeight: '200px' }}
+                        draggable={false}
+                        onDragStart={(e) => e.preventDefault()}
+                      />
+                    );
+                  } else {
+                    // Legacy fallback for old format - create fake filename
+                    const fakeFilename = `file.${fileType}`;
+                    const fileIcon = getFileIcon(fakeFilename, fileType);
+                    const extension = fileType;
+                    const isCodeFile = codeExtensions.includes(extension);
+                    const isKnownDocument = documentExtensions.includes(extension);
+                    const isKnownFileType = knownFileTypes.includes(fileType);
+                    const isUnknownFile = !isCodeFile && !isKnownDocument && !isKnownFileType;
+                    
+                    return (
+                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg border border-gray-600">
+                        <div className="w-10 h-10 flex items-center justify-center">
+                          <img 
+                            src={fileIcon} 
+                            alt={fileType} 
+                            className="w-8 h-8 object-contain"
+                            draggable={false}
+                            onDragStart={(e) => e.preventDefault()}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <p className="text-sm font-medium text-gray-100">
+                              {fileType.toUpperCase()} Dosyası
+                            </p>
+                            {isCodeFile && (
+                              <span className="px-1.5 py-0.5 bg-red-600 text-white text-xs font-bold rounded">
+                                {extension.toUpperCase()}
+                              </span>
+                            )}
+                            {isUnknownFile && (
+                              <span className="px-1.5 py-0.5 bg-orange-600 text-white text-xs font-bold rounded">
+                                Bilinmeyen
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-300">
+                            Dosya yüklendi
                           </p>
                         </div>
                       </div>

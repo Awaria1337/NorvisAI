@@ -334,7 +334,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
       
-      createNewChat: async (title = 'New Chat', model = 'deepseek/deepseek-chat-v3.1:free') => {
+      createNewChat: async (title = 'New Chat', model = 'google/gemma-2-9b-it:free') => {
         try {
           console.log('🆕 Creating new chat with:', { title, model });
           set({ isLoading: true, error: null });
@@ -444,7 +444,7 @@ export const useChatStore = create<ChatState>()(
             console.log('🆕 Creating new chat...');
             // Generate smart title from user message
             const smartTitle = generateChatTitle(content);
-            const newChat = await get().createNewChat(smartTitle, model);
+            const newChat = await get().createNewChat(smartTitle, 'google/gemma-2-9b-it:free');
             currentChatId = newChat.id;
             currentChat = newChat;
             console.log('✅ New chat created with smart title:', smartTitle, 'ID:', currentChatId);
@@ -498,21 +498,21 @@ export const useChatStore = create<ChatState>()(
             }
           }, 3000);
           
-          // Add timeout for maximum wait time (10 seconds)
+          // Add timeout for maximum wait time (75 seconds for AI responses)
           const maxTimeoutId = setTimeout(() => {
-            if (get().isAIThinking || get().showWaitingMessage) {
-              console.log('⚠️ Maximum timeout reached (10s)');
+            if (get().isAIThinking || get().showWaitingMessage || get().isAIResponding) {
+              console.log('⚠️ Maximum timeout reached (75s)');
               get().resetAIStates();
               // Add error message to chat
               const errorMessage: Message = {
                 id: `error-${Date.now()}`,
-                content: 'Request timed out. Please try again.',
+                content: 'Request timed out. The AI service might be busy. Please try again.',
                 role: 'assistant',
                 createdAt: new Date()
               };
               get().addMessage(currentChatId!, errorMessage);
             }
-          }, 10000);
+          }, 75000);
           
           set({ isLoading: true, error: null });
           
@@ -524,7 +524,7 @@ export const useChatStore = create<ChatState>()(
           }
           console.log('🔑 Token found, making API request...');
 
-          // 3. THIRD: Make API request
+          // 3. THIRD: Make API request with timeout
           console.log('🌐 Making API request to:', `/api/chats/${currentChatId}/messages`);
           const requestBody: any = {
             content
@@ -533,7 +533,15 @@ export const useChatStore = create<ChatState>()(
           // Add processed files if any
           if (processedFiles.length > 0) {
             requestBody.files = processedFiles;
+            console.log('📁 Including', processedFiles.length, 'files in request');
           }
+          
+          // Create fetch with timeout (70s - longer than typical AI response)
+          const controller = new AbortController();
+          const fetchTimeout = setTimeout(() => {
+            controller.abort();
+            console.log('⚠️ Fetch request aborted due to timeout');
+          }, 70000); // 70 seconds timeout for fetch
           
           const response = await fetch(`/api/chats/${currentChatId}/messages`, {
             method: 'POST',
@@ -541,8 +549,11 @@ export const useChatStore = create<ChatState>()(
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
+            signal: controller.signal
           });
+          
+          clearTimeout(fetchTimeout);
 
           console.log('📡 API response status:', response.status);
           if (!response.ok) {
@@ -566,19 +577,38 @@ export const useChatStore = create<ChatState>()(
           get().setShowWaitingMessage(false);
           get().setAIResponding(true);
           
-          // 5. FIFTH: Update chat with actual messages from server
+          // 5. FIFTH: Update chat with actual messages from server (PRESERVE FILE ATTACHMENTS)
           const updatedChat = result.data.chat;
           if (updatedChat && updatedChat.messages) {
             set(state => ({
-              chats: state.chats.map(chat => 
-                chat.id === updatedChat.id ? {
-                  ...updatedChat,
-                  messages: updatedChat.messages.map((msg: any) => ({
-                    ...msg,
-                    createdAt: new Date(msg.createdAt)
-                  }))
-                } : chat
-              ),
+              chats: state.chats.map(chat => {
+                if (chat.id === updatedChat.id) {
+                  // Merge server messages with local file attachments
+                  const localMessages = chat.messages;
+                  const mergedMessages = updatedChat.messages.map((serverMsg: any) => {
+                    // Find corresponding local message by content or timestamp
+                    const localMsg = localMessages.find(
+                      localM => localM.role === serverMsg.role && 
+                      (localM.content === serverMsg.content || 
+                       Math.abs(new Date(localM.createdAt).getTime() - new Date(serverMsg.createdAt).getTime()) < 5000)
+                    );
+                    
+                    return {
+                      ...serverMsg,
+                      createdAt: new Date(serverMsg.createdAt),
+                      // Preserve file attachments from local message
+                      images: localMsg?.images || serverMsg.images || undefined,
+                      files: localMsg?.files || serverMsg.files || undefined
+                    };
+                  });
+                  
+                  return {
+                    ...updatedChat,
+                    messages: mergedMessages
+                  };
+                }
+                return chat;
+              }),
               isLoading: false
             }));
           }
@@ -594,17 +624,39 @@ export const useChatStore = create<ChatState>()(
           if (timeoutId) {
             clearTimeout(timeoutId);
           }
+          // Also clear max wait timer so it doesn't fire after error
+          try { clearTimeout(maxTimeoutId); } catch {}
           get().resetAIStates();
           
-          // Add error message to chat if we have a currentChatId
-          if (currentChatId) {
-            const errorMessage: Message = {
+          let errorMessage = 'Sorry, I encountered an error. Please try again.';
+          
+          if (error instanceof Error) {
+            if (error.name === 'AbortError') {
+              errorMessage = 'Request timed out. The AI service might be busy. Please try again.';
+            } else if (error.message.includes('Failed to fetch')) {
+              errorMessage = 'Network error: Unable to connect to the AI service. Please check your connection and try again.';
+            } else if (error.message.includes('NetworkError')) {
+              errorMessage = 'Network error: Please check your internet connection.';
+            } else {
+              errorMessage = `Error: ${error.message}`;
+            }
+            
+            console.error('❗ Detailed error info:', {
+              name: error.name,
+              message: error.message,
+              stack: error.stack
+            });
+          }
+          
+          // Add error message to chat if we have a currentChatId and it's not just an abort timeout
+          if (currentChatId && !(error instanceof Error && error.name === 'AbortError')) {
+            const chatErrorMessage: Message = {
               id: `error-${Date.now()}`,
-              content: 'Sorry, I encountered an error. Please try again.',
+              content: errorMessage,
               role: 'assistant',
               createdAt: new Date()
             };
-            get().addMessage(currentChatId, errorMessage);
+            get().addMessage(currentChatId, chatErrorMessage);
           }
           
           set({ 

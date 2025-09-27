@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import toast from 'react-hot-toast';
+import AdvancedFilePreview, { FileUploadStats } from '@/components/ui/advanced-file-preview';
+import { getFileDisplayInfo, formatFileSize, validateFile } from '@/utils/fileUtils';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -222,76 +224,65 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    const newFileItems = Array.from(files).map((file, index) => ({
-      id: `${Date.now()}-${index}`,
-      file: file,
-      name: file.name,
-      preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
-    }));
+    const validFiles: any[] = [];
+    const invalidFiles: string[] = [];
+    const warnings: string[] = [];
 
-    setUploadedFiles(prev => [...prev, ...newFileItems]);
-    
-    const fileText = newFileItems.length === 1 ? 'dosya' : 'dosya';
-    showToast.success(`${newFileItems.length} ${fileText} başarıyla yüklendi!`, {
-      duration: 3000,
+    Array.from(files).forEach((file, index) => {
+      // Validate each file
+      const validation = validateFile({
+        size: file.size,
+        type: file.type,
+        name: file.name
+      });
+
+      if (validation.valid) {
+        const fileItem = {
+          id: `${Date.now()}-${index}`,
+          file: file,
+          name: file.name,
+          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+        };
+        validFiles.push(fileItem);
+        
+        if (validation.warning) {
+          warnings.push(`${file.name}: ${validation.warning}`);
+        }
+      } else {
+        invalidFiles.push(`${file.name}: ${validation.error}`);
+      }
+    });
+
+    // Add valid files
+    if (validFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...validFiles]);
+      
+      const fileText = validFiles.length === 1 ? 'dosya' : 'dosya';
+      showToast.success(`${validFiles.length} ${fileText} başarıyla yüklendi!`, {
+        duration: 3000,
+      });
+    }
+
+    // Show warnings
+    warnings.forEach(warning => {
+      showToast.warning(warning, { duration: 4000 });
+    });
+
+    // Show errors
+    invalidFiles.forEach(error => {
+      showToast.error(error, { duration: 5000 });
     });
     
     // Clear the input value to allow re-uploading the same file
     event.target.value = '';
   };
 
-  // Simple file remove helper for existing preview system
+  // File remove helper using new utility
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
     showToast.success('Dosya kaldırıldı', {
       duration: 2000,
     });
-  };
-
-  // Simple preview helper for existing system
-  const createFilePreview = (fileItem: any) => {
-    return fileItem.preview || null;
-  };
-
-  const getFileType = (fileItem: any) => {
-    const file = fileItem.file || fileItem;
-    if (file.type?.startsWith('image/')) return 'image';
-    if (file.type === 'application/pdf') return 'pdf';
-    if (
-      file.type === 'application/msword' || 
-      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ) return 'word';
-    if (
-      file.type === 'application/vnd.ms-excel' || 
-      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ) return 'excel';
-    return 'document';
-  };
-
-  const getFileIcon = (fileType: string) => {
-    switch (fileType) {
-      case 'pdf':
-        return '/pdf_icon.png';
-      case 'word':
-        return '/word_icon.png';
-      case 'excel':
-        return '/excel_icon.png';
-      default:
-        return '/pdf_icon.png';
-    }
-  };
-
-  const getFileColor = (fileType: string) => {
-    switch (fileType) {
-      case 'pdf':
-        return 'bg-red-500';
-      case 'word':
-        return 'bg-blue-500';
-      case 'excel':
-        return 'bg-green-500';
-      default:
-        return 'bg-gray-500';
-    }
   };
 
   const handleChatRename = async (chatId: string, newTitle: string) => {
@@ -406,7 +397,7 @@ const ChatPage: React.FC = () => {
 
             {/* Messages Area - ChatGPT style, starts from top */}
             <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
-              <div className="p-6 pt-16 space-y-6 max-w-3xl mx-auto min-h-full pb-48">
+              <div className="p-6 pt-16 space-y-6 max-w-4xl mx-auto min-h-full pb-48">
                 {currentChat?.messages && currentChat.messages.length > 0 ? (
                   <>
                     {currentChat.messages.map((message) => (
@@ -461,7 +452,7 @@ const ChatPage: React.FC = () => {
         <div className={`fixed bottom-0 left-0 right-0 bg-background backdrop-blur-sm px-6 py-4 z-50 transition-all duration-300 ${
           sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
         }`}>
-              <div className="max-w-3xl mx-auto">
+              <div className="max-w-4xl mx-auto">
                 {/* Outer Container - Compact */}
                 <div
                   className="rounded-2xl p-1 space-y-3"
@@ -480,60 +471,16 @@ const ChatPage: React.FC = () => {
                     className="rounded-xl border border-border/10 p-3" 
                     style={{ backgroundColor: 'rgb(4, 4, 6)' }}
                   >
-                    {/* File Previews */}
+                    {/* Advanced File Previews */}
                     {uploadedFiles.length > 0 && (
                       <div className="mb-3">
-                        <div className="flex gap-2 flex-wrap">
-                          {uploadedFiles.map((fileItem, index) => {
-                            const file = fileItem.file || fileItem;
-                            const fileName = file.name || fileItem.name || 'Unknown';
-                            const preview = createFilePreview(fileItem);
-                            const fileType = getFileType(fileItem);
-                            const fileIcon = getFileIcon(fileType);
-                            const fileColor = getFileColor(fileType);
-                            
-                            return (
-                              <div 
-                                key={fileItem.id || index} 
-                                className="relative bg-muted/20 rounded-lg overflow-hidden border border-border/20"
-                                style={{ width: '80px', height: '80px' }}
-                                draggable={false}
-                                onDragStart={(e) => e.preventDefault()}
-                              >
-                                {preview ? (
-                                  <img 
-                                    src={preview} 
-                                    alt={fileName}
-                                    className="w-full h-full object-cover"
-                                    draggable={false}
-                                    onDragStart={(e) => e.preventDefault()}
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex flex-col items-center justify-center p-1">
-                                    <div className="w-10 h-10 flex items-center justify-center mb-1">
-                                      <img 
-                                        src={fileIcon} 
-                                        alt={fileType} 
-                                        className="w-8 h-8 object-contain"
-                                        draggable={false}
-                                        onDragStart={(e) => e.preventDefault()}
-                                      />
-                                    </div>
-                                    <span className="text-xs text-muted-foreground/70 text-center truncate w-full">
-                                      {fileName && fileName.length > 12 ? fileName.substring(0, 8) + '...' : fileName}
-                                    </span>
-                                  </div>
-                                )}
-                                <button
-                                  onClick={() => removeFile(index)}
-                                  className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-destructive/90 shadow-sm"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <AdvancedFilePreview
+                          fileItems={uploadedFiles}
+                          onRemove={removeFile}
+                          maxFiles={3}
+                          compact={true}
+                          showDetails={false}
+                        />
                       </div>
                     )}
                     
@@ -563,13 +510,13 @@ const ChatPage: React.FC = () => {
                     />
 
 
-                    {/* Hidden file input */}
+                    {/* Hidden file input - Updated to support all file types */}
                     <input
                       type="file"
                       id="file-upload-input"
                       className="hidden"
                       multiple
-                      accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx"
+                      accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.html,.css,.js,.ts,.json,.xml,.yaml,.yml,.md,.py,.java,.cpp,.c,.php,.rb,.go,.rs,.swift,.sql,.zip,.rar,.7z,.mp3,.wav,.mp4,.avi,.mov,.webm,.svg,.psd,.ai"
                       onChange={handleFileInputChange}
                     />
 

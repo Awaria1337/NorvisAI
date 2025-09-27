@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "highlight.js/styles/github-dark.css";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -172,4 +173,46 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Code Block Styling */
+.code-block-container {
+  @apply relative my-4 rounded-lg border border-border/20 bg-[#0b1220] max-h-[500px] overflow-hidden flex flex-col;
+}
+
+.code-block-header {
+  @apply sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-[#0b1220] text-gray-200 flex-shrink-0;
+  backdrop-filter: blur(4px);
+}
+
+.code-block-content {
+  @apply bg-[#0d1117] text-gray-100 overflow-y-auto flex-1;
+}
+
+.code-block-pre {
+  @apply p-4 m-0 text-sm leading-relaxed font-mono;
+}
+
+/* Scrollbar for code blocks */
+.code-block-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.code-block-content::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+.code-block-content::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 4px;
+}
+
+.code-block-content::-webkit-scrollbar-thumb:hover {
+  background: #484f58;
+}
+
+/* Ensure syntax highlighting works well */
+.hljs {
+  background: transparent !important;
+  padding: 0 !important;
 }
