@@ -426,7 +426,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   return (
     <>
     <div className="flex justify-start mb-8">
-      <div className="flex items-start space-x-4 max-w-[90%] w-full">
+      <div className="flex items-start space-x-4 max-w-[100%] w-full">
         <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center">
           <img 
             src="/norvis_logo.png" 

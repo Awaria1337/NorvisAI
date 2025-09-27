@@ -26,7 +26,7 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   if (streamingMessageId && streamingContent) {
     return (
       <div className="flex justify-start mb-8">
-        <div className="flex items-start space-x-4 max-w-[90%]">
+        <div className="flex items-start space-x-4 max-w-[100%]">
           <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center">
             <img 
               src="/norvis_logo.png" 
@@ -82,7 +82,7 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   if (isAIThinking) {
     return (
       <div className="flex justify-start mb-8">
-        <div className="flex items-start space-x-3 max-w-[90%]">
+        <div className="flex items-start space-x-3 max-w-[100%]">
           <SimpleAILoading text="Bir saniye bekleyin..." />
         </div>
       </div>
@@ -93,7 +93,7 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   if (showWaitingMessage) {
     return (
       <div className="flex justify-start mb-8">
-        <div className="flex items-start space-x-3 max-w-[90%]">
+        <div className="flex items-start space-x-3 max-w-[100%]">
           <SimpleAILoading text="Bir saniye bekleyin..." />
         </div>
       </div>
@@ -104,7 +104,7 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   if (isAIResponding) {
     return (
       <div className="flex justify-start mb-8">
-        <div className="flex items-start space-x-3 max-w-[90%]">
+        <div className="flex items-start space-x-3 max-w-[100%]">
           <SimpleAILoading text="Bir saniye bekleyin..." />
         </div>
       </div>

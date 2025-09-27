@@ -187,26 +187,26 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
     switch (voiceState) {
       case 'listening':
         return {
-          className: 'h-8 w-8 rounded-full bg-red-500 hover:bg-red-600 text-white animate-pulse',
-          icon: <Mic className="h-4 w-4" />,
+          className: 'h-10 w-10 rounded-full bg-red-500 hover:bg-red-600 text-white animate-pulse p-0 flex items-center justify-center',
+          icon: <Mic className="h-5 w-5" />,
           title: 'Dinliyor... Durdurmak için tıklayın'
         }
       case 'processing':
         return {
-          className: 'h-8 w-8 rounded-full bg-blue-500 hover:bg-blue-600 text-white',
-          icon: <Square className="h-3 w-3" />,
+          className: 'h-10 w-10 rounded-full bg-blue-500 hover:bg-blue-600 text-white p-0 flex items-center justify-center',
+          icon: <Square className="h-4 w-4" />,
           title: 'İşleniyor...'
         }
       case 'error':
         return {
-          className: 'h-8 w-8 rounded-full bg-red-600 hover:bg-red-700 text-white',
-          icon: <MicOff className="h-4 w-4" />,
+          className: 'h-10 w-10 rounded-full bg-red-600 hover:bg-red-700 text-white p-0 flex items-center justify-center',
+          icon: <MicOff className="h-5 w-5" />,
           title: 'Hata oluştu'
         }
       default:
         return {
-          className: 'h-8 w-8 rounded-full hover:bg-accent',
-          icon: <Mic className="h-4 w-4" />,
+          className: 'h-10 w-10 rounded-full bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition-all duration-200 p-0 flex items-center justify-center',
+          icon: <Mic className="h-5 w-5" />,
           title: 'Ses kaydı başlat'
         }
     }

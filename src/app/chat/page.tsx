@@ -405,7 +405,7 @@ const ChatPage: React.FC = () => {
 
             {/* Messages Area - ChatGPT style, starts from top */}
             <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
-              <div className="p-6 pt-16 space-y-6 max-w-4xl mx-auto min-h-full pb-48">
+              <div className="p-6 pt-16 space-y-6 max-w-3xl mx-auto min-h-full pb-48">
                 {currentChat?.messages && currentChat.messages.length > 0 ? (
                   <>
                     {currentChat.messages.map((message) => (
@@ -456,163 +456,147 @@ const ChatPage: React.FC = () => {
               </div>
             </ScrollArea>
 
-        {/* Message Input - Fixed Bottom - Original Design Restored */}
-        <div className={`fixed bottom-0 left-0 right-0 bg-background backdrop-blur-sm px-6 py-4 z-50 transition-all duration-300 ${
-          sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
-        }`}>
-              <div className="max-w-4xl mx-auto">
-                {/* Outer Container - Compact */}
-                <div
-                  className="rounded-2xl p-1 space-y-3"
-                  style={{ backgroundColor: 'color-mix(in oklab, var(--primary) 10%, transparent)' }}
-                >
-                  {/* Pro Plan Text */}
-                  <div className="px-3 mb-1">
-                    <div className="text-xs text-muted-foreground/80">
-                      Use our faster AI on Pro Plan • <span className="text-primary hover:underline cursor-pointer">Upgrade</span>
-                    </div>
-                  </div>
-
-
-                  {/* Main Input Container */}
-                  <div 
-                    className="rounded-xl border border-border/10 p-3" 
-                    style={{ backgroundColor: 'rgb(4, 4, 6)' }}
-                  >
-                    {/* Advanced File Previews */}
-                    {uploadedFiles.length > 0 && (
-                      <div className="mb-3">
-                        <AdvancedFilePreview
-                          fileItems={uploadedFiles}
-                          onRemove={removeFile}
-                          maxFiles={3}
-                          compact={true}
-                          showDetails={false}
-                        />
-                      </div>
-                    )}
-                    
-                    {/* Textarea - Compact */}
-                    <Textarea
-                      value={inputMessage}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        if (value.length <= 2000) {
-                          setInputMessage(value);
-                        } else {
-                          console.error('❌ Maksimum 2000 karakter girebilirsiniz!');
-                          alert('⚠️ Maksimum 2000 karakter girebilirsiniz!');
-                        }
-                      }}
-                      placeholder="Norvis AI'ya bir şey sorun..."
-                      className="w-full min-h-[40px] max-h-32 resize-none border-0 px-0 py-1 text-sm placeholder:text-muted-foreground/70 focus-visible:ring-0 focus-visible:ring-offset-0 leading-relaxed mb-3 bg-transparent"
-                      style={{ backgroundColor: 'transparent' }}
-                      maxLength={2000}
-                      rows={1}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage();
-                        }
-                      }}
-                    />
-
-
-                    {/* Hidden file input - Updated to support all file types */}
-                    <input
-                      type="file"
-                      id="file-upload-input"
-                      className="hidden"
-                      multiple
-                      accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.html,.css,.js,.ts,.json,.xml,.yaml,.yml,.md,.py,.java,.cpp,.c,.php,.rb,.go,.rs,.swift,.sql,.zip,.rar,.7z,.mp3,.wav,.mp4,.avi,.mov,.webm,.svg,.psd,.ai"
-                      onChange={handleFileInputChange}
-                    />
-
-                    {/* Bottom Row - Controls */}
-                    <div className="flex items-center justify-between">
-                      {/* Left Side - Action Buttons */}
-                      <div className="flex items-center space-x-2">
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 rounded-full hover:bg-accent"
-                              disabled={uploadedFiles.length >= 3}
-                              onClick={() => {
-                                if (uploadedFiles.length >= 3) {
-                                  showToast.warning('Maksimum 3 dosya yükleyebilirsiniz! Pro plana geçerek daha fazla dosya yükleyebilirsiniz.', {
-                                    duration: 5000,
-                                  });
-                                  return;
-                                }
-                                const fileInput = document.getElementById('file-upload-input');
-                                if (fileInput) {
-                                  fileInput.click();
-                                }
-                              }}
-                            >
-                              <Paperclip className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            {uploadedFiles.length >= 3 ? 'Maksimum 3 dosya (Pro için yükselt)' : 'Dosya ekle'}
-                          </TooltipContent>
-                        </Tooltip>
-                        
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <VoiceInput
-                              onTranscript={handleVoiceTranscript}
-                              disabled={isAIThinking || isAIResponding}
-                            />
-                          </TooltipTrigger>
-                          <TooltipContent>Voice input</TooltipContent>
-                        </Tooltip>
-                        
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 rounded-full hover:bg-accent"
-                            >
-                              <Search className="h-4 w-4" />
-                            </Button>
-                          </TooltipTrigger>
-                          <TooltipContent>Web search</TooltipContent>
-                        </Tooltip>
-                      </div>
-                      
-                      {/* Right Side - Send/Stop Button */}
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          {(isAIThinking || isAIResponding) ? (
-                            <Button
-                              onClick={() => useChatStore.getState().stopStreaming()}
-                              size="sm"
-                              className="h-8 w-8 rounded-full bg-red-600 hover:bg-red-700 text-white"
-                            >
-                              <Square className="h-3 w-3 fill-current" />
-                            </Button>
-                          ) : (
-                            <Button
-                              onClick={handleSendClick}
-                              size="sm"
-                              disabled={(!inputMessage.trim() && uploadedFiles.length === 0) || isAIThinking}
-                              className="h-8 w-8 rounded-full bg-foreground hover:bg-foreground/90 text-background disabled:opacity-30 disabled:cursor-not-allowed"
-                            >
-                              <ArrowUp className="h-3 w-3" />
-                            </Button>
-                          )}
-                        </TooltipTrigger>
-                        <TooltipContent>{(isAIThinking || isAIResponding) ? 'Stop generating' : 'Send message'}</TooltipContent>
-                      </Tooltip>
-                    </div>
-                  </div>
+        {/* Message Input - New Clean Design */}
+        <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md px-6 py-4 z-50 transition-all duration-300 md:left-64">
+          <div className="max-w-3xl mx-auto">
+            {/* File Previews - Outside Input */}
+            {uploadedFiles.length > 0 && (
+              <div className="mb-3">
+                <AdvancedFilePreview
+                  fileItems={uploadedFiles}
+                  onRemove={removeFile}
+                  maxFiles={3}
+                  compact={true}
+                  showDetails={false}
+                />
+              </div>
+            )}
+            
+            {/* Main Input Container - 55px Height */}
+            <div className="rounded-full border border-gray-600 px-4 shadow-lg" style={{backgroundColor: '#242628', borderRadius: '10rem', height: '60px', border: '1px solid #2F3132'}}>
+              <div className="flex items-center justify-between gap-3 h-full">
+                
+                {/* Left Side - File Upload */}
+                <div className="flex items-center justify-center">
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-10 w-10 rounded-full hover:bg-gray-600 text-gray-400 hover:text-white p-0 flex items-center justify-center"
+                        disabled={uploadedFiles.length >= 3}
+                        onClick={() => {
+                          if (uploadedFiles.length >= 3) {
+                            showToast.warning('Maksimum 3 dosya yükleyebilirsiniz! Pro plana geçerek daha fazla dosya yükleyebilirsiniz.', {
+                              duration: 5000,
+                            });
+                            return;
+                          }
+                          const fileInput = document.getElementById('file-upload-input');
+                          if (fileInput) {
+                            fileInput.click();
+                          }
+                        }}
+                      >
+                        <Paperclip className="h-5 w-5" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {uploadedFiles.length >= 3 ? 'Maksimum 3 dosya (Pro için yükselt)' : 'Dosya ekle'}
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
+                
+                {/* Center - Input Area */}
+                <div className="flex-1 flex items-center justify-center h-full">
+                  <Textarea
+                    value={inputMessage}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value.length <= 2000) {
+                        setInputMessage(value);
+                      } else {
+                        console.error('❌ Maksimum 2000 karakter girebilirsiniz!');
+                        alert('⚠️ Maksimum 2000 karakter girebilirsiniz!');
+                      }
+                    }}
+                    placeholder="Message Norvis AI..."
+                    className="w-full min-h-[26px] max-h-32 resize-none border-0 bg-transparent text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm py-0 px-2"
+                    maxLength={2000}
+                    rows={1}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendMessage();
+                      }
+                    }}
+                    style={{
+                      minHeight: '26px',
+                      lineHeight: '26px'
+                    }}
+                  />
+                </div>
+                
+                {/* Right Side - Dynamic Button (Voice/Send/Stop) */}
+                <div className="flex items-center justify-center">
+                  {(isAIThinking || isAIResponding) ? (
+                    // Stop Button
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={() => useChatStore.getState().stopStreaming()}
+                          size="sm"
+                          className="h-10 w-10 rounded-full bg-red-600 hover:bg-red-700 text-white p-0 flex items-center justify-center"
+                        >
+                          <Square className="h-4 w-4 fill-current" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Stop generating</TooltipContent>
+                    </Tooltip>
+                  ) : inputMessage.trim() || uploadedFiles.length > 0 ? (
+                    // Send Button - when there's content
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          onClick={handleSendClick}
+                          size="sm"
+                          className="h-10 w-10 rounded-full hover:bg-gray-600 text-gray-400 hover:text-white p-0 transition-all duration-200 flex items-center justify-center"
+                        >
+                          <ArrowUp className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>Send message</TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    // Voice Button - when empty
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center justify-center">
+                          <VoiceInput
+                            onTranscript={handleVoiceTranscript}
+                            disabled={isAIThinking || isAIResponding}
+                          />
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>Voice input</TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+                
               </div>
             </div>
+            
+            {/* Hidden file input */}
+            <input
+              type="file"
+              id="file-upload-input"
+              className="hidden"
+              multiple
+              accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.html,.css,.js,.ts,.json,.xml,.yaml,.yml,.md,.py,.java,.cpp,.c,.php,.rb,.go,.rs,.swift,.sql,.zip,.rar,.7z,.mp3,.wav,.mp4,.avi,.mov,.webm,.svg,.psd,.ai"
+              onChange={handleFileInputChange}
+            />
+          </div>
+        </div>
           </div>
         </SidebarInset>
         
