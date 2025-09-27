@@ -6,7 +6,6 @@ import remarkGfm from 'remark-gfm'
 import { Message } from '@/store/chatStore'
 import { useChatStore } from '@/store/chatStore'
 import CodeBlock from '@/components/ui/code-block'
-import MessageActions from '@/components/ui/message-actions'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -284,13 +283,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       <>
       <div className="flex justify-end mb-6">
         <div className="max-w-[80%] relative">
-          {/* Message Actions */}
-          <MessageActions
-            content={message.content}
-            isUser={true}
-            messageId={message.id}
-            onEdit={handleEditMessage}
-          />
           <div className="bg-gray-800 text-gray-100 rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
             {/* Display files if any */}
             {message.files && message.files.length > 0 && (
@@ -390,70 +382,50 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             className="h-8 w-8 object-contain filter invert"
           />
         </div>
-        <div className="flex-1 min-w-0 relative">
-          {/* Message Actions */}
-          <MessageActions
-            content={message.content}
-            isUser={false}
-            messageId={message.id}
-            onRegenerate={handleRegenerateMessage}
-            onRate={handleRateMessage}
-          />
-          <div className="text-base leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none font-content">
-            {/* Show streaming indicator and content */}
-            {isCurrentlyStreaming && !displayedText && (
-              <div className="flex items-center space-x-2">
-                <AITypingIndicator className="text-primary" />
-              </div>
-            )}
-            
-            {(displayedText || (!isCurrentlyStreaming && message.content)) && (
-              <div className={cn(
-                "transition-opacity duration-300",
-                isCurrentlyStreaming && !isComplete ? "opacity-90" : "opacity-100"
-              )}>
-                <ReactMarkdown 
-                  remarkPlugins={[remarkGfm]}
-                  components={{
-                    h1: ({children}) => <h1 className="text-xl font-bold mb-2 text-foreground font-heading">{children}</h1>,
-                    h2: ({children}) => <h2 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h2>,
-                    h3: ({children}) => <h3 className="text-base font-bold mb-1 text-foreground font-heading">{children}</h3>,
-                    h4: ({children}) => <h4 className="text-base font-semibold mb-1 text-foreground font-heading">{children}</h4>,
-                    h5: ({children}) => <h5 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h5>,
-                    h6: ({children}) => <h6 className="text-sm font-medium mb-1 text-foreground font-heading">{children}</h6>,
-                    p: ({children}) => <p className="mb-2 text-foreground font-content leading-relaxed">{children}</p>,
-                    strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
-                    em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
-                    ul: ({children}) => <ul className="list-disc list-inside mb-2 text-foreground font-content">{children}</ul>,
-                    ol: ({children}) => <ol className="list-decimal list-inside mb-2 text-foreground font-content">{children}</ol>,
-                    li: ({children}) => <li className="mb-1 text-foreground font-content">{children}</li>,
-                    blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-2 text-foreground font-content">{children}</blockquote>,
-                    code: ({children, className}) => {
-                      const match = /language-(\w+)/.exec(className || '')
-                      const isInline = !match
-                      return isInline ? (
-                        <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-base font-mono text-foreground">{children}</code>
-                      ) : (
-                        <CodeBlock className={className} language={match?.[1]}>
-                          {String(children).replace(/\n$/, '')}
-                        </CodeBlock>
-                      )
-                    },
-                    table: ({children}) => <table className="border-collapse border border-gray-300 dark:border-gray-600 mb-2">{children}</table>,
-                    th: ({children}) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 bg-gray-50 dark:bg-gray-700 font-semibold text-foreground font-content">{children}</th>,
-                    td: ({children}) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-foreground font-content">{children}</td>
-                  }}
-                >
-                  {isCurrentlyStreaming ? displayedText : message.content}
-                </ReactMarkdown>
-                
-                {/* Cursor effect for streaming */}
-                {isCurrentlyStreaming && !isComplete && (
-                  <span className="inline-block w-2 h-5 bg-primary animate-pulse ml-1 align-text-bottom"></span>
-                )}
-              </div>
-            )}
-          </div>
+        <div className="flex-1 min-w-0">
+          {(displayedText || (!isCurrentlyStreaming && message.content)) && (
+            <div>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  h1: ({children}) => <h1 className="text-xl font-bold mb-2 text-foreground font-heading">{children}</h1>,
+                  h2: ({children}) => <h2 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h2>,
+                  h3: ({children}) => <h3 className="text-base font-bold mb-1 text-foreground font-heading">{children}</h3>,
+                  h4: ({children}) => <h4 className="text-base font-semibold mb-1 text-foreground font-heading">{children}</h4>,
+                  h5: ({children}) => <h5 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h5>,
+                  h6: ({children}) => <h6 className="text-sm font-medium mb-1 text-foreground font-heading">{children}</h6>,
+                  p: ({children}) => <p className="mb-2 text-foreground font-content leading-relaxed">{children}</p>,
+                  strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
+                  em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
+                  ul: ({children}) => <ul className="list-disc list-inside mb-2 text-foreground font-content">{children}</ul>,
+                  ol: ({children}) => <ol className="list-decimal list-inside mb-2 text-foreground font-content">{children}</ol>,
+                  li: ({children}) => <li className="mb-1 text-foreground font-content">{children}</li>,
+                  blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-2 text-foreground font-content">{children}</blockquote>,
+                  code: ({children, className}) => {
+                    const match = /language-(\w+)/.exec(className || '')
+                    const isInline = !match
+                    return isInline ? (
+                      <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-base font-mono text-foreground">{children}</code>
+                    ) : (
+                      <CodeBlock className={className} language={match?.[1]}>
+                        {String(children).replace(/\n$/, '')}
+                      </CodeBlock>
+                    )
+                  },
+                  table: ({children}) => <table className="border-collapse border border-gray-300 dark:border-gray-600 mb-2">{children}</table>,
+                  th: ({children}) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 bg-gray-50 dark:bg-gray-700 font-semibold text-foreground font-content">{children}</th>,
+                  td: ({children}) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-foreground font-content">{children}</td>
+                }}
+              >
+                {isCurrentlyStreaming ? displayedText : message.content}
+              </ReactMarkdown>
+              
+              {/* Cursor effect for streaming */}
+              {isCurrentlyStreaming && !isComplete && (
+                <span className="inline-block w-2 h-5 bg-primary animate-pulse ml-1 align-text-bottom"></span>
+              )}
+            </div>
+          )}
 
           {/* Message Action Bar for AI */}
           <div className="flex items-center gap-2 mt-3">
