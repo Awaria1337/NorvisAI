@@ -41,6 +41,7 @@ interface ChatState {
   showWaitingMessage: boolean;
   streamingMessageId: string | null;
   streamingContent: string;
+  streamingAbortController: AbortController | null;
   
   // Computed
   getCurrentChat: () => Chat | null;
@@ -70,11 +71,13 @@ interface ChatState {
   startStreaming: (messageId: string) => void;
   updateStreamingContent: (content: string) => void;
   finishStreaming: () => void;
+  stopStreaming: () => void;
   
   // API Actions
   fetchChats: () => Promise<void>;
   createNewChat: (title?: string, model?: string) => Promise<Chat>;
   sendMessage: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
+  sendMessageStreaming: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
   regenerateMessage: (messageId: string) => Promise<void>;
 }
 
@@ -93,6 +96,7 @@ export const useChatStore = create<ChatState>()(
       showWaitingMessage: false,
       streamingMessageId: null,
       streamingContent: '',
+      streamingAbortController: null,
       
       // Computed
       getCurrentChat: () => {
@@ -281,28 +285,64 @@ export const useChatStore = create<ChatState>()(
       
       setShowWaitingMessage: (show) => set({ showWaitingMessage: show }),
       
-      resetAIStates: () => set({ 
-        isAIThinking: false, 
-        isAIResponding: false, 
-        showWaitingMessage: false,
-        streamingMessageId: null,
-        streamingContent: ''
-      }),
+      resetAIStates: () => {
+        const { streamingAbortController } = get();
+        if (streamingAbortController) {
+          streamingAbortController.abort();
+        }
+        set({ 
+          isAIThinking: false, 
+          isAIResponding: false, 
+          showWaitingMessage: false,
+          streamingMessageId: null,
+          streamingContent: '',
+          streamingAbortController: null
+        });
+      },
       
       // Streaming Actions
-      startStreaming: (messageId: string) => set({ 
-        streamingMessageId: messageId, 
-        streamingContent: '', 
-        isAIResponding: true 
-      }),
+      startStreaming: (messageId: string) => {
+        const abortController = new AbortController();
+        set({ 
+          streamingMessageId: messageId, 
+          streamingContent: '', 
+          isAIResponding: true,
+          streamingAbortController: abortController
+        });
+      },
       
       updateStreamingContent: (content: string) => set({ streamingContent: content }),
       
       finishStreaming: () => set({ 
         streamingMessageId: null, 
         streamingContent: '', 
-        isAIResponding: false 
+        isAIResponding: false,
+        streamingAbortController: null
       }),
+      
+      stopStreaming: () => {
+        const { streamingAbortController, streamingMessageId, currentChatId } = get();
+        
+        if (streamingAbortController) {
+          console.log('🛑 Stopping streaming...');
+          streamingAbortController.abort();
+        }
+        
+        // Add "stopped" message to current streaming message if exists
+        if (streamingMessageId && currentChatId) {
+          const currentContent = get().streamingContent;
+          get().updateMessage(currentChatId, streamingMessageId, {
+            content: currentContent + '\n\n[Mesaj durduruldu]'
+          });
+        }
+        
+        set({ 
+          streamingMessageId: null, 
+          streamingContent: '', 
+          isAIResponding: false,
+          streamingAbortController: null
+        });
+      },
       
       // API Actions
       fetchChats: async () => {
@@ -334,7 +374,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
       
-      createNewChat: async (title = 'New Chat', model = 'deepseek/deepseek-chat-v3.1:free') => {
+      createNewChat: async (title = 'New Chat', model = 'google/gemma-2-9b-it:free') => {
         try {
           console.log('🆕 Creating new chat with:', { title, model });
           set({ isLoading: true, error: null });
@@ -401,7 +441,11 @@ export const useChatStore = create<ChatState>()(
       },
       
       sendMessage: async (content: string, createNewChatIfNeeded = false, files: any[] = []) => {
-        console.log('🚀 sendMessage called with:', { content, createNewChatIfNeeded, files: files.length });
+        return get().sendMessageStreaming(content, createNewChatIfNeeded, files);
+      },
+
+      sendMessageStreaming: async (content: string, createNewChatIfNeeded = false, files: any[] = []) => {
+        console.log('🚀 Starting STREAMING message send with:', { content, createNewChatIfNeeded, files: files.length });
         let { currentChatId } = get();
         let currentChat = get().getCurrentChat();
         console.log('📝 Current chat ID:', currentChatId);
@@ -413,7 +457,6 @@ export const useChatStore = create<ChatState>()(
             const file = fileItem.file || fileItem;
             if (file instanceof File) {
               try {
-                // Convert file to buffer format for API
                 const buffer = await file.arrayBuffer();
                 const base64Buffer = Buffer.from(buffer).toString('base64');
                 
@@ -428,44 +471,42 @@ export const useChatStore = create<ChatState>()(
               }
             }
           }
-          console.log('📎 Processed', processedFiles.length, 'files for upload');
+          console.log('📎 Processed', processedFiles.length, 'files for streaming upload');
         }
         
-        // Declare timeout variable in the correct scope
         let timeoutId: NodeJS.Timeout | null = null;
+        let streamingMessageId: string | null = null;
         
         try {
-          // Reset AI states and start thinking animation immediately
+          // Reset AI states and start thinking
           get().resetAIStates();
           get().setAIThinking(true);
           
-          // Only create a new chat if explicitly requested or if there are no chats at all
+          // Create new chat if needed
           if (createNewChatIfNeeded || (!currentChatId && get().chats.length === 0)) {
-            console.log('🆕 Creating new chat...');
-            // Generate smart title from user message
+            console.log('🆕 Creating new chat for streaming...');
             const smartTitle = generateChatTitle(content);
-            const newChat = await get().createNewChat(smartTitle, model);
+            const newChat = await get().createNewChat(smartTitle, 'google/gemma-2-9b-it:free');
             currentChatId = newChat.id;
             currentChat = newChat;
-            console.log('✅ New chat created with smart title:', smartTitle, 'ID:', currentChatId);
+            console.log('✅ New chat created for streaming:', smartTitle, 'ID:', currentChatId);
           } else if (!currentChatId && get().chats.length > 0) {
-            // If no current chat selected but chats exist, select the first one
             const firstChat = get().chats[0];
             currentChatId = firstChat.id;
             set({ currentChatId: firstChat.id });
             currentChat = get().getCurrentChat();
-            console.log('📌 Selected existing chat with ID:', currentChatId);
+            console.log('📌 Selected existing chat for streaming:', currentChatId);
           }
           
           if (!currentChatId) {
-            console.error('❌ No active chat available');
+            console.error('❌ No active chat for streaming');
             get().resetAIStates();
             throw new Error('No active chat available');
           }
 
-          // 1. FIRST: Add user message to UI immediately (ChatGPT style)
+          // Add user message immediately
           const userMessage: Message = {
-            id: `temp-${Date.now()}`,
+            id: `user-${Date.now()}`,
             content,
             role: 'user',
             createdAt: new Date(),
@@ -481,113 +522,155 @@ export const useChatStore = create<ChatState>()(
             }).filter(f => f.name !== 'Unknown')
           };
           
-          // Add user message to UI instantly
           get().addMessage(currentChatId, userMessage);
-          console.log('✅ User message added to UI instantly');
+          console.log('✅ User message added for streaming');
 
-          // 2. SECOND: Start AI thinking state
-          const startTime = Date.now();
-          
-          // Set up a timeout to switch to waiting message after 3 seconds max
+          // Set timeout for thinking state
           timeoutId = setTimeout(() => {
-            const elapsed = Date.now() - startTime;
-            if (elapsed >= 3000 && get().isAIThinking) {
+            if (get().isAIThinking) {
               get().setAIThinking(false);
               get().setShowWaitingMessage(true);
-              console.log('⏰ Switched to waiting message after 3s');
+              console.log('⏰ Switched to waiting for streaming response');
             }
           }, 3000);
           
-          // Add timeout for maximum wait time (10 seconds)
-          const maxTimeoutId = setTimeout(() => {
-            if (get().isAIThinking || get().showWaitingMessage) {
-              console.log('⚠️ Maximum timeout reached (10s)');
-              get().resetAIStates();
-              // Add error message to chat
-              const errorMessage: Message = {
-                id: `error-${Date.now()}`,
-                content: 'Request timed out. Please try again.',
-                role: 'assistant',
-                createdAt: new Date()
-              };
-              get().addMessage(currentChatId!, errorMessage);
-            }
-          }, 10000);
-          
-          set({ isLoading: true, error: null });
-          
           const token = localStorage.getItem('token');
           if (!token) {
-            console.error('❌ No authentication token');
+            console.error('❌ No authentication token for streaming');
             get().resetAIStates();
             throw new Error('No authentication token');
           }
-          console.log('🔑 Token found, making API request...');
 
-          // 3. THIRD: Make API request
-          console.log('🌐 Making API request to:', `/api/chats/${currentChatId}/messages`);
           const requestBody: any = {
-            content
+            content,
+            role: 'user'
           };
           
-          // Add processed files if any
           if (processedFiles.length > 0) {
             requestBody.files = processedFiles;
+            console.log('📁 Including', processedFiles.length, 'files in streaming request');
           }
           
-          const response = await fetch(`/api/chats/${currentChatId}/messages`, {
+          console.log('🌊 Starting Server-Sent Events connection...');
+          
+          // Get AbortController for this streaming request
+          const { streamingAbortController } = get();
+          
+          // Use the streaming endpoint
+          const response = await fetch(`/api/chats/${currentChatId}/messages/stream`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify(requestBody)
+            body: JSON.stringify(requestBody),
+            signal: streamingAbortController?.signal
           });
 
-          console.log('📡 API response status:', response.status);
           if (!response.ok) {
-            const errorData = await response.json();
-            console.error('❌ API error:', errorData);
-            throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
           }
 
-          const result = await response.json();
-          console.log('✅ API response received:', result);
+          console.log('📡 Streaming response started');
           
-          // Clear both timeouts since we got a response
+          // Clear timeouts since we got a response
           if (timeoutId) {
             clearTimeout(timeoutId);
             timeoutId = null;
           }
-          clearTimeout(maxTimeoutId);
           
-          // 4. FOURTH: Switch to responding state for typing effect
+          // Switch to AI responding state
           get().setAIThinking(false);
           get().setShowWaitingMessage(false);
-          get().setAIResponding(true);
           
-          // 5. FIFTH: Update chat with actual messages from server
-          const updatedChat = result.data.chat;
-          if (updatedChat && updatedChat.messages) {
-            set(state => ({
-              chats: state.chats.map(chat => 
-                chat.id === updatedChat.id ? {
-                  ...updatedChat,
-                  messages: updatedChat.messages.map((msg: any) => ({
-                    ...msg,
-                    createdAt: new Date(msg.createdAt)
-                  }))
-                } : chat
-              ),
-              isLoading: false
-            }));
+          const reader = response.body?.getReader();
+          const decoder = new TextDecoder();
+          
+          if (!reader) {
+            throw new Error('No reader available for streaming response');
           }
           
-          // 6. FINAL: Reset AI states after brief delay for smooth UX
-          setTimeout(() => {
-            get().resetAIStates();
-            console.log('🎉 Message flow completed successfully');
-          }, 300);
+          let buffer = '';
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            
+            if (done) {
+              console.log('✅ Streaming completed');
+              break;
+            }
+            
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n\n');
+            buffer = lines.pop() || ''; // Keep the incomplete line in buffer
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const data = JSON.parse(line.substring(6));
+                  console.log('📥 Streaming data:', data.type);
+                  
+                  switch (data.type) {
+                    case 'userMessage':
+                      // User message already added, skip
+                      break;
+                    
+                    case 'aiMessageStart':
+                      // Create empty AI message and start streaming
+                      streamingMessageId = data.data.id;
+                      const aiMessage: Message = {
+                        id: streamingMessageId,
+                        content: '',
+                        role: 'assistant',
+                        createdAt: new Date()
+                      };
+                      get().addMessage(currentChatId!, aiMessage);
+                      get().startStreaming(streamingMessageId);
+                      console.log('🤖 AI message started, ID:', streamingMessageId);
+                      break;
+                    
+                    case 'chunk':
+                      // Update the streaming content
+                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                        get().updateStreamingContent(data.data.fullContent);
+                        
+                        // Update the actual message in the chat
+                        get().updateMessage(currentChatId!, streamingMessageId, {
+                          content: data.data.fullContent
+                        });
+                      }
+                      break;
+                    
+                    case 'complete':
+                      // Streaming completed
+                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                        get().finishStreaming();
+                        console.log('🎉 Streaming message completed');
+                      }
+                      break;
+                    
+                    case 'error':
+                      // Handle error
+                      console.error('❌ Streaming error:', data.data.error);
+                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                        get().updateMessage(currentChatId!, streamingMessageId, {
+                          content: data.data.content
+                        });
+                        get().finishStreaming();
+                      }
+                      break;
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing streaming data:', parseError);
+                }
+              }
+            }
+          }
+          
+          // Final cleanup
+          get().resetAIStates();
+          set({ isLoading: false });
+          console.log('🎊 Streaming message flow completed');
           
         } catch (error) {
           // Clear timeout on error
@@ -596,22 +679,38 @@ export const useChatStore = create<ChatState>()(
           }
           get().resetAIStates();
           
-          // Add error message to chat if we have a currentChatId
+          let errorMessage = 'Sorry, I encountered an error with streaming. Please try again.';
+          
+          if (error instanceof Error) {
+            if (error.message.includes('Failed to fetch')) {
+              errorMessage = 'Network error: Unable to connect to the streaming service.';
+            } else {
+              errorMessage = `Streaming error: ${error.message}`;
+            }
+            
+            console.error('❗ Streaming error details:', {
+              name: error.name,
+              message: error.message,
+              stack: error.stack
+            });
+          }
+          
+          // Add error message to chat
           if (currentChatId) {
-            const errorMessage: Message = {
+            const chatErrorMessage: Message = {
               id: `error-${Date.now()}`,
-              content: 'Sorry, I encountered an error. Please try again.',
+              content: errorMessage,
               role: 'assistant',
               createdAt: new Date()
             };
-            get().addMessage(currentChatId, errorMessage);
+            get().addMessage(currentChatId, chatErrorMessage);
           }
           
           set({ 
-            error: error instanceof Error ? error.message : 'Failed to send message',
+            error: error instanceof Error ? error.message : 'Streaming failed',
             isLoading: false 
           });
-          console.error('❌ sendMessage error:', error);
+          console.error('❌ sendMessageStreaming error:', error);
           throw error;
         }
       },

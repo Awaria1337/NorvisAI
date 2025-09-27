@@ -1,11 +1,11 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Message } from '@/store/chatStore'
-import { useChatStore } from '@/store/chatStore'
 import CodeBlock from '@/components/ui/code-block'
+import MessageActions from '@/components/ui/message-actions'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -14,7 +14,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import MessageEditSidebar from '@/components/ui/message-edit-sidebar'
-import TypingSkeleton, { AITypingIndicator } from '@/components/ui/typing-skeleton'
 import {
   Copy,
   ThumbsUp,
@@ -26,60 +25,11 @@ import {
   Volume2
 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import { cn } from '@/lib/utils'
 
 interface MessageBubbleProps {
   message: Message
   isUser: boolean
-  isStreaming?: boolean
-  streamingContent?: string
 }
-
-// Typing effect hook for smooth character-by-character display
-const useTypingEffect = (text: string, speed: number = 30, enabled: boolean = false) => {
-  const [displayedText, setDisplayedText] = useState('');
-  const [isComplete, setIsComplete] = useState(false);
-  const indexRef = useRef(0);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    if (!enabled) {
-      setDisplayedText(text);
-      setIsComplete(true);
-      return;
-    }
-
-    if (!text) {
-      setDisplayedText('');
-      setIsComplete(false);
-      return;
-    }
-
-    indexRef.current = 0;
-    setDisplayedText('');
-    setIsComplete(false);
-
-    const typeCharacter = () => {
-      if (indexRef.current < text.length) {
-        setDisplayedText(text.slice(0, indexRef.current + 1));
-        indexRef.current++;
-        timeoutRef.current = setTimeout(typeCharacter, speed);
-      } else {
-        setIsComplete(true);
-      }
-    };
-
-    timeoutRef.current = setTimeout(typeCharacter, speed);
-
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, [text, speed, enabled]);
-
-  return { displayedText, isComplete };
-};
 
 const getFileTypeFromUrl = (url: string) => {
   if (url.startsWith('data:image/')) return 'image';
@@ -118,72 +68,9 @@ const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
-// Kod dosyası uzantıları - bunlar için kırmızı code icon kullanılacak
-const codeExtensions = [
-  // Web Technologies
-  'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'sass', 'less',
-  // Programming Languages
-  'py', 'java', 'cpp', 'c', 'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt',
-  // Data/Config
-  'json', 'xml', 'yaml', 'yml', 'sql', 'md', 'txt', 'csv'
-];
-
-// Bilinen dosya türleri
-const knownFileTypes = ['pdf', 'word', 'excel', 'image'];
-
-// Bilinen document uzantıları
-const documentExtensions = ['rtf', 'odt', 'pages', 'docm', 'dotx'];
-
-const getFileIcon = (filename: string, fileType: string) => {
-  const extension = filename?.split('.').pop()?.toLowerCase();
-  
-  // Kod dosyları için kırmızı code icon
-  if (extension && codeExtensions.includes(extension)) {
-    return '/code_icon.png';
-  }
-  
-  // Özel dosya türleri için specific iconlar
-  switch (fileType) {
-    case 'pdf':
-      return '/pdf_icon.png';
-    case 'word':
-      return '/word_icon.png';
-    case 'excel':
-      return '/excel_icon.png';
-    case 'image':
-      return '/image_icon.png';
-    default:
-      // Bilinen document uzantıları için document icon
-      if (extension && documentExtensions.includes(extension)) {
-        return '/document_icon.png';
-      }
-      // Bilinmeyen uzantılar için bilinmeyen dosya icon
-      return '/bilinmeyen_dosya.png';
-  }
-};
-
-export const MessageBubble: React.FC<MessageBubbleProps> = ({ 
-  message, 
-  isUser, 
-  isStreaming = false, 
-  streamingContent 
-}) => {
+export const MessageBubble: React.FC<MessageBubbleProps> = ({ message, isUser }) => {
   const [isEditSidebarOpen, setIsEditSidebarOpen] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
-  
-  // Get streaming state from store
-  const { streamingMessageId, streamingContent: storeStreamingContent, isAIResponding } = useChatStore();
-  
-  // Determine if this message is currently streaming
-  const isCurrentlyStreaming = isAIResponding && streamingMessageId === message.id;
-  const currentContent = isCurrentlyStreaming ? (storeStreamingContent || streamingContent || '') : message.content;
-  
-  // Use typing effect for streaming messages
-  const { displayedText, isComplete } = useTypingEffect(
-    currentContent, 
-    15, // Faster typing speed for better UX
-    isCurrentlyStreaming && currentContent.length > 0
-  );
   
   // Message action handlers
   const handleEditMessage = (messageId: string) => {
@@ -276,6 +163,70 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     console.log('Saving edited message:', messageId, newContent);
     toast.success('Mesaj kaydedildi! (Geliştirme aşamasında)');
   };
+
+// Kod dosyası uzantıları - bunlar için kırmızı code icon kullanılacak
+const codeExtensions = [
+  // Web Technologies
+  'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'scss', 'sass', 'less',
+  // Programming Languages
+  'py', 'java', 'cpp', 'c', 'cs', 'php', 'rb', 'go', 'rs', 'swift', 'kt',
+  // Data/Config
+  'json', 'xml', 'yaml', 'yml', 'sql', 'md', 'txt', 'csv'
+];
+
+// Bilinen dosya türleri
+const knownFileTypes = ['pdf', 'word', 'excel', 'image'];
+
+// Bilinen document uzantıları
+const documentExtensions = ['rtf', 'odt', 'pages', 'docm', 'dotx'];
+
+const getFileIcon = (filename: string, fileType: string) => {
+  const extension = filename?.split('.').pop()?.toLowerCase();
+  
+  // Kod dosyları için kırmızı code icon
+  if (extension && codeExtensions.includes(extension)) {
+    return '/code_icon.png';
+  }
+  
+  // Özel dosya türleri için specific iconlar
+  switch (fileType) {
+    case 'pdf':
+      return '/pdf_icon.png';
+    case 'word':
+      return '/word_icon.png';
+    case 'excel':
+      return '/excel_icon.png';
+    case 'image':
+      return '/image_icon.png';
+    default:
+      // Bilinen document uzantıları için document icon
+      if (extension && documentExtensions.includes(extension)) {
+        return '/document_icon.png';
+      }
+      // Bilinmeyen uzantılar için bilinmeyen dosya icon
+      return '/bilinmeyen_dosya.png';
+  }
+};
+
+const getExtensionLabel = (filename?: string) => {
+  const extension = filename?.split('.').pop()?.toLowerCase();
+  return extension ? extension.toUpperCase() : 'FILE';
+};
+
+const getFileColor = (fileType: string) => {
+  switch (fileType) {
+    case 'pdf':
+      return 'bg-red-500';
+    case 'word':
+      return 'bg-blue-500';
+    case 'excel':
+      return 'bg-green-500';
+    default:
+      return 'bg-gray-500';
+  }
+};
+
+// Helper functions for file handling
   
   if (isUser) {
     // User message - Right side with bubble
@@ -283,6 +234,13 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
       <>
       <div className="flex justify-end mb-6">
         <div className="max-w-[80%] relative">
+          {/* Message Actions */}
+          <MessageActions
+            content={message.content}
+            isUser={true}
+            messageId={message.id}
+            onEdit={handleEditMessage}
+          />
           <div className="bg-gray-800 text-gray-100 rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
             {/* Display files if any */}
             {message.files && message.files.length > 0 && (
@@ -349,6 +307,72 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
               </div>
             )}
             
+            {/* Legacy support for images array (backward compatibility) */}
+            {!message.files && message.images && message.images.length > 0 && (
+              <div className="mb-3 space-y-2">
+                {message.images.map((imageUrl, index) => {
+                  const fileType = getFileTypeFromUrl(imageUrl);
+                  
+                  if (fileType === 'image') {
+                    return (
+                      <img 
+                        key={index}
+                        src={imageUrl}
+                        alt={`Uploaded image ${index + 1}`}
+                        className="max-w-full h-auto rounded-lg border border-gray-600"
+                        style={{ maxHeight: '200px' }}
+                        draggable={false}
+                        onDragStart={(e) => e.preventDefault()}
+                      />
+                    );
+                  } else {
+                    // Legacy fallback for old format - create fake filename
+                    const fakeFilename = `file.${fileType}`;
+                    const fileIcon = getFileIcon(fakeFilename, fileType);
+                    const extension = fileType;
+                    const isCodeFile = codeExtensions.includes(extension);
+                    const isKnownDocument = documentExtensions.includes(extension);
+                    const isKnownFileType = knownFileTypes.includes(fileType);
+                    const isUnknownFile = !isCodeFile && !isKnownDocument && !isKnownFileType;
+                    
+                    return (
+                      <div key={index} className="flex items-center space-x-3 p-3 bg-gray-700 rounded-lg border border-gray-600">
+                        <div className="w-10 h-10 flex items-center justify-center">
+                          <img 
+                            src={fileIcon} 
+                            alt={fileType} 
+                            className="w-8 h-8 object-contain"
+                            draggable={false}
+                            onDragStart={(e) => e.preventDefault()}
+                          />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <p className="text-sm font-medium text-gray-100">
+                              {fileType.toUpperCase()} Dosyası
+                            </p>
+                            {isCodeFile && (
+                              <span className="px-1.5 py-0.5 bg-red-600 text-white text-xs font-bold rounded">
+                                {extension.toUpperCase()}
+                              </span>
+                            )}
+                            {isUnknownFile && (
+                              <span className="px-1.5 py-0.5 bg-orange-600 text-white text-xs font-bold rounded">
+                                Bilinmeyen
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-gray-300">
+                            Dosya yüklendi
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+                })}
+              </div>
+            )}
+            
             {message.content && (
               <div className="text-base leading-relaxed whitespace-pre-wrap">
                 {message.content}
@@ -382,50 +406,51 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
             className="h-8 w-8 object-contain filter invert"
           />
         </div>
-        <div className="flex-1 min-w-0">
-          {(displayedText || (!isCurrentlyStreaming && message.content)) && (
-            <div>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  h1: ({children}) => <h1 className="text-xl font-bold mb-2 text-foreground font-heading">{children}</h1>,
-                  h2: ({children}) => <h2 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h2>,
-                  h3: ({children}) => <h3 className="text-base font-bold mb-1 text-foreground font-heading">{children}</h3>,
-                  h4: ({children}) => <h4 className="text-base font-semibold mb-1 text-foreground font-heading">{children}</h4>,
-                  h5: ({children}) => <h5 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h5>,
-                  h6: ({children}) => <h6 className="text-sm font-medium mb-1 text-foreground font-heading">{children}</h6>,
-                  p: ({children}) => <p className="mb-2 text-foreground font-content leading-relaxed">{children}</p>,
-                  strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
-                  em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
-                  ul: ({children}) => <ul className="list-disc list-inside mb-2 text-foreground font-content">{children}</ul>,
-                  ol: ({children}) => <ol className="list-decimal list-inside mb-2 text-foreground font-content">{children}</ol>,
-                  li: ({children}) => <li className="mb-1 text-foreground font-content">{children}</li>,
-                  blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-2 text-foreground font-content">{children}</blockquote>,
-                  code: ({children, className}) => {
-                    const match = /language-(\w+)/.exec(className || '')
-                    const isInline = !match
-                    return isInline ? (
-                      <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-base font-mono text-foreground">{children}</code>
-                    ) : (
-                      <CodeBlock className={className} language={match?.[1]}>
-                        {String(children).replace(/\n$/, '')}
-                      </CodeBlock>
-                    )
-                  },
-                  table: ({children}) => <table className="border-collapse border border-gray-300 dark:border-gray-600 mb-2">{children}</table>,
-                  th: ({children}) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 bg-gray-50 dark:bg-gray-700 font-semibold text-foreground font-content">{children}</th>,
-                  td: ({children}) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-foreground font-content">{children}</td>
-                }}
-              >
-                {isCurrentlyStreaming ? displayedText : message.content}
-              </ReactMarkdown>
-              
-              {/* Cursor effect for streaming */}
-              {isCurrentlyStreaming && !isComplete && (
-                <span className="inline-block w-2 h-5 bg-primary animate-pulse ml-1 align-text-bottom"></span>
-              )}
-            </div>
-          )}
+        <div className="flex-1 min-w-0 relative">
+          {/* Message Actions */}
+          <MessageActions
+            content={message.content}
+            isUser={false}
+            messageId={message.id}
+            onRegenerate={handleRegenerateMessage}
+            onRate={handleRateMessage}
+          />
+          <div className="text-base leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none font-content">
+            <ReactMarkdown 
+              remarkPlugins={[remarkGfm]}
+              components={{
+                h1: ({children}) => <h1 className="text-xl font-bold mb-2 text-foreground font-heading">{children}</h1>,
+                h2: ({children}) => <h2 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h2>,
+                h3: ({children}) => <h3 className="text-base font-bold mb-1 text-foreground font-heading">{children}</h3>,
+                h4: ({children}) => <h4 className="text-base font-semibold mb-1 text-foreground font-heading">{children}</h4>,
+                h5: ({children}) => <h5 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h5>,
+                h6: ({children}) => <h6 className="text-sm font-medium mb-1 text-foreground font-heading">{children}</h6>,
+                p: ({children}) => <p className="mb-2 text-foreground font-content leading-relaxed">{children}</p>,
+                strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
+                em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
+                ul: ({children}) => <ul className="list-disc list-inside mb-2 text-foreground font-content">{children}</ul>,
+                ol: ({children}) => <ol className="list-decimal list-inside mb-2 text-foreground font-content">{children}</ol>,
+                li: ({children}) => <li className="mb-1 text-foreground font-content">{children}</li>,
+                blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-2 text-foreground font-content">{children}</blockquote>,
+                code: ({children, className}) => {
+                  const match = /language-(\w+)/.exec(className || '')
+                  const isInline = !match
+                  return isInline ? (
+                    <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-base font-mono text-foreground">{children}</code>
+                  ) : (
+                    <CodeBlock className={className} language={match?.[1]}>
+                      {String(children).replace(/\n$/, '')}
+                    </CodeBlock>
+                  )
+                },
+                table: ({children}) => <table className="border-collapse border border-gray-300 dark:border-gray-600 mb-2">{children}</table>,
+                th: ({children}) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 bg-gray-50 dark:bg-gray-700 font-semibold text-foreground font-content">{children}</th>,
+                td: ({children}) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-foreground font-content">{children}</td>
+              }}
+            >
+              {message.content}
+            </ReactMarkdown>
+          </div>
 
           {/* Message Action Bar for AI */}
           <div className="flex items-center gap-2 mt-3">

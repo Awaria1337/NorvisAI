@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Send, Plus, Mic, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useChatStore } from '@/store/chatStore';
 
 interface PromptInputProps {
   onSendMessage?: (message: string) => void;
@@ -21,6 +22,9 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [message, setMessage] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Get streaming state from chat store
+  const { isAIResponding, stopStreaming } = useChatStore();
 
   // Auto-resize textarea
   useEffect(() => {
@@ -48,6 +52,10 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setMessage(e.target.value);
   };
+  
+  const handleStopStreaming = () => {
+    stopStreaming();
+  };
 
   return (
     <div className={cn("w-full", className)}>
@@ -59,10 +67,11 @@ export const PromptInput: React.FC<PromptInputProps> = ({
             <Button
               variant="ghost"
               size="sm"
-              className="flex-shrink-0 p-2.5 rounded-xl hover:bg-muted transition-colors"
+              className="flex-shrink-0 rounded-full w-8 h-8 p-0 flex items-center justify-center hover:bg-muted transition-colors"
               disabled={disabled}
+              title="Dosya ekle"
             >
-              <Plus className="h-5 w-5 text-muted-foreground" />
+              <Plus className="h-4 w-4 text-muted-foreground" />
             </Button>
 
             {/* Text Input */}
@@ -93,18 +102,33 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
-              {message.trim() ? (
-                /* Send Button */
+              {isAIResponding ? (
+                /* Stop Streaming Button - Show when AI is responding */
+                <Button
+                  onClick={handleStopStreaming}
+                  size="sm"
+                  className={cn(
+                    "rounded-full w-8 h-8 p-0 flex items-center justify-center",
+                    "bg-red-600 hover:bg-red-700 text-white",
+                    "transition-all duration-200"
+                  )}
+                  title="Mesajı durdur"
+                >
+                  <Square className="h-3 w-3 fill-current" />
+                </Button>
+              ) : message.trim() ? (
+                /* Send Button - Round like ChatGPT */
                 <Button
                   onClick={handleSend}
                   size="sm"
                   disabled={disabled}
                   className={cn(
-                    "rounded-xl px-4 py-2.5 h-auto",
+                    "rounded-full w-8 h-8 p-0 flex items-center justify-center",
                     "bg-primary hover:bg-primary/90 text-primary-foreground",
                     "transition-all duration-200",
                     "disabled:opacity-50 disabled:cursor-not-allowed"
                   )}
+                  title="Mesajı gönder"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
@@ -117,24 +141,26 @@ export const PromptInput: React.FC<PromptInputProps> = ({
                     onClick={() => setIsRecording(!isRecording)}
                     disabled={disabled}
                     className={cn(
-                      "rounded-xl p-2.5 hover:bg-muted transition-colors",
+                      "rounded-full w-8 h-8 p-0 flex items-center justify-center hover:bg-muted transition-colors",
                       isRecording && "bg-red-100 hover:bg-red-200 dark:bg-red-900/20 dark:hover:bg-red-900/30"
                     )}
+                    title={isRecording ? "Kaydı durdur" : "Sesli mesaj kaydet"}
                   >
                     <Mic className={cn(
-                      "h-5 w-5",
+                      "h-4 w-4",
                       isRecording ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
                     )} />
                   </Button>
 
-                  {/* Stop Button */}
+                  {/* Placeholder Stop Button (inactive when not streaming) */}
                   <Button
                     variant="ghost"
                     size="sm"
-                    disabled={disabled}
-                    className="rounded-xl p-2.5 hover:bg-muted transition-colors"
+                    disabled={true}
+                    className="rounded-full w-8 h-8 p-0 flex items-center justify-center opacity-30 cursor-not-allowed"
+                    title="AI yanıt verirken durdurmak için kullanılabilir"
                   >
-                    <Square className="h-4 w-4 text-muted-foreground fill-current" />
+                    <Square className="h-3 w-3 text-muted-foreground fill-current" />
                   </Button>
                 </div>
               )}

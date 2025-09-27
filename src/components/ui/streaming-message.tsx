@@ -50,11 +50,6 @@ export const StreamingMessage: React.FC<StreamingMessageProps> = ({ content, isS
             <span className="text-sm font-medium text-foreground">
               Norvis AI
             </span>
-            {isStreaming && (
-              <span className="text-xs text-muted-foreground bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 rounded-full animate-pulse">
-                Typing...
-              </span>
-            )}
           </div>
           <div className="text-sm leading-relaxed text-foreground whitespace-pre-wrap">
             {displayedContent}

@@ -10,6 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import toast from 'react-hot-toast';
+import AdvancedFilePreview, { FileUploadStats } from '@/components/ui/advanced-file-preview';
+import { getFileDisplayInfo, formatFileSize, validateFile } from '@/utils/fileUtils';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -40,14 +42,12 @@ import {
   XCircle,
   Clock,
   Trash2,
-  FileText,
-  X
+  FileText
 } from 'lucide-react';
 import MessageBubble from '@/components/ui/message-bubble';
 import AILoadingStates from '@/components/ui/ai-loading-states';
 import SearchModal from '@/components/ui/search-modal';
 import KeyboardShortcutsModal from '@/components/ui/keyboard-shortcuts-modal';
-import FileUpload from '@/components/ui/file-upload';
 // import { ApiKeyModal } from '@/components/api-key-modal';
 
 
@@ -55,31 +55,27 @@ import FileUpload from '@/components/ui/file-upload';
 
 const ChatPage: React.FC = () => {
   const router = useRouter();
-  const { isAuthenticated, isLoading, logout } = useAuthStore();
+  const { isAuthenticated, isLoading, logout, user } = useAuthStore();
   
   // Custom toast helper with Lucide icons
   const showToast = {
-    success: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
+    success: (message: string, options?: { duration?: number }) => {
       toast.success(message, {
-        icon: options?.icon || <CheckCircle className="w-4 h-4" />, 
         duration: options?.duration || 3000,
       });
     },
-    error: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
+    error: (message: string, options?: { duration?: number }) => {
       toast.error(message, {
-        icon: options?.icon || <XCircle className="w-4 h-4" />,
         duration: options?.duration || 4000,
       });
     },
-    warning: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
+    warning: (message: string, options?: { duration?: number }) => {
       toast.error(message, {
-        icon: options?.icon || <AlertTriangle className="w-4 h-4" />,
         duration: options?.duration || 4000,
       });
     },
-    info: (message: string, options?: { icon?: React.ReactNode; duration?: number }) => {
+    info: (message: string, options?: { duration?: number }) => {
       toast(message, {
-        icon: options?.icon || <FileText className="w-4 h-4" />,
         duration: options?.duration || 3000,
       });
     }
@@ -107,7 +103,6 @@ const ChatPage: React.FC = () => {
   // const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
-  const [showFileUpload, setShowFileUpload] = useState(false);
   
   // Scroll reference for auto-scrolling to bottom
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -165,7 +160,6 @@ const ChatPage: React.FC = () => {
     // Don't send if AI is already processing
     if (isAIThinking || isAIResponding) {
       showToast.warning('AI şu anda meşgul, lütfen bekleyin...', {
-        icon: <Clock className="w-4 h-4" />,
         duration: 2000,
       });
       return;
@@ -217,63 +211,78 @@ const ChatPage: React.FC = () => {
     setIsSearchOpen(false);
   };
 
-  const handleFilesChange = (newFiles: any[]) => {
-    setUploadedFiles(newFiles);
+  const handleFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files) return;
+
+    // Check if adding new files would exceed the limit of 3
+    if (uploadedFiles.length + files.length > 3) {
+      showToast.warning('Maksimum 3 dosya yükleyebilirsiniz! Pro plana geçerek daha fazla dosya yükleyebilirsiniz.', {
+        duration: 5000,
+      });
+      event.target.value = ''; // Clear the input
+      return;
+    }
+
+    const validFiles: any[] = [];
+    const invalidFiles: string[] = [];
+    const warnings: string[] = [];
+
+    Array.from(files).forEach((file, index) => {
+      // Validate each file
+      const validation = validateFile({
+        size: file.size,
+        type: file.type,
+        name: file.name
+      });
+
+      if (validation.valid) {
+        const fileItem = {
+          id: `${Date.now()}-${index}`,
+          file: file,
+          name: file.name,
+          preview: file.type.startsWith('image/') ? URL.createObjectURL(file) : undefined
+        };
+        validFiles.push(fileItem);
+        
+        if (validation.warning) {
+          warnings.push(`${file.name}: ${validation.warning}`);
+        }
+      } else {
+        invalidFiles.push(`${file.name}: ${validation.error}`);
+      }
+    });
+
+    // Add valid files
+    if (validFiles.length > 0) {
+      setUploadedFiles(prev => [...prev, ...validFiles]);
+      
+      const fileText = validFiles.length === 1 ? 'dosya' : 'dosya';
+      showToast.success(`${validFiles.length} ${fileText} başarıyla yüklendi!`, {
+        duration: 3000,
+      });
+    }
+
+    // Show warnings
+    warnings.forEach(warning => {
+      showToast.warning(warning, { duration: 4000 });
+    });
+
+    // Show errors
+    invalidFiles.forEach(error => {
+      showToast.error(error, { duration: 5000 });
+    });
+    
+    // Clear the input value to allow re-uploading the same file
+    event.target.value = '';
   };
 
-  // Simple file remove helper for existing preview system
+  // File remove helper using new utility
   const removeFile = (index: number) => {
     setUploadedFiles(prev => prev.filter((_, i) => i !== index));
     showToast.success('Dosya kaldırıldı', {
-      icon: <Trash2 className="w-4 h-4" />,
       duration: 2000,
     });
-  };
-
-  // Simple preview helper for existing system
-  const createFilePreview = (fileItem: any) => {
-    return fileItem.preview || null;
-  };
-
-  const getFileType = (fileItem: any) => {
-    const file = fileItem.file || fileItem;
-    if (file.type?.startsWith('image/')) return 'image';
-    if (file.type === 'application/pdf') return 'pdf';
-    if (
-      file.type === 'application/msword' || 
-      file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    ) return 'word';
-    if (
-      file.type === 'application/vnd.ms-excel' || 
-      file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-    ) return 'excel';
-    return 'document';
-  };
-
-  const getFileIcon = (fileType: string) => {
-    switch (fileType) {
-      case 'pdf':
-        return '/pdf_icon.png';
-      case 'word':
-        return '/word_icon.png';
-      case 'excel':
-        return '/excel_icon.png';
-      default:
-        return '/pdf_icon.png';
-    }
-  };
-
-  const getFileColor = (fileType: string) => {
-    switch (fileType) {
-      case 'pdf':
-        return 'bg-red-500';
-      case 'word':
-        return 'bg-blue-500';
-      case 'excel':
-        return 'bg-green-500';
-      default:
-        return 'bg-gray-500';
-    }
   };
 
   const handleChatRename = async (chatId: string, newTitle: string) => {
@@ -410,16 +419,16 @@ const ChatPage: React.FC = () => {
                   </>
                 ) : (
                   <>
-                    <div className="text-center py-20">
-                      <div className="h-20 w-20 bg-gradient-to-r from-purple-100 to-blue-100 dark:from-purple-900/20 dark:to-blue-900/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                        <MessageSquare className="h-10 w-10 text-purple-600 dark:text-purple-400" />
+                    <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
+                      <div className="text-center">
+                        <MessageSquare className="h-12 w-12 text-muted-foreground/60 mx-auto mb-8" />
+                        <h1 className="text-3xl font-medium text-foreground mb-4 tracking-tight">
+                          Merhaba {user?.name || 'Kullanıcı'}!
+                        </h1>
+                        <p className="text-muted-foreground text-lg max-w-md mx-auto leading-relaxed">
+                          AI asistanımızla sohbete başlayın. Soru sorun, yaratıcı olun veya yeni fikirler keşfedin.
+                        </p>
                       </div>
-                      <h3 className="text-2xl font-bold text-foreground mb-3">
-                        Welcome to Norvis AI
-                      </h3>
-                      <p className="text-muted-foreground mb-8 max-w-md mx-auto">
-                        Start a conversation with our AI assistant. Ask anything, get creative, or explore new ideas.
-                      </p>
                     </div>
                     
                     {/* AI Loading States for empty chat */}
@@ -462,60 +471,16 @@ const ChatPage: React.FC = () => {
                     className="rounded-xl border border-border/10 p-3" 
                     style={{ backgroundColor: 'rgb(4, 4, 6)' }}
                   >
-                    {/* File Previews */}
+                    {/* Advanced File Previews */}
                     {uploadedFiles.length > 0 && (
                       <div className="mb-3">
-                        <div className="flex gap-2 flex-wrap">
-                          {uploadedFiles.map((fileItem, index) => {
-                            const file = fileItem.file || fileItem;
-                            const fileName = file.name || fileItem.name || 'Unknown';
-                            const preview = createFilePreview(fileItem);
-                            const fileType = getFileType(fileItem);
-                            const fileIcon = getFileIcon(fileType);
-                            const fileColor = getFileColor(fileType);
-                            
-                            return (
-                              <div 
-                                key={fileItem.id || index} 
-                                className="relative bg-muted/20 rounded-lg overflow-hidden border border-border/20"
-                                style={{ width: '80px', height: '80px' }}
-                                draggable={false}
-                                onDragStart={(e) => e.preventDefault()}
-                              >
-                                {preview ? (
-                                  <img 
-                                    src={preview} 
-                                    alt={fileName}
-                                    className="w-full h-full object-cover"
-                                    draggable={false}
-                                    onDragStart={(e) => e.preventDefault()}
-                                  />
-                                ) : (
-                                  <div className="w-full h-full flex flex-col items-center justify-center p-1">
-                                    <div className="w-10 h-10 flex items-center justify-center mb-1">
-                                      <img 
-                                        src={fileIcon} 
-                                        alt={fileType} 
-                                        className="w-8 h-8 object-contain"
-                                        draggable={false}
-                                        onDragStart={(e) => e.preventDefault()}
-                                      />
-                                    </div>
-                                    <span className="text-xs text-muted-foreground/70 text-center truncate w-full">
-                                      {fileName && fileName.length > 12 ? fileName.substring(0, 8) + '...' : fileName}
-                                    </span>
-                                  </div>
-                                )}
-                                <button
-                                  onClick={() => removeFile(index)}
-                                  className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-destructive/90 shadow-sm"
-                                >
-                                  ×
-                                </button>
-                              </div>
-                            );
-                          })}
-                        </div>
+                        <AdvancedFilePreview
+                          fileItems={uploadedFiles}
+                          onRemove={removeFile}
+                          maxFiles={3}
+                          compact={true}
+                          showDetails={false}
+                        />
                       </div>
                     )}
                     
@@ -545,6 +510,16 @@ const ChatPage: React.FC = () => {
                     />
 
 
+                    {/* Hidden file input - Updated to support all file types */}
+                    <input
+                      type="file"
+                      id="file-upload-input"
+                      className="hidden"
+                      multiple
+                      accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.html,.css,.js,.ts,.json,.xml,.yaml,.yml,.md,.py,.java,.cpp,.c,.php,.rb,.go,.rs,.swift,.sql,.zip,.rar,.7z,.mp3,.wav,.mp4,.avi,.mov,.webm,.svg,.psd,.ai"
+                      onChange={handleFileInputChange}
+                    />
+
                     {/* Bottom Row - Controls */}
                     <div className="flex items-center justify-between">
                       {/* Left Side - Action Buttons */}
@@ -555,12 +530,26 @@ const ChatPage: React.FC = () => {
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 rounded-full hover:bg-accent"
-                              onClick={() => setShowFileUpload(true)}
+                              disabled={uploadedFiles.length >= 3}
+                              onClick={() => {
+                                if (uploadedFiles.length >= 3) {
+                                  showToast.warning('Maksimum 3 dosya yükleyebilirsiniz! Pro plana geçerek daha fazla dosya yükleyebilirsiniz.', {
+                                    duration: 5000,
+                                  });
+                                  return;
+                                }
+                                const fileInput = document.getElementById('file-upload-input');
+                                if (fileInput) {
+                                  fileInput.click();
+                                }
+                              }}
                             >
                               <Paperclip className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Dosya ekle</TooltipContent>
+                          <TooltipContent>
+                            {uploadedFiles.length >= 3 ? 'Maksimum 3 dosya (Pro için yükselt)' : 'Dosya ekle'}
+                          </TooltipContent>
                         </Tooltip>
                         
                         <Tooltip>
@@ -625,50 +614,6 @@ const ChatPage: React.FC = () => {
           onClose={() => setShowKeyboardShortcuts(false)}
         />
         
-        {/* File Upload Modal */}
-        {showFileUpload && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-            <div className="bg-background rounded-lg p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-semibold">Dosya Yükle</h2>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowFileUpload(false)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-              
-              <FileUpload
-                onFilesChange={handleFilesChange}
-                maxFiles={5}
-                className="mb-4"
-              />
-              
-              <div className="flex justify-end space-x-2">
-                <Button
-                  variant="outline"
-                  onClick={() => setShowFileUpload(false)}
-                >
-                  İptal
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowFileUpload(false);
-                    // Focus textarea after closing modal
-                    setTimeout(() => {
-                      const textarea = document.querySelector('textarea');
-                      if (textarea) textarea.focus();
-                    }, 100);
-                  }}
-                >
-                  Tamam
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
         
         {/* API Key Management Modal */}
         {/* <ApiKeyModal

@@ -35,14 +35,6 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
             />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center space-x-2 mb-2">
-              <span className="text-sm font-medium text-foreground">
-                Norvis AI
-              </span>
-              <span className="text-xs text-muted-foreground bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-2 py-1 rounded-full animate-pulse">
-                Typing...
-              </span>
-            </div>
             <div className="text-sm leading-relaxed text-foreground prose prose-sm dark:prose-invert max-w-none font-content">
               <ReactMarkdown 
                 remarkPlugins={[remarkGfm]}

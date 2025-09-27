@@ -52,9 +52,9 @@ export async function POST(
       );
     }
 
-    // Process any attached files
+    // Process any attached files for AI context ONLY
     let processedFiles: any[] = [];
-    let enhancedContent = content || '';
+    let aiEnhancedContent = content || ''; // For AI only
     
     if (files && files.length > 0) {
       try {
@@ -68,11 +68,12 @@ export async function POST(
             if (result.success && result.data) {
               processedFiles.push(result.data);
               
-              // Add file content to message
-              if (result.data.type === 'text' || result.data.type === 'table') {
-                enhancedContent += '\n\n' + result.data.content;
+              // Add file content ONLY to AI context, NOT to user message
+              if (result.data.type === 'text' || result.data.type === 'table' || result.data.type === 'code') {
+                console.log(`📋 Processing file for AI context only. Type: ${result.data.type}, Content length: ${result.data.content.length}`);
+                aiEnhancedContent += '\n\n' + result.data.content;
               } else if (result.data.type === 'image') {
-                enhancedContent = enhancedContent || 'Please analyze this image:';
+                aiEnhancedContent = aiEnhancedContent || 'Please analyze this image:';
                 // Images will be handled separately in AI call
               }
             }
@@ -83,10 +84,10 @@ export async function POST(
       }
     }
     
-    // Create user message
+    // Create user message with ORIGINAL content only (no file content)
     const userMessage = await prisma.message.create({
       data: {
-        content: enhancedContent,
+        content: content || '', // Store only user's original message
         role,
         chatId
       }
@@ -135,17 +136,47 @@ export async function POST(
         content: msg.content
       }));
 
+      console.log('📄 Processed', processedFiles.length, 'files for AI');
+      processedFiles.forEach(file => {
+        console.log(`  - ${file.metadata?.filename}: ${file.type} (${file.metadata?.size} bytes)`);
+      });
+
       // Collect image URLs from processed files
       const imageUrls = processedFiles
         .filter(file => file.type === 'image' && file.base64)
         .map(file => file.base64);
 
-      // Add the new user message with images if any
-      aiMessages.push({
-        role: 'user',
-        content: enhancedContent,
-        images: imageUrls.length > 0 ? imageUrls : undefined
-      });
+      // CRITICAL FIX: Add AI enhanced content for current message only
+      // Previous messages stay as original content, current message gets file context
+      if (aiMessages.length > 0) {
+        const lastMessage = aiMessages[aiMessages.length - 1];
+        if (lastMessage.role === 'user' && lastMessage.content === (content || '')) {
+          // This is the message we just created - enhance it for AI with file content
+          aiMessages[aiMessages.length - 1] = {
+            role: 'user',
+            content: aiEnhancedContent, // Enhanced with file content for AI only
+            images: imageUrls.length > 0 ? imageUrls : undefined
+          };
+        } else {
+          // Add new enhanced message for AI
+          aiMessages.push({
+            role: 'user',
+            content: aiEnhancedContent, // Enhanced with file content for AI only
+            images: imageUrls.length > 0 ? imageUrls : undefined
+          });
+        }
+      } else {
+        // Add first message with enhancement
+        aiMessages.push({
+          role: 'user',
+          content: aiEnhancedContent, // Enhanced with file content for AI only
+          images: imageUrls.length > 0 ? imageUrls : undefined
+        });
+      }
+      
+      console.log('📤 Sending to AI with enhanced content length:', aiEnhancedContent.length);
+      console.log('📝 First 500 chars of enhanced content:', aiEnhancedContent.substring(0, 500));
+      console.log('💬 Original user message (stored in DB):', content || '');
 
       console.log('Sending to AI with model:', chat.aiModel, 'userId:', payload.userId);
       
