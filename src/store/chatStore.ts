@@ -42,6 +42,7 @@ interface ChatState {
   streamingMessageId: string | null;
   streamingContent: string;
   streamingAbortController: AbortController | null;
+  isStreamingStopped: boolean;
   
   // Computed
   getCurrentChat: () => Chat | null;
@@ -79,6 +80,7 @@ interface ChatState {
   sendMessage: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
   sendMessageStreaming: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
   regenerateMessage: (messageId: string) => Promise<void>;
+  editMessage: (messageId: string, newContent: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -97,6 +99,7 @@ export const useChatStore = create<ChatState>()(
       streamingMessageId: null,
       streamingContent: '',
       streamingAbortController: null,
+      isStreamingStopped: false,
       
       // Computed
       getCurrentChat: () => {
@@ -296,7 +299,8 @@ export const useChatStore = create<ChatState>()(
           showWaitingMessage: false,
           streamingMessageId: null,
           streamingContent: '',
-          streamingAbortController: null
+          streamingAbortController: null,
+          isStreamingStopped: false
         });
       },
       
@@ -307,11 +311,19 @@ export const useChatStore = create<ChatState>()(
           streamingMessageId: messageId, 
           streamingContent: '', 
           isAIResponding: true,
-          streamingAbortController: abortController
+          streamingAbortController: abortController,
+          isStreamingStopped: false
         });
       },
       
-      updateStreamingContent: (content: string) => set({ streamingContent: content }),
+      updateStreamingContent: (content: string) => {
+        // Don't update if streaming was stopped
+        if (get().isStreamingStopped) {
+          console.log('🛑 Ignoring streaming update - stopped by user');
+          return;
+        }
+        set({ streamingContent: content });
+      },
       
       finishStreaming: () => set({ 
         streamingMessageId: null, 
@@ -323,6 +335,11 @@ export const useChatStore = create<ChatState>()(
       stopStreaming: () => {
         const { streamingAbortController, streamingMessageId, currentChatId } = get();
         
+        console.log('🛑 IMMEDIATE STOP - Setting streaming stopped flag');
+        
+        // FIRST: Immediately set stopped flag to prevent further updates
+        set({ isStreamingStopped: true });
+        
         if (streamingAbortController) {
           console.log('🛑 Stopping streaming...');
           streamingAbortController.abort();
@@ -332,16 +349,21 @@ export const useChatStore = create<ChatState>()(
         if (streamingMessageId && currentChatId) {
           const currentContent = get().streamingContent;
           get().updateMessage(currentChatId, streamingMessageId, {
-            content: currentContent + '\n\n[Mesaj durduruldu]'
+            content: currentContent // + '\n\n[Mesaj durduruldu]' // Commented out - user doesn't want to see this
           });
         }
         
         set({ 
+          isAIThinking: false,
+          isAIResponding: false,
+          showWaitingMessage: false,
           streamingMessageId: null, 
           streamingContent: '', 
-          isAIResponding: false,
-          streamingAbortController: null
+          streamingAbortController: null,
+          isStreamingStopped: true // Keep this true to prevent any late updates
         });
+        
+        console.log('✅ All AI states reset - UI should update immediately');
       },
       
       // API Actions
@@ -618,18 +640,26 @@ export const useChatStore = create<ChatState>()(
                     case 'aiMessageStart':
                       // Create empty AI message and start streaming
                       streamingMessageId = data.data.id;
-                      const aiMessage: Message = {
-                        id: streamingMessageId,
-                        content: '',
-                        role: 'assistant',
-                        createdAt: new Date()
-                      };
-                      get().addMessage(currentChatId!, aiMessage);
-                      get().startStreaming(streamingMessageId);
-                      console.log('🤖 AI message started, ID:', streamingMessageId);
+                      if (streamingMessageId) {
+                        const aiMessage: Message = {
+                          id: streamingMessageId,
+                          content: '',
+                          role: 'assistant',
+                          createdAt: new Date()
+                        };
+                        get().addMessage(currentChatId!, aiMessage);
+                        get().startStreaming(streamingMessageId);
+                        console.log('🤖 AI message started, ID:', streamingMessageId);
+                      }
                       break;
                     
                     case 'chunk':
+                      // Check if streaming was stopped
+                      if (get().isStreamingStopped) {
+                        console.log('🛑 Chunk ignored - streaming stopped');
+                        break;
+                      }
+                      
                       // Update the streaming content
                       if (streamingMessageId && data.data.id === streamingMessageId) {
                         get().updateStreamingContent(data.data.fullContent);
@@ -745,6 +775,65 @@ export const useChatStore = create<ChatState>()(
           set({ 
             error: error instanceof Error ? error.message : 'Failed to regenerate message',
             isLoading: false 
+          });
+          throw error;
+        }
+      },
+      
+      editMessage: async (messageId: string, newContent: string) => {
+        console.log('✏️ Starting message edit:', messageId);
+        const { currentChatId } = get();
+        
+        if (!currentChatId) {
+          throw new Error('No active chat');
+        }
+        
+        const currentChat = get().getCurrentChat();
+        if (!currentChat) {
+          throw new Error('Chat not found');
+        }
+        
+        // Find the message to edit
+        const messageIndex = currentChat.messages.findIndex(msg => msg.id === messageId);
+        if (messageIndex === -1) {
+          throw new Error('Message not found');
+        }
+        
+        const originalMessage = currentChat.messages[messageIndex];
+        if (originalMessage.role !== 'user') {
+          throw new Error('Only user messages can be edited');
+        }
+        
+        try {
+          console.log('📝 Updating message content');
+          
+          // Update the user message content locally
+          get().updateMessage(currentChatId, messageId, {
+            content: newContent,
+            createdAt: new Date()
+          });
+          
+          // Remove all messages after the edited message (including AI responses)
+          const messagesToKeep = currentChat.messages.slice(0, messageIndex + 1);
+          const updatedMessages = [...messagesToKeep];
+          updatedMessages[messageIndex] = { ...originalMessage, content: newContent, createdAt: new Date() };
+          
+          // Update the chat with only messages up to the edited one
+          get().updateChat(currentChatId, {
+            messages: updatedMessages
+          });
+          
+          console.log('🔄 Generating new AI response for edited message');
+          
+          // Generate new AI response for the edited message
+          await get().sendMessageStreaming(newContent, false, []);
+          
+          console.log('✅ Message edit and regeneration completed');
+          
+        } catch (error) {
+          console.error('❌ Message edit failed:', error);
+          set({ 
+            error: error instanceof Error ? error.message : 'Failed to edit message'
           });
           throw error;
         }

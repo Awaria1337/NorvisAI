@@ -232,7 +232,7 @@ const getFileColor = (fileType: string) => {
     // User message - Right side with bubble
     return (
       <>
-      <div className="flex justify-end mb-6">
+      <div className="flex justify-end mb-8">
         <div className="max-w-[80%] relative">
           {/* Message Actions */}
           <MessageActions
@@ -397,7 +397,7 @@ const getFileColor = (fileType: string) => {
   // AI message - Left side without bubble (ChatGPT style)
   return (
     <>
-    <div className="flex justify-start mb-6">
+    <div className="flex justify-start mb-8">
       <div className="flex items-start space-x-4 max-w-[90%] w-full">
         <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center">
           <img 

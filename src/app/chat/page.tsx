@@ -47,6 +47,7 @@ import {
 } from 'lucide-react';
 import MessageBubble from '@/components/ui/message-bubble';
 import AILoadingStates from '@/components/ui/ai-loading-states';
+import VoiceInput from '@/components/ui/voice-input';
 import SearchModal from '@/components/ui/search-modal';
 import KeyboardShortcutsModal from '@/components/ui/keyboard-shortcuts-modal';
 // import { ApiKeyModal } from '@/components/api-key-modal';
@@ -187,6 +188,22 @@ const ChatPage: React.FC = () => {
     //   return;
     // }
     handleSendMessage();
+  };
+  
+  // Voice input handler - mevcut metne ekle
+  const handleVoiceTranscript = (transcript: string) => {
+    if (transcript.trim()) {
+      setInputMessage(prevMessage => {
+        const currentMessage = prevMessage.trim();
+        if (currentMessage) {
+          // Eğer mevcut metin varsa, araya boşluk ekleyerek birleştir
+          return currentMessage + ' ' + transcript.trim();
+        } else {
+          // Eğer mevcut metin yoksa, sadece yeni transcript'i ekle
+          return transcript.trim();
+        }
+      });
+    }
   };
 
   const handleNewChat = async () => {
@@ -339,18 +356,8 @@ const ChatPage: React.FC = () => {
     }
   }, [isAuthenticated, fetchChats]);
 
-  // Redirect to specific chat URL if we have a current chat but are on general /chat page
-  useEffect(() => {
-    if (currentChatId && typeof window !== 'undefined') {
-      const currentPath = window.location.pathname;
-      const expectedPath = `/chat/${currentChatId}`;
-      
-      // Only redirect if we're on /chat (not on a specific chat page)
-      if (currentPath === '/chat') {
-        router.push(expectedPath);
-      }
-    }
-  }, [currentChatId, router]);
+  // Note: URL navigation is now handled by chatStore.navigateToChat() and createNewChat()
+  // No need for additional URL redirects here to prevent URL jumping bugs
 
   if (isLoading) {
     return (
@@ -555,13 +562,10 @@ const ChatPage: React.FC = () => {
                         
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 w-8 rounded-full hover:bg-accent"
-                            >
-                              <Mic className="h-4 w-4" />
-                            </Button>
+                            <VoiceInput
+                              onTranscript={handleVoiceTranscript}
+                              disabled={isAIThinking || isAIResponding}
+                            />
                           </TooltipTrigger>
                           <TooltipContent>Voice input</TooltipContent>
                         </Tooltip>
@@ -583,7 +587,7 @@ const ChatPage: React.FC = () => {
                       {/* Right Side - Send/Stop Button */}
                       <Tooltip>
                         <TooltipTrigger asChild>
-                          {isAIResponding ? (
+                          {(isAIThinking || isAIResponding) ? (
                             <Button
                               onClick={() => useChatStore.getState().stopStreaming()}
                               size="sm"
@@ -602,7 +606,7 @@ const ChatPage: React.FC = () => {
                             </Button>
                           )}
                         </TooltipTrigger>
-                        <TooltipContent>{isAIResponding ? 'Stop generating' : 'Send message'}</TooltipContent>
+                        <TooltipContent>{(isAIThinking || isAIResponding) ? 'Stop generating' : 'Send message'}</TooltipContent>
                       </Tooltip>
                     </div>
                   </div>

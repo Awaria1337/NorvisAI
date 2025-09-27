@@ -25,7 +25,7 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   // If streaming, use streaming component
   if (streamingMessageId && streamingContent) {
     return (
-      <div className="flex justify-start mb-6">
+      <div className="flex justify-start mb-8">
         <div className="flex items-start space-x-4 max-w-[90%]">
           <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center">
             <img 
@@ -81,7 +81,7 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   // AI thinking state - show simple loader only
   if (isAIThinking) {
     return (
-      <div className="flex justify-start mb-6">
+      <div className="flex justify-start mb-8">
         <div className="flex items-start space-x-3 max-w-[90%]">
           <SimpleAILoading text="Bir saniye bekleyin..." />
         </div>
@@ -92,7 +92,7 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   // Waiting message state - also show simple loader
   if (showWaitingMessage) {
     return (
-      <div className="flex justify-start mb-6">
+      <div className="flex justify-start mb-8">
         <div className="flex items-start space-x-3 max-w-[90%]">
           <SimpleAILoading text="Bir saniye bekleyin..." />
         </div>
@@ -103,7 +103,7 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   // AI responding (but not streaming) - still show simple loader until stream starts
   if (isAIResponding) {
     return (
-      <div className="flex justify-start mb-6">
+      <div className="flex justify-start mb-8">
         <div className="flex items-start space-x-3 max-w-[90%]">
           <SimpleAILoading text="Bir saniye bekleyin..." />
         </div>
