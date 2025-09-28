@@ -59,6 +59,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useTheme } from "next-themes";
 import ModernSettingsModal from "@/components/ui/modern-settings-modal";
+import ReportIssueModal from "@/components/ui/report-issue-modal";
 
 interface Chat {
   id: string;
@@ -99,6 +100,7 @@ export function AppSidebar({
   const [editingChatId, setEditingChatId] = React.useState<string | null>(null);
   const [editTitle, setEditTitle] = React.useState("");
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
+  const [showReportModal, setShowReportModal] = React.useState(false);
 
   const handleLogout = () => {
     logout();
@@ -358,9 +360,7 @@ export function AppSidebar({
 
                   <DropdownMenuItem
                     className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
-                    onClick={() => {
-                      /* TODO: Add issue reporting function */
-                    }}
+                    onClick={() => setShowReportModal(true)}
                   >
                     <MessageCircle className="mr-2 h-3.5 w-3.5 text-white" />
                     <span className="text-white text-sm">Sorunu Rapor Et</span>
@@ -433,6 +433,12 @@ export function AppSidebar({
         isOpen={showSettingsModal}
         onClose={() => setShowSettingsModal(false)}
         user={user || undefined}
+      />
+      
+      {/* Report Issue Modal */}
+      <ReportIssueModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
       />
     </>
   );

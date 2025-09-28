@@ -205,7 +205,7 @@ const VoiceInput: React.FC<VoiceInputProps> = ({
         }
       default:
         return {
-          className: 'h-10 w-10 rounded-full bg-white hover:bg-gray-100 text-gray-600 hover:text-gray-800 transition-all duration-200 p-0 flex items-center justify-center',
+          className: 'whitespace-nowrap text-base font-medium disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*=\'size-\'])]:size-6 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:hover:bg-accent/50 gap-1.5 has-[>svg]:px-3 h-10 w-10 rounded-full bg-white hover:bg-white text-gray-600 hover:text-gray-600 hover:shadow-lg transition-all duration-200 p-0 flex items-center justify-center',
           icon: <Mic className="h-5 w-5" />,
           title: 'Ses kaydı başlat'
         }

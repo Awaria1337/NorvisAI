@@ -125,6 +125,16 @@ const ChatPage: React.FC = () => {
     scrollToBottom();
   }, [currentChat?.messages, isAIThinking, isAIResponding, showWaitingMessage, streamingContent]);
 
+  // Auto-resize textarea when inputMessage changes
+  useEffect(() => {
+    const textarea = document.querySelector('textarea[placeholder="Norvis nasıl yardımcı olabilir?"]') as HTMLTextAreaElement;
+    if (textarea) {
+      textarea.style.height = 'auto';
+      const scrollHeight = Math.min(textarea.scrollHeight, 312); // 12 lines * 26px
+      textarea.style.height = scrollHeight + 'px';
+    }
+  }, [inputMessage]);
+
   // Keyboard shortcuts
   const [showKeyboardShortcuts, setShowKeyboardShortcuts] = useState(false);
   
@@ -405,7 +415,7 @@ const ChatPage: React.FC = () => {
 
             {/* Messages Area - ChatGPT style, starts from top */}
             <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
-              <div className="p-6 pt-16 space-y-6 max-w-3xl mx-auto min-h-full pb-48">
+              <div className="outside-1 p-6 pt-16 space-y-6 max-w-3xl mx-auto min-h-full">
                 {currentChat?.messages && currentChat.messages.length > 0 ? (
                   <>
                     {currentChat.messages.map((message) => (
@@ -459,86 +469,101 @@ const ChatPage: React.FC = () => {
         {/* Message Input - New Clean Design */}
         <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md px-6 py-4 z-50 transition-all duration-300 md:left-64">
           <div className="max-w-3xl mx-auto">
-            {/* File Previews - Outside Input */}
-            {uploadedFiles.length > 0 && (
-              <div className="mb-3">
-                <AdvancedFilePreview
-                  fileItems={uploadedFiles}
-                  onRemove={removeFile}
-                  maxFiles={3}
-                  compact={true}
-                  showDetails={false}
-                />
-              </div>
-            )}
-            
-            {/* Main Input Container - 55px Height */}
-            <div className="rounded-full border border-gray-600 px-4 shadow-lg" style={{backgroundColor: '#242628', borderRadius: '10rem', height: '60px', border: '1px solid #2F3132'}}>
-              <div className="flex items-center justify-between gap-3 h-full">
+            {/* Main Input Container - Dynamic Height */}
+            <div className="border border-gray-600 px-2 shadow-lg p-1" style={{
+              backgroundColor: '#242628', 
+              borderRadius: '28px',
+              minHeight: '60x', 
+              border: '1px solid #2F3132',
+              padding: '15px !important'
+            }}>
+              <div className="flex flex-col">
+                {/* File Previews - Top Section */}
+                {uploadedFiles.length > 0 && (
+                  <div className="px-1 pb-2 pt-1">
+                    <AdvancedFilePreview
+                      fileItems={uploadedFiles}
+                      onRemove={removeFile}
+                      maxFiles={3}
+                      compact={true}
+                      showDetails={false}
+                    />
+                  </div>
+                )}
                 
-                {/* Left Side - File Upload */}
-                <div className="flex items-center justify-center">
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-10 w-10 rounded-full hover:bg-gray-600 text-gray-400 hover:text-white p-0 flex items-center justify-center"
-                        disabled={uploadedFiles.length >= 3}
-                        onClick={() => {
-                          if (uploadedFiles.length >= 3) {
-                            showToast.warning('Maksimum 3 dosya yükleyebilirsiniz! Pro plana geçerek daha fazla dosya yükleyebilirsiniz.', {
-                              duration: 5000,
-                            });
-                            return;
-                          }
-                          const fileInput = document.getElementById('file-upload-input');
-                          if (fileInput) {
-                            fileInput.click();
-                          }
-                        }}
-                      >
-                        <Paperclip className="h-5 w-5" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      {uploadedFiles.length >= 3 ? 'Maksimum 3 dosya (Pro için yükselt)' : 'Dosya ekle'}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                
-                {/* Center - Input Area */}
-                <div className="flex-1 flex items-center justify-center h-full">
-                  <Textarea
-                    value={inputMessage}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      if (value.length <= 2000) {
-                        setInputMessage(value);
-                      } else {
-                        console.error('❌ Maksimum 2000 karakter girebilirsiniz!');
-                        alert('⚠️ Maksimum 2000 karakter girebilirsiniz!');
-                      }
-                    }}
-                    placeholder="Message Norvis AI..."
-                    className="w-full min-h-[26px] max-h-32 resize-none border-0 bg-transparent text-white placeholder:text-gray-400 focus-visible:ring-0 focus-visible:ring-offset-0 text-sm py-0 px-2"
-                    maxLength={2000}
-                    rows={1}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault();
-                        handleSendMessage();
-                      }
-                    }}
-                    style={{
-                      minHeight: '26px',
-                      lineHeight: '26px'
-                    }}
-                  />
-                </div>
-                
-                {/* Right Side - Dynamic Button (Voice/Send/Stop) */}
-                <div className="flex items-center justify-center">
+                {/* Input Row - Always at bottom */}
+                <div className="flex items-end justify-between gap-2" style={{ minHeight: '48px' }}>
+                  {/* Left Side - File Upload */}
+                  <div className="flex items-center justify-center pb-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 w-8 rounded-full hover:bg-gray-600 text-gray-400 hover:text-white p-0 flex items-center justify-center flex-shrink-0"
+                          disabled={uploadedFiles.length >= 3}
+                          onClick={() => {
+                            if (uploadedFiles.length >= 3) {
+                              showToast.warning('Maksimum 3 dosya yükleyebilirsiniz! Pro plana geçerek daha fazla dosya yükleyebilirsiniz.', {
+                                duration: 5000,
+                              });
+                              return;
+                            }
+                            const fileInput = document.getElementById('file-upload-input');
+                            if (fileInput) {
+                              fileInput.click();
+                            }
+                          }}
+                        >
+                          <Paperclip className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        {uploadedFiles.length >= 3 ? 'Maksimum 3 dosya (Pro için yükselt)' : 'Dosya ekle'}
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
+                  
+                  {/* Center - Input Area */}
+                  <div className="flex-1 flex items-end pb-2">
+                    <textarea
+                      value={inputMessage}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        if (value.length <= 2000) {
+                          setInputMessage(value);
+                          // Auto-resize textarea
+                          const textarea = e.target as HTMLTextAreaElement;
+                          textarea.style.height = 'auto';
+                          const scrollHeight = Math.min(textarea.scrollHeight, 312); // 12 lines * 26px
+                          textarea.style.height = scrollHeight + 'px';
+                        } else {
+                          console.error('❌ Maksimum 2000 karakter girebilirsiniz!');
+                          alert('⚠️ Maksimum 2000 karakter girebilirsiniz!');
+                        }
+                      }}
+                      placeholder="Norvis nasıl yardımcı olabilir?"
+                      className="w-full min-h-[26px] max-h-[312px] resize-none border-0 bg-transparent text-white placeholder:text-gray-500 focus:outline-none focus:ring-0 focus:border-0 text-base py-0 overflow-y-auto"
+                      maxLength={2000}
+                      rows={1}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                          e.preventDefault();
+                          handleSendMessage();
+                        }
+                      }}
+                      style={{
+                        // minHeight: '20px',
+                         // height: '23px',
+                        lineHeight: '17px',
+                        outline: 'none',
+                        border: 'none'
+                      }}
+                    />
+                  </div>
+                  
+                  {/* Right Side - Dynamic Button (Voice/Send/Stop) */}
+                  <div className="flex items-center justify-center pb-1">
                   {(isAIThinking || isAIResponding) ? (
                     // Stop Button
                     <Tooltip>
@@ -546,9 +571,9 @@ const ChatPage: React.FC = () => {
                         <Button
                           onClick={() => useChatStore.getState().stopStreaming()}
                           size="sm"
-                          className="h-10 w-10 rounded-full bg-red-600 hover:bg-red-700 text-white p-0 flex items-center justify-center"
+                          className="h-8 w-8 rounded-full bg-red-600 hover:bg-red-700 text-white p-0 flex items-center justify-center flex-shrink-0"
                         >
-                          <Square className="h-4 w-4 fill-current" />
+                          <Square className="h-3 w-3 fill-current" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Stop generating</TooltipContent>
@@ -560,9 +585,9 @@ const ChatPage: React.FC = () => {
                         <Button
                           onClick={handleSendClick}
                           size="sm"
-                          className="h-10 w-10 rounded-full hover:bg-gray-600 text-gray-400 hover:text-white p-0 transition-all duration-200 flex items-center justify-center"
+                          className="h-10 w-10 rounded-full hover:bg-gray-600 text-black hover:text-white p-0 transition-all duration-200 flex items-center justify-center flex-shrink-0"
                         >
-                          <ArrowUp className="h-4 w-4" />
+                          <ArrowUp className="h-3 w-3" />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent>Send message</TooltipContent>
@@ -571,7 +596,7 @@ const ChatPage: React.FC = () => {
                     // Voice Button - when empty
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <div className="flex items-center justify-center">
+                        <div className="flex items-center justify-center flex-shrink-0" style={{ marginLeft: '6px' }}>
                           <VoiceInput
                             onTranscript={handleVoiceTranscript}
                             disabled={isAIThinking || isAIResponding}
@@ -581,8 +606,8 @@ const ChatPage: React.FC = () => {
                       <TooltipContent>Voice input</TooltipContent>
                     </Tooltip>
                   )}
+                  </div>
                 </div>
-                
               </div>
             </div>
             
