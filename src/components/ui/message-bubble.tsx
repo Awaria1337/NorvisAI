@@ -62,23 +62,23 @@ const useTypingEffect = (text: string, speed: number = 30, enabled: boolean = fa
     // If text length increased (streaming), continue from where we left off
     if (text.length > previousTextRef.current.length && text.startsWith(previousTextRef.current)) {
       previousTextRef.current = text;
-      // Continue typing from current position
+      // Continue typing from current position without interruption
       if (indexRef.current < text.length) {
         setIsComplete(false);
-        const typeCharacter = () => {
-          if (indexRef.current < text.length) {
-            setDisplayedText(text.slice(0, indexRef.current + 1));
-            indexRef.current++;
-            timeoutRef.current = setTimeout(typeCharacter, speed);
-          } else {
-            setIsComplete(true);
-          }
-        };
-        
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
+        // Don't restart if already typing - let it continue
+        if (!timeoutRef.current) {
+          const typeCharacter = () => {
+            if (indexRef.current < text.length) {
+              setDisplayedText(text.slice(0, indexRef.current + 1));
+              indexRef.current++;
+              timeoutRef.current = setTimeout(typeCharacter, speed);
+            } else {
+              setIsComplete(true);
+              timeoutRef.current = null;
+            }
+          };
+          timeoutRef.current = setTimeout(typeCharacter, speed);
         }
-        timeoutRef.current = setTimeout(typeCharacter, speed);
       }
     } else {
       // New text - start from beginning
@@ -87,6 +87,12 @@ const useTypingEffect = (text: string, speed: number = 30, enabled: boolean = fa
       setDisplayedText('');
       setIsComplete(false);
 
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+
       const typeCharacter = () => {
         if (indexRef.current < text.length) {
           setDisplayedText(text.slice(0, indexRef.current + 1));
@@ -94,18 +100,17 @@ const useTypingEffect = (text: string, speed: number = 30, enabled: boolean = fa
           timeoutRef.current = setTimeout(typeCharacter, speed);
         } else {
           setIsComplete(true);
+          timeoutRef.current = null;
         }
       };
 
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
       timeoutRef.current = setTimeout(typeCharacter, speed);
     }
 
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
   }, [text, speed, enabled]);
@@ -204,6 +209,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [isTyping, setIsTyping] = useState(false);
   
   // Get streaming state from store
   const { streamingMessageId, streamingContent: storeStreamingContent, isAIResponding, editMessage } = useChatStore();
@@ -212,12 +218,22 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isCurrentlyStreaming = isAIResponding && streamingMessageId === message.id;
   const currentContent = isCurrentlyStreaming ? (storeStreamingContent || streamingContent || '') : message.content;
   
-  // Use typing effect for streaming messages only
+  // Start typing when streaming begins, continue until complete
+  const shouldEnableTyping = isCurrentlyStreaming || (currentContent && isTyping);
   const { displayedText, isComplete } = useTypingEffect(
     currentContent, 
-    30, // Slower typing speed to see character-by-character effect
-    isCurrentlyStreaming // Only enable for currently streaming messages
+    8, // Fast typing speed like ChatGPT
+    shouldEnableTyping
   );
+  
+  // Update typing state
+  React.useEffect(() => {
+    if (isCurrentlyStreaming && currentContent && !isTyping) {
+      setIsTyping(true);
+    } else if (isComplete && isTyping) {
+      setIsTyping(false);
+    }
+  }, [isCurrentlyStreaming, currentContent, isComplete, isTyping]);
   
   // Message action handlers
   const handleEditMessage = (messageId: string) => {
@@ -548,18 +564,18 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   td: ({children}) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-foreground font-content">{children}</td>
                 }}
               >
-                {isCurrentlyStreaming ? displayedText : message.content}
+                {(isCurrentlyStreaming || isTyping) ? displayedText : message.content}
               </ReactMarkdown>
               
-              {/* Cursor effect for streaming only */}
-              {isCurrentlyStreaming && !isComplete && (
+              {/* Cursor effect during typing */}
+              {(isCurrentlyStreaming || isTyping) && !isComplete && (
                 <span className="inline-block w-2 h-5 bg-primary animate-pulse ml-1 align-text-bottom"></span>
               )}
             </div>
           )}
 
-          {/* Message Action Bar for AI - hide during streaming */}
-          {!isCurrentlyStreaming && (
+          {/* Message Action Bar for AI - hide during streaming and typing */}
+          {!isCurrentlyStreaming && !isTyping && (
             <div className="flex items-center gap-2 mt-3">
             {/* Copy Button */}
             <Button
