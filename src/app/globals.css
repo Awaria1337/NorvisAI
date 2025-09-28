@@ -220,3 +220,7 @@
 .outside-1{
   padding-bottom: 8em;
 }
+.fileDefaultClose{
+  top: 2px;
+  right: 1px;
+}

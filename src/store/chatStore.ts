@@ -81,6 +81,9 @@ interface ChatState {
   sendMessageStreaming: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
   regenerateMessage: (messageId: string) => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
+  
+  // Cleanup Actions
+  cleanup: () => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -837,6 +840,33 @@ export const useChatStore = create<ChatState>()(
           });
           throw error;
         }
+      },
+      
+      // Cleanup function - stops speech synthesis and resets states
+      cleanup: () => {
+        // Stop any ongoing speech synthesis safely
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            // Check if speech synthesis is speaking before canceling
+            if (window.speechSynthesis.speaking) {
+              window.speechSynthesis.cancel();
+            }
+          } catch (error) {
+            // Silent error handling for speech synthesis cleanup
+            console.log('Speech synthesis cleanup completed');
+          }
+        }
+        
+        // Stop streaming if active
+        const { streamingAbortController } = get();
+        if (streamingAbortController) {
+          streamingAbortController.abort();
+        }
+        
+        // Reset AI states
+        get().resetAIStates();
+        
+        console.log('🧹 Chat store cleanup completed');
       }
     }),
     {

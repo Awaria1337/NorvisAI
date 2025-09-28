@@ -43,6 +43,7 @@ const useTypingEffect = (text: string, speed: number = 30, enabled: boolean = fa
   const [isComplete, setIsComplete] = useState(false);
   const indexRef = useRef(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousTextRef = useRef('');
 
   useEffect(() => {
     if (!enabled) {
@@ -54,24 +55,53 @@ const useTypingEffect = (text: string, speed: number = 30, enabled: boolean = fa
     if (!text) {
       setDisplayedText('');
       setIsComplete(false);
+      indexRef.current = 0;
       return;
     }
 
-    indexRef.current = 0;
-    setDisplayedText('');
-    setIsComplete(false);
-
-    const typeCharacter = () => {
+    // If text length increased (streaming), continue from where we left off
+    if (text.length > previousTextRef.current.length && text.startsWith(previousTextRef.current)) {
+      previousTextRef.current = text;
+      // Continue typing from current position
       if (indexRef.current < text.length) {
-        setDisplayedText(text.slice(0, indexRef.current + 1));
-        indexRef.current++;
+        setIsComplete(false);
+        const typeCharacter = () => {
+          if (indexRef.current < text.length) {
+            setDisplayedText(text.slice(0, indexRef.current + 1));
+            indexRef.current++;
+            timeoutRef.current = setTimeout(typeCharacter, speed);
+          } else {
+            setIsComplete(true);
+          }
+        };
+        
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
         timeoutRef.current = setTimeout(typeCharacter, speed);
-      } else {
-        setIsComplete(true);
       }
-    };
+    } else {
+      // New text - start from beginning
+      previousTextRef.current = text;
+      indexRef.current = 0;
+      setDisplayedText('');
+      setIsComplete(false);
 
-    timeoutRef.current = setTimeout(typeCharacter, speed);
+      const typeCharacter = () => {
+        if (indexRef.current < text.length) {
+          setDisplayedText(text.slice(0, indexRef.current + 1));
+          indexRef.current++;
+          timeoutRef.current = setTimeout(typeCharacter, speed);
+        } else {
+          setIsComplete(true);
+        }
+      };
+
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(typeCharacter, speed);
+    }
 
     return () => {
       if (timeoutRef.current) {
@@ -182,11 +212,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isCurrentlyStreaming = isAIResponding && streamingMessageId === message.id;
   const currentContent = isCurrentlyStreaming ? (storeStreamingContent || streamingContent || '') : message.content;
   
-  // Use typing effect for streaming messages
+  // Use typing effect for streaming messages only
   const { displayedText, isComplete } = useTypingEffect(
     currentContent, 
-    15, // Faster typing speed for better UX
-    isCurrentlyStreaming && currentContent.length > 0
+    30, // Slower typing speed to see character-by-character effect
+    isCurrentlyStreaming // Only enable for currently streaming messages
   );
   
   // Message action handlers
@@ -261,13 +291,48 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     // TODO: Implement new chat creation
   };
 
-  // Read aloud handler
+  // Read aloud handler - with safety check and user interaction requirement
   const handleReadAloud = (content: string) => {
     if ('speechSynthesis' in window) {
+      // Stop any currently playing speech safely
+      try {
+        if (speechSynthesis.speaking) {
+          speechSynthesis.cancel();
+        }
+      } catch (error) {
+        console.log('Previous speech synthesis stopped');
+      }
+      
       const utterance = new SpeechSynthesisUtterance(content);
       utterance.lang = 'tr-TR';
-      speechSynthesis.speak(utterance);
-      toast.success('Mesaj sesli okunuyor...');
+      
+      // Add event listeners for better control
+      utterance.onstart = () => {
+        toast.success('Mesaj sesli okunuyor...');
+      };
+      
+      utterance.onend = () => {
+        console.log('Speech synthesis finished');
+      };
+      
+      utterance.onerror = (event) => {
+        // Only show error if it's not a cancellation
+        if (event.error && event.error !== 'canceled' && event.error !== 'interrupted') {
+          console.error('Speech synthesis error:', event);
+          toast.error('Sesli okuma sırasında bir hata oluştu.');
+        } else {
+          // Silent handling for cancellation (when user switches chat or page)
+          console.log('Speech synthesis was cancelled or interrupted');
+        }
+      };
+      
+      // Only speak if user explicitly clicked the button
+      try {
+        speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error('Speech synthesis failed:', error);
+        toast.error('Sesli okuma başlatılamadı.');
+      }
     } else {
       toast.error('Sesli okuma bu tarayıcıda desteklenmiyor!');
     }
@@ -423,6 +488,11 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   }
 
   // AI message - Left side without bubble (ChatGPT style)
+  // Always render if streaming, or if has content
+  if (!message.content && !isCurrentlyStreaming) {
+    return null;
+  }
+  
   return (
     <>
     <div className="flex justify-start mb-8">
@@ -435,7 +505,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           />
         </div>
         <div className="flex-1 min-w-0">
-          {(displayedText || (!isCurrentlyStreaming && message.content)) && (
+          {/* Show loading if streaming but no content yet */}
+          {isCurrentlyStreaming && !message.content && !displayedText && (
+            <div className="flex items-center space-x-2">
+              <span className="text-sm text-muted-foreground animate-pulse">Bir saniye bekleyin...</span>
+              <div className="w-2 h-4 bg-muted-foreground animate-pulse rounded"></div>
+            </div>
+          )}
+          
+          {/* Show content when available */}
+          {(displayedText || message.content) && (
             <div>
               <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
@@ -472,15 +551,16 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 {isCurrentlyStreaming ? displayedText : message.content}
               </ReactMarkdown>
               
-              {/* Cursor effect for streaming */}
+              {/* Cursor effect for streaming only */}
               {isCurrentlyStreaming && !isComplete && (
                 <span className="inline-block w-2 h-5 bg-primary animate-pulse ml-1 align-text-bottom"></span>
               )}
             </div>
           )}
 
-          {/* Message Action Bar for AI */}
-          <div className="flex items-center gap-2 mt-3">
+          {/* Message Action Bar for AI - hide during streaming */}
+          {!isCurrentlyStreaming && (
+            <div className="flex items-center gap-2 mt-3">
             {/* Copy Button */}
             <Button
               variant="ghost"
@@ -553,7 +633,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

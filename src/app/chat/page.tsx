@@ -93,7 +93,8 @@ const ChatPage: React.FC = () => {
     navigateToChat,
     setChats,
     deleteChat,
-    renameChat
+    renameChat,
+    cleanup
   } = useChatStore();
   
   // Sidebar state will be passed from AppSidebar
@@ -124,6 +125,47 @@ const ChatPage: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [currentChat?.messages, isAIThinking, isAIResponding, showWaitingMessage, streamingContent]);
+  
+  // Cleanup on page unload, route change, and chat change
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      cleanup();
+    };
+    
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        cleanup();
+      }
+    };
+    
+    // Cleanup on page unload/refresh
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    // Cleanup when tab becomes hidden
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup on component unmount or when chat changes
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      cleanup();
+    };
+  }, [cleanup]);
+  
+  // Cleanup when chat changes
+  useEffect(() => {
+    // Stop any ongoing speech when switching chats
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        // Only cancel if speech is currently active
+        if (window.speechSynthesis.speaking) {
+          window.speechSynthesis.cancel();
+        }
+      } catch (error) {
+        // Silent error handling for speech cancellation
+        console.log('Speech synthesis stopped when changing chat');
+      }
+    }
+  }, [currentChatId]);
 
   // Auto-resize textarea when inputMessage changes
   useEffect(() => {
@@ -405,17 +447,27 @@ const ChatPage: React.FC = () => {
           {/* Main Chat Area */}
           <div className="flex-1 flex flex-col bg-background h-screen overflow-hidden relative">
             {/* ChatGPT-style Fixed Top Left */}
-            <div className={`fixed top-0 left-0 z-30 flex items-center space-x-3 p-3 transition-all duration-300 ${
+            <div className={`fixed top-0 left-0 right-0 z-30 flex items-center p-3 transition-all duration-300 ${
               sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
             }`}>
               {/* Mobile Sidebar Trigger - only show on mobile */}
-              <SidebarTrigger className="md:hidden bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent" />
-              <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">Norvis AI</h1>
+              <SidebarTrigger className="md:hidden bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent mr-3" />
+              
+              {/* Center the title when sidebar is collapsed, left align when expanded */}
+              <div className={`flex-1 ${
+                sidebarState === 'collapsed' ? 'flex justify-center' : 'flex justify-start'
+              }`}>
+                <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">
+                  Norvis AI
+                </h1>
+              </div>
             </div>
 
             {/* Messages Area - ChatGPT style, starts from top */}
             <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
-              <div className="outside-1 p-6 pt-16 space-y-6 max-w-3xl mx-auto min-h-full">
+              <div className={`outside-1 p-6 pt-16 space-y-6 mx-auto min-h-full transition-all duration-300 ${
+                sidebarState === 'collapsed' ? 'max-w-4xl' : 'max-w-3xl'
+              }`}>
                 {currentChat?.messages && currentChat.messages.length > 0 ? (
                   <>
                     {currentChat.messages.map((message) => (
@@ -467,14 +519,18 @@ const ChatPage: React.FC = () => {
             </ScrollArea>
 
         {/* Message Input - New Clean Design */}
-        <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md px-6 py-4 z-50 transition-all duration-300 md:left-64">
-          <div className="max-w-3xl mx-auto">
+        <div className={`fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md px-6 py-4 z-50 transition-all duration-300 ${
+          sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
+        }`}>
+          <div className={`mx-auto transition-all duration-300 ${
+            sidebarState === 'collapsed' ? 'max-w-4xl' : 'max-w-3xl'
+          }`}>
             {/* Main Input Container - Dynamic Height */}
-            <div className="border border-gray-600 px-2 shadow-lg p-1" style={{
+            <div className="border border-gray-600 px-2 shadow-lg p-1 mb-2" style={{
               backgroundColor: '#242628', 
               borderRadius: '28px',
               minHeight: '60x', 
-              border: '1px solid #2F3132',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               padding: '15px !important'
             }}>
               <div className="flex flex-col">
@@ -555,7 +611,7 @@ const ChatPage: React.FC = () => {
                       style={{
                         // minHeight: '20px',
                          // height: '23px',
-                        lineHeight: '17px',
+                        lineHeight: '18px',
                         outline: 'none',
                         border: 'none'
                       }}

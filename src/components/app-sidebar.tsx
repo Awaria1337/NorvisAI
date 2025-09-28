@@ -161,11 +161,7 @@ export function AppSidebar({
           <div className="flex justify-between items-center my-4">
             <Link
               href="/chat"
-              className={`no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-8 w-8 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 ml-2 transition-colors ${
-                state === "collapsed"
-                  ? "group-data-[collapsible=icon]:hidden"
-                  : ""
-              }`}
+              className="no-draggable hover:bg-sidebar-accent keyboard-focused:bg-sidebar-accent touch:h-12 touch:w-12 flex h-8 w-8 items-center justify-center rounded-lg focus:outline-none disabled:opacity-50 ml-2 transition-colors group-data-[collapsible=icon]:hidden"
             >
               <img
                 src="/norvis_logo.png"
@@ -269,32 +265,44 @@ export function AppSidebar({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent
-                                  align="end"
-                                  className="w-48"
+                                  align="start"
+                                  side="right"
+                                  className="w-48 p-1 rounded-xl border-0 shadow-lg"
+                                  sideOffset={8}
+                                  alignOffset={0}
+                                  style={{
+                                    backgroundColor: "#525252",
+                                    animationDuration: "0ms",
+                                    animationFillMode: "both",
+                                  }}
                                 >
-                                  <DropdownMenuItem
-                                    onClick={() => startEditing(chat)}
-                                  >
-                                    <Edit className="mr-2 h-4 w-4" />
-                                    Yeniden adlandır
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      onChatArchive && onChatArchive(chat.id)
-                                    }
-                                  >
-                                    <Archive className="mr-2 h-4 w-4" />
-                                    Arşivle
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem
-                                    onClick={() =>
-                                      onChatDelete && onChatDelete(chat.id)
-                                    }
-                                    className="text-destructive focus:text-destructive"
-                                  >
-                                    <Trash2 className="mr-2 h-4 w-4" />
-                                    Sil
-                                  </DropdownMenuItem>
+                                  <div className="p-0 space-y-0.5">
+                                    <DropdownMenuItem
+                                      onClick={() => startEditing(chat)}
+                                      className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
+                                    >
+                                      <Edit className="mr-2 h-3.5 w-3.5 text-white" />
+                                      <span className="text-white text-sm">Yeniden adlandır</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        onChatArchive && onChatArchive(chat.id)
+                                      }
+                                      className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
+                                    >
+                                      <Archive className="mr-2 h-3.5 w-3.5 text-white" />
+                                      <span className="text-white text-sm">Arşivle</span>
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      onClick={() =>
+                                        onChatDelete && onChatDelete(chat.id)
+                                      }
+                                      className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
+                                    >
+                                      <Trash2 className="mr-2 h-3.5 w-3.5 text-white" />
+                                      <span className="text-white text-sm">Sil</span>
+                                    </DropdownMenuItem>
+                                  </div>
                                 </DropdownMenuContent>
                               </DropdownMenu>
                             </div>
