@@ -17,6 +17,7 @@ import MessageEditSidebar from '@/components/ui/message-edit-sidebar'
 import MessageEditModal from '@/components/ui/message-edit-modal'
 import MessageHoverActions from '@/components/ui/message-hover-actions'
 import TypingSkeleton, { AITypingIndicator } from '@/components/ui/typing-skeleton'
+import { TextGenerateEffect } from '@/components/ui/text-generate-effect'
 import {
   Copy,
   ThumbsUp,
@@ -198,6 +199,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showTextEffect, setShowTextEffect] = useState(false);
   
   // Get streaming state from store
   const { streamingMessageId, streamingContent: storeStreamingContent, isAIResponding, editMessage } = useChatStore();
@@ -205,6 +207,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   // Determine if this message is currently streaming
   const isCurrentlyStreaming = isAIResponding && streamingMessageId === message.id;
   const currentContent = isCurrentlyStreaming ? (storeStreamingContent || streamingContent || '') : message.content;
+  
+  // Show text effect only when streaming starts with initial content
+  React.useEffect(() => {
+    if (isCurrentlyStreaming && currentContent && currentContent.length > 0 && !showTextEffect) {
+      setShowTextEffect(true);
+      // Hide effect after animation completes
+      setTimeout(() => setShowTextEffect(false), 3000);
+    }
+  }, [isCurrentlyStreaming, currentContent]);
   
   // INSTANT DISPLAY - No typing animation for super fast response!
   const finalDisplayText = currentContent;
@@ -518,44 +529,56 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           {/* Show content when available */}
           {finalDisplayText && (
             <div>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  h1: ({children}) => <h1 className="text-xl font-bold mb-2 text-foreground font-heading">{children}</h1>,
-                  h2: ({children}) => <h2 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h2>,
-                  h3: ({children}) => <h3 className="text-base font-bold mb-1 text-foreground font-heading">{children}</h3>,
-                  h4: ({children}) => <h4 className="text-base font-semibold mb-1 text-foreground font-heading">{children}</h4>,
-                  h5: ({children}) => <h5 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h5>,
-                  h6: ({children}) => <h6 className="text-sm font-medium mb-1 text-foreground font-heading">{children}</h6>,
-                  p: ({children}) => <p className="mb-2 text-foreground font-content leading-relaxed">{children}</p>,
-                  strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
-                  em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
-                  ul: ({children}) => <ul className="list-disc list-inside mb-2 text-foreground font-content">{children}</ul>,
-                  ol: ({children}) => <ol className="list-decimal list-inside mb-2 text-foreground font-content">{children}</ol>,
-                  li: ({children}) => <li className="mb-1 text-foreground font-content">{children}</li>,
-                  blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-2 text-foreground font-content">{children}</blockquote>,
-                  code: ({children, className}) => {
-                    const match = /language-(\w+)/.exec(className || '')
-                    const isInline = !match
-                    return isInline ? (
-                      <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-base font-mono text-foreground">{children}</code>
-                    ) : (
-                      <CodeBlock className={className} language={match?.[1]}>
-                        {String(children).replace(/\n$/, '')}
-                      </CodeBlock>
-                    )
-                  },
-                  table: ({children}) => <table className="border-collapse border border-gray-300 dark:border-gray-600 mb-2">{children}</table>,
-                  th: ({children}) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 bg-gray-50 dark:bg-gray-700 font-semibold text-foreground font-content">{children}</th>,
-                  td: ({children}) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-foreground font-content">{children}</td>
-                }}
-              >
-                {finalDisplayText}
-              </ReactMarkdown>
-              
-              {/* Cursor effect during streaming */}
-              {isCurrentlyStreaming && finalDisplayText && (
-                <span className="inline-block w-2 h-5 bg-primary animate-pulse ml-1 align-text-bottom"></span>
+              {/* Show TextGenerateEffect only at the very start of streaming */}
+              {showTextEffect && isCurrentlyStreaming && currentContent.length < 100 ? (
+                <TextGenerateEffect 
+                  words={currentContent}
+                  className="font-content text-base"
+                  filter={false}
+                  duration={0.3}
+                />
+              ) : (
+                <>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({children}) => <h1 className="text-xl font-bold mb-2 text-foreground font-heading">{children}</h1>,
+                      h2: ({children}) => <h2 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h2>,
+                      h3: ({children}) => <h3 className="text-base font-bold mb-1 text-foreground font-heading">{children}</h3>,
+                      h4: ({children}) => <h4 className="text-base font-semibold mb-1 text-foreground font-heading">{children}</h4>,
+                      h5: ({children}) => <h5 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h5>,
+                      h6: ({children}) => <h6 className="text-sm font-medium mb-1 text-foreground font-heading">{children}</h6>,
+                      p: ({children}) => <p className="mb-2 text-foreground font-content leading-relaxed">{children}</p>,
+                      strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
+                      em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
+                      ul: ({children}) => <ul className="list-disc list-inside mb-2 text-foreground font-content">{children}</ul>,
+                      ol: ({children}) => <ol className="list-decimal list-inside mb-2 text-foreground font-content">{children}</ol>,
+                      li: ({children}) => <li className="mb-1 text-foreground font-content">{children}</li>,
+                      blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-2 text-foreground font-content">{children}</blockquote>,
+                      code: ({children, className}) => {
+                        const match = /language-(\w+)/.exec(className || '')
+                        const isInline = !match
+                        return isInline ? (
+                          <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-base font-mono text-foreground">{children}</code>
+                        ) : (
+                          <CodeBlock className={className} language={match?.[1]}>
+                            {String(children).replace(/\n$/, '')}
+                          </CodeBlock>
+                        )
+                      },
+                      table: ({children}) => <table className="border-collapse border border-gray-300 dark:border-gray-600 mb-2">{children}</table>,
+                      th: ({children}) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 bg-gray-50 dark:bg-gray-700 font-semibold text-foreground font-content">{children}</th>,
+                      td: ({children}) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-foreground font-content">{children}</td>
+                    }}
+                  >
+                    {finalDisplayText}
+                  </ReactMarkdown>
+                  
+                  {/* Cursor effect during streaming */}
+                  {isCurrentlyStreaming && finalDisplayText && (
+                    <span className="inline-block w-2 h-5 bg-primary animate-pulse ml-1 align-text-bottom"></span>
+                  )}
+                </>
               )}
             </div>
           )}
