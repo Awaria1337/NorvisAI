@@ -9,10 +9,10 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        'sans': ['var(--font-inter)', 'system-ui', 'sans-serif'],
-        'heading': ['var(--font-poppins)', 'system-ui', 'sans-serif'],
-        'content': ['var(--font-source-sans)', 'system-ui', 'sans-serif'],
-        'ui': ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        'sans': ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        'heading': ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        'content': ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
+        'ui': ['Inter', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
       },
       colors: {
         background: "hsl(var(--background))",

@@ -17,6 +17,7 @@ import MessageEditSidebar from '@/components/ui/message-edit-sidebar'
 import MessageEditModal from '@/components/ui/message-edit-modal'
 import MessageHoverActions from '@/components/ui/message-hover-actions'
 import TypingSkeleton, { AITypingIndicator } from '@/components/ui/typing-skeleton'
+import { TextGenerateEffect } from '@/components/ui/text-generate-effect'
 import {
   Copy,
   ThumbsUp,
@@ -37,12 +38,13 @@ interface MessageBubbleProps {
   streamingContent?: string
 }
 
-// Typing effect hook for smooth character-by-character display
-const useTypingEffect = (text: string, speed: number = 30, enabled: boolean = false) => {
+// Super fast typing effect - word by word or instant chunks like ChatGPT
+const useTypingEffect = (text: string, speed: number = 1, enabled: boolean = false) => {
   const [displayedText, setDisplayedText] = useState('');
   const [isComplete, setIsComplete] = useState(false);
   const indexRef = useRef(0);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousTextRef = useRef('');
 
   useEffect(() => {
     if (!enabled) {
@@ -54,28 +56,51 @@ const useTypingEffect = (text: string, speed: number = 30, enabled: boolean = fa
     if (!text) {
       setDisplayedText('');
       setIsComplete(false);
+      indexRef.current = 0;
       return;
     }
 
-    indexRef.current = 0;
-    setDisplayedText('');
-    setIsComplete(false);
+    // If text length increased (streaming), instantly show new content!
+    if (text.length > previousTextRef.current.length && text.startsWith(previousTextRef.current)) {
+      previousTextRef.current = text;
+      // INSTANT UPDATE - no animation for streaming chunks
+      setDisplayedText(text);
+      indexRef.current = text.length;
+      setIsComplete(false);
+    } else {
+      // New text - start from beginning with SUPER FAST typing
+      previousTextRef.current = text;
+      indexRef.current = 0;
+      setDisplayedText('');
+      setIsComplete(false);
 
-    const typeCharacter = () => {
-      if (indexRef.current < text.length) {
-        setDisplayedText(text.slice(0, indexRef.current + 1));
-        indexRef.current++;
-        timeoutRef.current = setTimeout(typeCharacter, speed);
-      } else {
-        setIsComplete(true);
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
-    };
 
-    timeoutRef.current = setTimeout(typeCharacter, speed);
+      // Type multiple characters at once (word-by-word effect)
+      const typeChunk = () => {
+        if (indexRef.current < text.length) {
+          // Type 3-5 characters at once for super fast effect
+          const chunkSize = Math.min(5, text.length - indexRef.current);
+          indexRef.current += chunkSize;
+          setDisplayedText(text.slice(0, indexRef.current));
+          timeoutRef.current = setTimeout(typeChunk, speed);
+        } else {
+          setIsComplete(true);
+          timeoutRef.current = null;
+        }
+      };
+
+      timeoutRef.current = setTimeout(typeChunk, speed);
+    }
 
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
       }
     };
   }, [text, speed, enabled]);
@@ -174,6 +199,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const [showTextEffect, setShowTextEffect] = useState(false);
   
   // Get streaming state from store
   const { streamingMessageId, streamingContent: storeStreamingContent, isAIResponding, editMessage } = useChatStore();
@@ -182,12 +208,29 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isCurrentlyStreaming = isAIResponding && streamingMessageId === message.id;
   const currentContent = isCurrentlyStreaming ? (storeStreamingContent || streamingContent || '') : message.content;
   
-  // Use typing effect for streaming messages
-  const { displayedText, isComplete } = useTypingEffect(
-    currentContent, 
-    15, // Faster typing speed for better UX
-    isCurrentlyStreaming && currentContent.length > 0
-  );
+  // Show text effect only when streaming starts with initial content
+  React.useEffect(() => {
+    if (isCurrentlyStreaming && currentContent && currentContent.length > 0 && !showTextEffect) {
+      setShowTextEffect(true);
+      // Hide effect after animation completes
+      setTimeout(() => setShowTextEffect(false), 3000);
+    }
+  }, [isCurrentlyStreaming, currentContent]);
+  
+  // INSTANT DISPLAY - No typing animation for super fast response!
+  const finalDisplayText = currentContent;
+  
+  // Reset typing effect in store when streaming completes
+  React.useEffect(() => {
+    if (!isCurrentlyStreaming && currentContent) {
+      // Streaming finished, reset typing effect state
+      const { isTypingEffect, setTypingEffect } = useChatStore.getState();
+      if (isTypingEffect) {
+        console.log('✅ Message streaming completed, resetting isTypingEffect');
+        setTimeout(() => setTypingEffect(false), 500);
+      }
+    }
+  }, [isCurrentlyStreaming, currentContent]);
   
   // Message action handlers
   const handleEditMessage = (messageId: string) => {
@@ -261,13 +304,48 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
     // TODO: Implement new chat creation
   };
 
-  // Read aloud handler
+  // Read aloud handler - with safety check and user interaction requirement
   const handleReadAloud = (content: string) => {
     if ('speechSynthesis' in window) {
+      // Stop any currently playing speech safely
+      try {
+        if (speechSynthesis.speaking) {
+          speechSynthesis.cancel();
+        }
+      } catch (error) {
+        console.log('Previous speech synthesis stopped');
+      }
+      
       const utterance = new SpeechSynthesisUtterance(content);
       utterance.lang = 'tr-TR';
-      speechSynthesis.speak(utterance);
-      toast.success('Mesaj sesli okunuyor...');
+      
+      // Add event listeners for better control
+      utterance.onstart = () => {
+        toast.success('Mesaj sesli okunuyor...');
+      };
+      
+      utterance.onend = () => {
+        console.log('Speech synthesis finished');
+      };
+      
+      utterance.onerror = (event) => {
+        // Only show error if it's not a cancellation
+        if (event.error && event.error !== 'canceled' && event.error !== 'interrupted') {
+          console.error('Speech synthesis error:', event);
+          toast.error('Sesli okuma sırasında bir hata oluştu.');
+        } else {
+          // Silent handling for cancellation (when user switches chat or page)
+          console.log('Speech synthesis was cancelled or interrupted');
+        }
+      };
+      
+      // Only speak if user explicitly clicked the button
+      try {
+        speechSynthesis.speak(utterance);
+      } catch (error) {
+        console.error('Speech synthesis failed:', error);
+        toast.error('Sesli okuma başlatılamadı.');
+      }
     } else {
       toast.error('Sesli okuma bu tarayıcıda desteklenmiyor!');
     }
@@ -315,7 +393,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          <div className="bg-gray-800 text-gray-100 rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
+          <div className="bg-[#242628] text-gray-100 rounded-3xl rounded-br-sm px-4 py-2 shadow-sm border border-solid border-white/10">
             {/* Display files if any */}
             {message.files && message.files.length > 0 && (
               <div className="mb-3 space-y-2">
@@ -423,10 +501,15 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   }
 
   // AI message - Left side without bubble (ChatGPT style)
+  // Always render if streaming, or if has content
+  if (!message.content && !isCurrentlyStreaming) {
+    return null;
+  }
+  
   return (
     <>
     <div className="flex justify-start mb-8">
-      <div className="flex items-start space-x-4 max-w-[90%] w-full">
+      <div className="flex items-start space-x-4 max-w-[100%] w-full">
         <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center">
           <img 
             src="/norvis_logo.png" 
@@ -435,52 +518,74 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           />
         </div>
         <div className="flex-1 min-w-0">
-          {(displayedText || (!isCurrentlyStreaming && message.content)) && (
+          {/* Show loading if streaming but no content yet */}
+          {isCurrentlyStreaming && !finalDisplayText && (
+            <div className="flex items-center">
+              {/* Animasyonlu metin - sadece metin */}
+              <span className="text-sm text-gray-400 animate-pulse">Bir saniye bekleyin...</span>
+            </div>
+          )}
+          
+          {/* Show content when available */}
+          {finalDisplayText && (
             <div>
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  h1: ({children}) => <h1 className="text-xl font-bold mb-2 text-foreground font-heading">{children}</h1>,
-                  h2: ({children}) => <h2 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h2>,
-                  h3: ({children}) => <h3 className="text-base font-bold mb-1 text-foreground font-heading">{children}</h3>,
-                  h4: ({children}) => <h4 className="text-base font-semibold mb-1 text-foreground font-heading">{children}</h4>,
-                  h5: ({children}) => <h5 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h5>,
-                  h6: ({children}) => <h6 className="text-sm font-medium mb-1 text-foreground font-heading">{children}</h6>,
-                  p: ({children}) => <p className="mb-2 text-foreground font-content leading-relaxed">{children}</p>,
-                  strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
-                  em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
-                  ul: ({children}) => <ul className="list-disc list-inside mb-2 text-foreground font-content">{children}</ul>,
-                  ol: ({children}) => <ol className="list-decimal list-inside mb-2 text-foreground font-content">{children}</ol>,
-                  li: ({children}) => <li className="mb-1 text-foreground font-content">{children}</li>,
-                  blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-2 text-foreground font-content">{children}</blockquote>,
-                  code: ({children, className}) => {
-                    const match = /language-(\w+)/.exec(className || '')
-                    const isInline = !match
-                    return isInline ? (
-                      <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-base font-mono text-foreground">{children}</code>
-                    ) : (
-                      <CodeBlock className={className} language={match?.[1]}>
-                        {String(children).replace(/\n$/, '')}
-                      </CodeBlock>
-                    )
-                  },
-                  table: ({children}) => <table className="border-collapse border border-gray-300 dark:border-gray-600 mb-2">{children}</table>,
-                  th: ({children}) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 bg-gray-50 dark:bg-gray-700 font-semibold text-foreground font-content">{children}</th>,
-                  td: ({children}) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-foreground font-content">{children}</td>
-                }}
-              >
-                {isCurrentlyStreaming ? displayedText : message.content}
-              </ReactMarkdown>
-              
-              {/* Cursor effect for streaming */}
-              {isCurrentlyStreaming && !isComplete && (
-                <span className="inline-block w-2 h-5 bg-primary animate-pulse ml-1 align-text-bottom"></span>
+              {/* Show TextGenerateEffect only at the very start of streaming */}
+              {showTextEffect && isCurrentlyStreaming && currentContent.length < 100 ? (
+                <TextGenerateEffect 
+                  words={currentContent}
+                  className="font-content text-base"
+                  filter={false}
+                  duration={0.3}
+                />
+              ) : (
+                <>
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      h1: ({children}) => <h1 className="text-xl font-bold mb-5 text-foreground font-heading">{children}</h1>,
+                      h2: ({children}) => <h2 className="text-lg font-bold mb-5 text-foreground font-heading">{children}</h2>,
+                      h3: ({children}) => <h3 className="text-base font-bold mb-5 text-foreground font-heading">{children}</h3>,
+                      h4: ({children}) => <h4 className="text-base font-semibold mb-5 text-foreground font-heading">{children}</h4>,
+                      h5: ({children}) => <h5 className="text-sm font-semibold mb-5 text-foreground font-heading">{children}</h5>,
+                      h6: ({children}) => <h6 className="text-sm font-medium mb-5 text-foreground font-heading">{children}</h6>,
+                      p: ({children}) => <p className="mb-5 text-foreground font-content leading-relaxed">{children}</p>,
+                      strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
+                      em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
+                      ul: ({children}) => <ul className="list-disc list-inside mb-5 text-foreground font-content">{children}</ul>,
+                      ol: ({children}) => <ol className="list-decimal list-inside mb-5 text-foreground font-content">{children}</ol>,
+                      li: ({children}) => <li className="mb-1 text-foreground font-content">{children}</li>,
+                      blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-5 text-foreground font-content">{children}</blockquote>,
+                      code: ({children, className}) => {
+                        const match = /language-(\w+)/.exec(className || '')
+                        const isInline = !match
+                        return isInline ? (
+                          <code className="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-base font-mono text-foreground">{children}</code>
+                        ) : (
+                          <CodeBlock className={className} language={match?.[1]}>
+                            {String(children).replace(/\n$/, '')}
+                          </CodeBlock>
+                        )
+                      },
+                      table: ({children}) => <table className="border-collapse border border-gray-300 dark:border-gray-600 mb-2">{children}</table>,
+                      th: ({children}) => <th className="border border-gray-300 dark:border-gray-600 px-2 py-1 bg-gray-50 dark:bg-gray-700 font-semibold text-foreground font-content">{children}</th>,
+                      td: ({children}) => <td className="border border-gray-300 dark:border-gray-600 px-2 py-1 text-foreground font-content">{children}</td>
+                    }}
+                  >
+                    {finalDisplayText}
+                  </ReactMarkdown>
+                  
+                  {/* Cursor effect during streaming */}
+                  {isCurrentlyStreaming && finalDisplayText && (
+                    <span className="inline-block w-2 h-5 bg-primary animate-pulse ml-1 align-text-bottom"></span>
+                  )}
+                </>
               )}
             </div>
           )}
 
-          {/* Message Action Bar for AI */}
-          <div className="flex items-center gap-2 mt-3">
+          {/* Message Action Bar for AI - hide during streaming */}
+          {!isCurrentlyStreaming && (
+            <div className="flex items-center gap-2 mt-3">
             {/* Copy Button */}
             <Button
               variant="ghost"
@@ -553,7 +658,8 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
-          </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

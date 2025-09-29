@@ -229,7 +229,7 @@ function CompactFilePreview({
             )}
             <button
               onClick={() => onRemove(index)}
-              className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs hover:bg-destructive/90 shadow-sm"
+              className="fileDefaultClose absolute -top-1 -right-1 bg-destructive text-destructive-foreground rounded-full w-4 h-4 flex items-center justify-center text-xs hover:bg-destructive/90 shadow-sm"
             >
               ×
             </button>

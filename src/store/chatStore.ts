@@ -39,6 +39,7 @@ interface ChatState {
   isAIThinking: boolean;
   isAIResponding: boolean;
   showWaitingMessage: boolean;
+  isTypingEffect: boolean; // For post-streaming typing effect
   streamingMessageId: string | null;
   streamingContent: string;
   streamingAbortController: AbortController | null;
@@ -66,6 +67,7 @@ interface ChatState {
   setAIThinking: (thinking: boolean) => void;
   setAIResponding: (responding: boolean) => void;
   setShowWaitingMessage: (show: boolean) => void;
+  setTypingEffect: (typing: boolean) => void;
   resetAIStates: () => void;
   
   // Streaming Actions
@@ -81,6 +83,9 @@ interface ChatState {
   sendMessageStreaming: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
   regenerateMessage: (messageId: string) => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
+  
+  // Cleanup Actions
+  cleanup: () => void;
 }
 
 export const useChatStore = create<ChatState>()(
@@ -96,6 +101,7 @@ export const useChatStore = create<ChatState>()(
       isAIThinking: false,
       isAIResponding: false,
       showWaitingMessage: false,
+      isTypingEffect: false,
       streamingMessageId: null,
       streamingContent: '',
       streamingAbortController: null,
@@ -288,24 +294,34 @@ export const useChatStore = create<ChatState>()(
       
       setShowWaitingMessage: (show) => set({ showWaitingMessage: show }),
       
+      setTypingEffect: (typing) => set({ isTypingEffect: typing }),
+      
       resetAIStates: () => {
+        console.log('🧼 Resetting all AI states...');
         const { streamingAbortController } = get();
         if (streamingAbortController) {
-          streamingAbortController.abort();
+          try {
+            streamingAbortController.abort();
+          } catch (error) {
+            console.warn('Error aborting in reset:', error);
+          }
         }
         set({ 
           isAIThinking: false, 
           isAIResponding: false, 
           showWaitingMessage: false,
+          isTypingEffect: false,
           streamingMessageId: null,
           streamingContent: '',
           streamingAbortController: null,
           isStreamingStopped: false
         });
+        console.log('✅ All AI states have been reset');
       },
       
       // Streaming Actions
       startStreaming: (messageId: string) => {
+        console.log('🎉 Starting NEW streaming for message:', messageId.substring(0, 20) + '...');
         const abortController = new AbortController();
         set({ 
           streamingMessageId: messageId, 
@@ -317,53 +333,99 @@ export const useChatStore = create<ChatState>()(
       },
       
       updateStreamingContent: (content: string) => {
-        // Don't update if streaming was stopped
-        if (get().isStreamingStopped) {
-          console.log('🛑 Ignoring streaming update - stopped by user');
+        const currentState = get();
+        // Don't update if streaming was stopped or not active
+        if (currentState.isStreamingStopped || (!currentState.isAIResponding && !currentState.isAIThinking)) {
+          console.log('🛑 Ignoring streaming update - stopped or not active');
           return;
         }
         set({ streamingContent: content });
       },
       
-      finishStreaming: () => set({ 
-        streamingMessageId: null, 
-        streamingContent: '', 
-        isAIResponding: false,
-        streamingAbortController: null
-      }),
+      finishStreaming: () => {
+        console.log('🏁 Finishing streaming - keeping typing effect active');
+        // Keep isTypingEffect true so stop button stays visible during typing animation
+        set({ 
+          streamingMessageId: null, 
+          streamingContent: '', 
+          isAIResponding: false,
+          isAIThinking: false,
+          showWaitingMessage: false,
+          isTypingEffect: true, // Keep true for typing animation
+          streamingAbortController: null,
+          isStreamingStopped: false
+        });
+        
+        // Reset typing effect after enough time for fast typing to complete
+        // At 5ms per char, 1000 chars = 5 seconds max
+        setTimeout(() => {
+          const currentState = get();
+          if (currentState.isTypingEffect) {
+            console.log('🏁 Typing animation time complete - resetting typing state');
+            set({ isTypingEffect: false });
+          }
+        }, 3000); // 3 seconds should be enough for most messages
+      },
       
       stopStreaming: () => {
         const { streamingAbortController, streamingMessageId, currentChatId } = get();
         
-        console.log('🛑 IMMEDIATE STOP - Setting streaming stopped flag');
+        console.log('🛑 IMMEDIATE STOP - Stopping current streaming, ID:', streamingMessageId);
         
         // FIRST: Immediately set stopped flag to prevent further updates
         set({ isStreamingStopped: true });
         
         if (streamingAbortController) {
-          console.log('🛑 Stopping streaming...');
-          streamingAbortController.abort();
+          console.log('🛑 Aborting streaming request...');
+          try {
+            streamingAbortController.abort();
+          } catch (error) {
+            console.warn('Error aborting stream:', error);
+          }
         }
         
-        // Add "stopped" message to current streaming message if exists
+        // Save current streaming content to message if exists (to preserve partial response)
         if (streamingMessageId && currentChatId) {
           const currentContent = get().streamingContent;
-          get().updateMessage(currentChatId, streamingMessageId, {
-            content: currentContent // + '\n\n[Mesaj durduruldu]' // Commented out - user doesn't want to see this
-          });
+          if (currentContent.trim()) {
+            console.log('💾 Finalizing stopped message:', streamingMessageId.substring(0, 20) + '...');
+            get().updateMessage(currentChatId, streamingMessageId, {
+              content: currentContent
+            });
+          } else {
+            // If no content, remove the empty AI message
+            console.log('🗑️ Removing empty stopped message:', streamingMessageId.substring(0, 20) + '...');
+            get().deleteMessage(currentChatId, streamingMessageId);
+          }
         }
         
+        // Reset ALL AI-related states immediately
         set({ 
           isAIThinking: false,
           isAIResponding: false,
           showWaitingMessage: false,
+          isTypingEffect: false,
           streamingMessageId: null, 
           streamingContent: '', 
           streamingAbortController: null,
-          isStreamingStopped: true // Keep this true to prevent any late updates
+          isStreamingStopped: false // Reset this after cleanup
         });
         
-        console.log('✅ All AI states reset - UI should update immediately');
+        console.log('✅ Streaming stopped completely - Message finalized');
+        
+        // Small timeout to ensure UI has time to update
+        setTimeout(() => {
+          const finalState = get();
+          if (finalState.isAIThinking || finalState.isAIResponding || finalState.isTypingEffect) {
+            console.warn('⚠️ States not properly reset, forcing final cleanup');
+            set({ 
+              isAIThinking: false,
+              isAIResponding: false,
+              showWaitingMessage: false,
+              isTypingEffect: false
+            });
+          }
+        }, 100);
       },
       
       // API Actions
@@ -468,6 +530,16 @@ export const useChatStore = create<ChatState>()(
 
       sendMessageStreaming: async (content: string, createNewChatIfNeeded = false, files: any[] = []) => {
         console.log('🚀 Starting STREAMING message send with:', { content, createNewChatIfNeeded, files: files.length });
+        
+        // CRITICAL: Stop any existing streaming immediately before starting new message
+        const { streamingAbortController, isAIResponding, isAIThinking } = get();
+        if (streamingAbortController || isAIResponding || isAIThinking) {
+          console.log('🛑 Stopping previous streaming before starting new message');
+          get().stopStreaming();
+          // Small delay to ensure cleanup completes
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
         let { currentChatId } = get();
         let currentChat = get().getCurrentChat();
         console.log('📝 Current chat ID:', currentChatId);
@@ -502,7 +574,15 @@ export const useChatStore = create<ChatState>()(
         try {
           // Reset AI states and start thinking
           get().resetAIStates();
-          get().setAIThinking(true);
+          set({ 
+            isAIThinking: true,
+            isAIResponding: false,
+            showWaitingMessage: false,
+            isTypingEffect: false,
+            streamingMessageId: null,
+            streamingContent: '',
+            isStreamingStopped: false
+          });
           
           // Create new chat if needed
           if (createNewChatIfNeeded || (!currentChatId && get().chats.length === 0)) {
@@ -638,6 +718,13 @@ export const useChatStore = create<ChatState>()(
                       break;
                     
                     case 'aiMessageStart':
+                      // CRITICAL: Only start NEW streaming if no other streaming is active
+                      const currentStreamingState = get();
+                      if (currentStreamingState.streamingMessageId && currentStreamingState.streamingMessageId !== data.data.id) {
+                        console.log('⚠️ Ignoring aiMessageStart - another streaming already active:', currentStreamingState.streamingMessageId?.substring(0, 20));
+                        break;
+                      }
+                      
                       // Create empty AI message and start streaming
                       streamingMessageId = data.data.id;
                       if (streamingMessageId) {
@@ -649,19 +736,29 @@ export const useChatStore = create<ChatState>()(
                         };
                         get().addMessage(currentChatId!, aiMessage);
                         get().startStreaming(streamingMessageId);
-                        console.log('🤖 AI message started, ID:', streamingMessageId);
+                        console.log('🤖 AI message started, ID:', streamingMessageId.substring(0, 20) + '...');
                       }
                       break;
                     
                     case 'chunk':
-                      // Check if streaming was stopped
-                      if (get().isStreamingStopped) {
-                        console.log('🛑 Chunk ignored - streaming stopped');
+                      // CRITICAL: Check if this chunk belongs to the CURRENT active streaming
+                      const currentState = get();
+                      const activeStreamingId = currentState.streamingMessageId;
+                      
+                      // Ignore if streaming was stopped or message ID doesn't match
+                      if (currentState.isStreamingStopped || (!currentState.isAIResponding && !currentState.isAIThinking)) {
+                        console.log('🛑 Chunk REJECTED - streaming stopped or not active, chunk ID:', data.data.id?.substring(0, 20));
                         break;
                       }
                       
-                      // Update the streaming content
-                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                      // CRITICAL: Only accept chunks for the CURRENTLY ACTIVE streaming message
+                      if (!activeStreamingId || data.data.id !== activeStreamingId) {
+                        console.log('🛑 Chunk REJECTED - ID mismatch. Active:', activeStreamingId?.substring(0, 20), 'Chunk:', data.data.id?.substring(0, 20));
+                        break;
+                      }
+                      
+                      // Update the streaming content (only if ID matches)
+                      if (streamingMessageId && data.data.id === streamingMessageId && data.data.id === activeStreamingId) {
                         get().updateStreamingContent(data.data.fullContent);
                         
                         // Update the actual message in the chat
@@ -672,21 +769,31 @@ export const useChatStore = create<ChatState>()(
                       break;
                     
                     case 'complete':
-                      // Streaming completed
-                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                      // Streaming completed - only accept if it matches active streaming
+                      const completeState = get();
+                      const activeCompleteId = completeState.streamingMessageId;
+                      
+                      if (streamingMessageId && data.data.id === streamingMessageId && data.data.id === activeCompleteId) {
+                        console.log('🎉 Streaming message completed for ID:', streamingMessageId.substring(0, 20) + '...');
                         get().finishStreaming();
-                        console.log('🎉 Streaming message completed');
+                      } else {
+                        console.log('⚠️ Ignoring complete - ID mismatch. Active:', activeCompleteId?.substring(0, 20), 'Complete:', data.data.id?.substring(0, 20));
                       }
                       break;
                     
                     case 'error':
-                      // Handle error
+                      // Handle error - only accept if it matches active streaming
+                      const errorState = get();
+                      const activeErrorId = errorState.streamingMessageId;
+                      
                       console.error('❌ Streaming error:', data.data.error);
-                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                      if (streamingMessageId && data.data.id === streamingMessageId && data.data.id === activeErrorId) {
                         get().updateMessage(currentChatId!, streamingMessageId, {
                           content: data.data.content
                         });
                         get().finishStreaming();
+                      } else {
+                        console.log('⚠️ Ignoring error - ID mismatch. Active:', activeErrorId?.substring(0, 20), 'Error:', data.data.id?.substring(0, 20));
                       }
                       break;
                   }
@@ -707,6 +814,19 @@ export const useChatStore = create<ChatState>()(
           if (timeoutId) {
             clearTimeout(timeoutId);
           }
+          
+          // Check if error is from abort (user stopped streaming)
+          const isAbortError = error instanceof Error && 
+            (error.name === 'AbortError' || error.message.includes('aborted'));
+          
+          if (isAbortError) {
+            console.log('🛑 Streaming aborted by user - cleanup already done');
+            get().resetAIStates();
+            set({ isLoading: false });
+            return; // Don't show error message for user-initiated stops
+          }
+          
+          // For actual errors (not user abort), show error message
           get().resetAIStates();
           
           let errorMessage = 'Sorry, I encountered an error with streaming. Please try again.';
@@ -725,7 +845,7 @@ export const useChatStore = create<ChatState>()(
             });
           }
           
-          // Add error message to chat
+          // Add error message to chat (only for real errors, not aborts)
           if (currentChatId) {
             const chatErrorMessage: Message = {
               id: `error-${Date.now()}`,
@@ -837,6 +957,33 @@ export const useChatStore = create<ChatState>()(
           });
           throw error;
         }
+      },
+      
+      // Cleanup function - stops speech synthesis and resets states
+      cleanup: () => {
+        // Stop any ongoing speech synthesis safely
+        if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+          try {
+            // Check if speech synthesis is speaking before canceling
+            if (window.speechSynthesis.speaking) {
+              window.speechSynthesis.cancel();
+            }
+          } catch (error) {
+            // Silent error handling for speech synthesis cleanup
+            console.log('Speech synthesis cleanup completed');
+          }
+        }
+        
+        // Stop streaming if active
+        const { streamingAbortController } = get();
+        if (streamingAbortController) {
+          streamingAbortController.abort();
+        }
+        
+        // Reset AI states
+        get().resetAIStates();
+        
+        console.log('🧹 Chat store cleanup completed');
       }
     }),
     {

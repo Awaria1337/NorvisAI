@@ -47,7 +47,7 @@ export default function RootLayout({
           inter.variable,
           poppins.variable,
           sourceSans.variable,
-          "font-content h-full bg-background text-foreground antialiased"
+          "font-sans h-full bg-background text-foreground antialiased"
         )}
         suppressHydrationWarning
       >

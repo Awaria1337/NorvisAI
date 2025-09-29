@@ -23,8 +23,8 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   const [isRecording, setIsRecording] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
-  // Get streaming state from chat store
-  const { isAIResponding, stopStreaming } = useChatStore();
+  // Get streaming states from chat store
+  const { isAIResponding, isAIThinking, isTypingEffect, stopStreaming } = useChatStore();
 
   // Auto-resize textarea
   useEffect(() => {
@@ -54,6 +54,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
   };
   
   const handleStopStreaming = () => {
+    console.log('🛑 PromptInput: Stop streaming clicked');
     stopStreaming();
   };
 
@@ -102,7 +103,7 @@ export const PromptInput: React.FC<PromptInputProps> = ({
 
             {/* Action Buttons */}
             <div className="flex items-center gap-2">
-              {isAIResponding ? (
+              {(isAIThinking || isAIResponding || isTypingEffect) ? (
                 /* Stop Streaming Button - Show when AI is responding */
                 <Button
                   onClick={handleStopStreaming}

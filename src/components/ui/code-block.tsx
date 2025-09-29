@@ -166,36 +166,49 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, langu
   const handleWatch = () => toast.success('İzleme özelliği yakında! 👁️');
 
   return (
-    <div ref={codeRef} className="code-block-container">
-      {/* Header - sticky within this container */}
+    <div 
+      ref={codeRef} 
+      className="not-prose group relative my-4 overflow-hidden border border-gray-800/50"
+      style={{ borderRadius: '15px', backgroundColor: 'rgb(34, 34, 34)' }}
+    >
+      {/* Minimal Header - Clean Style */}
       <div
         ref={headerRef}
-        className="code-block-header"
+        className="flex items-center justify-between px-4 py-2"
+        style={{ backgroundColor: '#242628' }}
       >
-        <div className="flex items-center space-x-2">
-          <span className="w-3 h-3 rounded-full" style={{ backgroundColor: config.color }} />
-          <span className="text-sm font-medium" style={{ color: config.color }}>{config.name}</span>
-          <span className="text-xs text-gray-400">{children.split('\n').length} satır</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-400">{config.name}</span>
         </div>
-        <div className="flex items-center space-x-1">
-          <Button variant="ghost" size="sm" onClick={handleWatch} className="h-7 w-7 p-0 hover:bg-gray-800">
-            <Eye className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleCopy} 
+            className="h-7 w-7 p-0 hover:bg-gray-700"
+            title="Kopyala"
+          >
+            {copied ? (
+              <Check className="h-4 w-4 text-green-400" />
+            ) : (
+              <Copy className="h-4 w-4 text-gray-400" />
+            )}
           </Button>
-          <Button variant="ghost" size="sm" onClick={handleEdit} className="h-7 w-7 p-0 hover:bg-gray-800">
-            <Edit className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleDownload} className="h-7 w-7 p-0 hover:bg-gray-800">
-            <Download className="w-3.5 h-3.5" />
-          </Button>
-          <Button variant="ghost" size="sm" onClick={handleCopy} className="h-7 w-7 p-0 hover:bg-gray-800">
-            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleDownload} 
+            className="h-7 w-7 p-0 hover:bg-gray-700"
+            title="İndir"
+          >
+            <Download className="h-4 w-4 text-gray-400" />
           </Button>
         </div>
       </div>
 
-      {/* Code content with highlight.js */}
-      <div className="code-block-content">
-        <pre className="code-block-pre">
+      {/* Code Content - Clean Background with max-height and scroll */}
+      <div className="relative overflow-x-auto" style={{ backgroundColor: 'rgb(34, 34, 34)', maxHeight: '400px', overflowY: 'auto' }}>
+        <pre className="m-0 overflow-x-auto p-4 text-sm leading-relaxed">
           {(() => {
             const lang = hljs.getLanguage(hl) ? hl : 'plaintext';
             let html = '';
@@ -204,7 +217,12 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ children, className, langu
             } catch {
               html = hljs.highlightAuto(children).value;
             }
-            return <code className={`hljs language-${lang}`} dangerouslySetInnerHTML={{ __html: html }} />;
+            return (
+              <code 
+                className={`hljs language-${lang} block font-mono text-sm`}
+                dangerouslySetInnerHTML={{ __html: html }} 
+              />
+            );
           })()}
         </pre>
       </div>

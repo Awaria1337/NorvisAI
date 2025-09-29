@@ -458,7 +458,11 @@ async function sendToOpenRouterStreaming(
       const content = chunk.choices[0]?.delta?.content;
       if (content) {
         fullContent += content;
+        console.log(`📝 Streaming chunk: "${content}" (length: ${content.length})`);
         onChunk(content); // Send each chunk to callback
+        
+        // Add small delay to make streaming visible
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
       
       // Estimate tokens (rough approximation)
