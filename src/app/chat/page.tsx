@@ -112,7 +112,7 @@ const ChatPage: React.FC = () => {
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   
   // Get AI loading states from store
-  const { isAIThinking, isAIResponding, showWaitingMessage, streamingMessageId, streamingContent } = useChatStore();
+  const { isAIThinking, isAIResponding, isTypingEffect, showWaitingMessage, streamingMessageId, streamingContent } = useChatStore();
   
   // Auto-scroll to bottom when new messages arrive or AI states change
   const scrollToBottom = () => {
@@ -427,6 +427,12 @@ const ChatPage: React.FC = () => {
     return null;
   }
 
+  // Check if chat is empty (no messages and not processing)
+  const isChatEmpty = (!currentChat?.messages || currentChat.messages.length === 0) && !isAIThinking && !isAIResponding;
+  
+  // Memoize to ensure consistent value during render
+  const chatEmpty = useMemo(() => isChatEmpty, [isChatEmpty]);
+
   return (
     <TooltipProvider>
       <SidebarProvider>
@@ -446,79 +452,261 @@ const ChatPage: React.FC = () => {
         <SidebarInset>
           {/* Main Chat Area */}
           <div className="flex-1 flex flex-col bg-background h-screen overflow-hidden relative">
-            {/* ChatGPT-style Fixed Top Left */}
-            <div className={`fixed top-0 left-0 right-0 z-30 flex items-center p-3 transition-all duration-300 ${
-              sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
-            }`}>
-              {/* Mobile Sidebar Trigger - only show on mobile */}
-              <SidebarTrigger className="md:hidden bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent mr-3" />
-              
-              {/* Center the title when sidebar is collapsed, left align when expanded */}
-              <div className={`flex-1 ${
-                sidebarState === 'collapsed' ? 'flex justify-center' : 'flex justify-start'
+            {/* ChatGPT-style Fixed Top Left - Only show when chat has messages */}
+            {!isChatEmpty && (
+              <div className={`fixed top-0 left-0 right-0 z-30 flex items-center p-3 transition-all duration-300 ${
+                sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
               }`}>
-                <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">
-                  Norvis AI
-                </h1>
+                {/* Mobile Sidebar Trigger - only show on mobile */}
+                <SidebarTrigger className="md:hidden bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent mr-3" />
+                
+                {/* Center the title when sidebar is collapsed, left align when expanded */}
+                <div className={`flex-1 ${
+                  sidebarState === 'collapsed' ? 'flex justify-center' : 'flex justify-start'
+                }`}>
+                  <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">
+                    Norvis AI
+                  </h1>
+                </div>
               </div>
-            </div>
+            )}
 
-            {/* Messages Area - ChatGPT style, starts from top */}
-            <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
-              <div className={`outside-1 p-6 pt-16 space-y-6 mx-auto min-h-full transition-all duration-300 ${
-                sidebarState === 'collapsed' ? 'max-w-4xl' : 'max-w-3xl'
-              }`}>
-                {currentChat?.messages && currentChat.messages.length > 0 ? (
-                  <>
-                    {currentChat.messages.map((message) => (
-                      <MessageBubble
-                        key={message.id}
-                        message={message}
-                        isUser={message.role === 'user'}
-                      />
-                    ))}
-                    
-                    {/* AI Loading States */}
-                    <AILoadingStates
-                      isAIThinking={isAIThinking}
-                      showWaitingMessage={showWaitingMessage}
-                      isAIResponding={isAIResponding}
-                      streamingMessageId={streamingMessageId}
-                      streamingContent={streamingContent}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-                      <div className="text-center">
-                        <MessageSquare className="h-12 w-12 text-muted-foreground/60 mx-auto mb-8" />
-                        <h1 className="text-3xl font-medium text-foreground mb-4 tracking-tight">
-                          Merhaba {user?.name || 'Kullanıcı'}!
-                        </h1>
-                        <p className="text-muted-foreground text-lg max-w-md mx-auto leading-relaxed">
-                          AI asistanımızla sohbete başlayın. Soru sorun, yaratıcı olun veya yeni fikirler keşfedin.
-                        </p>
+            {/* Messages Area - Different layout for empty vs active chat */}
+            {isChatEmpty ? (
+              /* Empty Chat - Centered Layout */
+              <div className="flex-1 flex flex-col items-center justify-center p-6">
+                {/* Logo and Title - Büyük ve Beyaz */}
+                <div className="flex items-center gap-4 mb-6">
+                  <img
+                    src="/norvis_logo.png"
+                    alt="Norvis AI"
+                    className="h-16 w-16 object-contain brightness-0 invert"
+                  />
+                  <h1 className="text-5xl font-bold tracking-tight" style={{ color: 'white' }}>
+                    NorvisAI
+                  </h1>
+                </div>
+                
+                {/* Input centered in empty state - ORTADA */}
+                <div className="w-full max-w-3xl px-4 mb-4">
+                  {/* Main Input Container - Dynamic Height */}
+                  <div className="border border-gray-600 px-2 shadow-lg p-1 mb-2" style={{
+                    backgroundColor: '#242628', 
+                    borderRadius: '28px',
+                    minHeight: '60px', 
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    padding: '15px !important'
+                  }}>
+                    <div className="flex flex-col">
+                      {/* File Previews - Top Section */}
+                      {uploadedFiles.length > 0 && (
+                        <div className="px-1 pb-2 pt-1">
+                          <AdvancedFilePreview
+                            fileItems={uploadedFiles}
+                            onRemove={removeFile}
+                            maxFiles={3}
+                            compact={true}
+                            showDetails={false}
+                          />
+                        </div>
+                      )}
+                      
+                      {/* Input Row - Always at bottom */}
+                      <div className="flex items-end justify-between gap-2" style={{ minHeight: '48px' }}>
+                        {/* Left Side - File Upload */}
+                        <div className="flex items-center justify-center pb-2">
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 w-8 rounded-full hover:bg-gray-600 text-gray-400 hover:text-white p-0 flex items-center justify-center flex-shrink-0"
+                                disabled={uploadedFiles.length >= 3}
+                                onClick={() => {
+                                  if (uploadedFiles.length >= 3) {
+                                    showToast.warning('Maksimum 3 dosya yükleyebilirsiniz! Pro plana geçerek daha fazla dosya yükleyebilirsiniz.', {
+                                      duration: 5000,
+                                    });
+                                    return;
+                                  }
+                                  // Use different file input based on state
+                                  const fileInput = document.getElementById(isChatEmpty ? 'file-upload-input' : 'file-upload-input-bottom');
+                                  if (fileInput) {
+                                    fileInput.click();
+                                  }
+                                }}
+                              >
+                                <Paperclip className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {uploadedFiles.length >= 3 ? 'Maksimum 3 dosya (Pro için yükselt)' : 'Dosya ekle'}
+                            </TooltipContent>
+                          </Tooltip>
+                        </div>
+                        
+                        {/* Center - Input Area */}
+                        <div className="flex-1 flex items-end pb-2">
+                          <textarea
+                            value={inputMessage}
+                            onChange={(e) => {
+                              const value = e.target.value;
+                              if (value.length <= 2000) {
+                                setInputMessage(value);
+                                // Auto-resize textarea
+                                const textarea = e.target as HTMLTextAreaElement;
+                                textarea.style.height = 'auto';
+                                const scrollHeight = Math.min(textarea.scrollHeight, 312); // 12 lines * 26px
+                                textarea.style.height = scrollHeight + 'px';
+                              } else {
+                                console.error('❌ Maksimum 2000 karakter girebilirsiniz!');
+                                alert('⚠️ Maksimum 2000 karakter girebilirsiniz!');
+                              }
+                            }}
+                            placeholder="Norvis nasıl yardımcı olabilir?"
+                            className="w-full min-h-[26px] max-h-[312px] resize-none border-0 bg-transparent text-white placeholder:text-gray-500 focus:outline-none focus:ring-0 focus:border-0 text-base py-0 overflow-y-auto"
+                            maxLength={2000}
+                            rows={1}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSendMessage();
+                              }
+                            }}
+                            style={{
+                              // minHeight: '20px',
+                               // height: '23px',
+                              lineHeight: '18px',
+                              outline: 'none',
+                              border: 'none'
+                            }}
+                          />
+                        </div>
+                        
+                        {/* Right Side - Dynamic Button (Voice/Send/Stop) */}
+                        <div className="flex items-center justify-center pb-1">
+                        {(isAIThinking || isAIResponding || isTypingEffect) ? (
+                          // Stop Button - Only show when AI is actively processing
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                onClick={() => {
+                                  console.log('🛑 User clicked stop button');
+                                  useChatStore.getState().stopStreaming();
+                                }}
+                                size="sm"
+                                className="h-8 w-8 rounded-full bg-red-600 hover:bg-red-700 text-white p-0 flex items-center justify-center flex-shrink-0 transition-all duration-200"
+                              >
+                                <Square className="h-3 w-3 fill-current" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Mesajı durdur</TooltipContent>
+                          </Tooltip>
+                        ) : inputMessage.trim() || uploadedFiles.length > 0 ? (
+                          // Send Button - when there's content
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                onClick={handleSendClick}
+                                size="sm"
+                                className="h-10 w-10 rounded-full hover:bg-gray-600 text-black hover:text-white p-0 transition-all duration-200 flex items-center justify-center flex-shrink-0"
+                              >
+                                <ArrowUp className="h-3 w-3" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Send message</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          // Voice Button - when empty
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center justify-center flex-shrink-0" style={{ marginLeft: '6px' }}>
+                                <VoiceInput
+                                  onTranscript={handleVoiceTranscript}
+                                  disabled={isAIThinking || isAIResponding}
+                                />
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>Voice input</TooltipContent>
+                          </Tooltip>
+                        )}
+                        </div>
                       </div>
                     </div>
-                    
-                    {/* AI Loading States for empty chat */}
-                    <AILoadingStates
-                      isAIThinking={isAIThinking}
-                      showWaitingMessage={showWaitingMessage}
-                      isAIResponding={isAIResponding}
-                      streamingMessageId={streamingMessageId}
-                      streamingContent={streamingContent}
-                    />
-                  </>
-                )}
+                  </div>
+                  
+                  {/* Hidden file input - FOR CENTERED STATE */}
+                  <input
+                    type="file"
+                    id="file-upload-input"
+                    className="hidden"
+                    multiple
+                    accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.html,.css,.js,.ts,.json,.xml,.yaml,.yml,.md,.py,.java,.cpp,.c,.php,.rb,.go,.rs,.swift,.sql,.zip,.rar,.7z,.mp3,.wav,.mp4,.avi,.mov,.webm,.svg,.psd,.ai"
+                    onChange={handleFileInputChange}
+                  />
+                </div>
                 
-                
-                {/* Invisible div at the end for auto-scrolling */}
-                <div ref={messagesEndRef} className="h-1" />
+                {/* Suggestion Buttons - 3 adet - EN ALTTA */}
+                <div className="flex flex-wrap justify-center gap-3 max-w-2xl">
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSendMessage('Son dakika haberlerini özetle')}
+                    className="px-4 py-5 rounded-2xl bg-transparent backdrop-blur-sm border border-gray-700 hover:bg-gray-800/50 text-white text-sm font-medium transition-all"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Son Dakika Haberleri
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSendMessage('Kod yazmama yardım et')}
+                    className="px-4 py-5 rounded-2xl bg-transparent backdrop-blur-sm border border-gray-700 hover:bg-gray-800/50 text-white text-sm font-medium transition-all"
+                  >
+                    <FileText className="h-4 w-4 mr-2" />
+                    Kod Yardımı
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    onClick={() => handleSendMessage('Yaratıcı bir fikir üret')}
+                    className="px-4 py-5 rounded-2xl bg-transparent backdrop-blur-sm border border-gray-700 hover:bg-gray-800/50 text-white text-sm font-medium transition-all"
+                  >
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Yaratıcı Fikirler
+                  </Button>
+                </div>
               </div>
-            </ScrollArea>
+            ) : (
+              /* Active Chat - Normal Scrollable Layout */
+              <ScrollArea ref={scrollAreaRef} className="flex-1 overflow-hidden">
+                <div className={`outside-1 p-6 pt-16 space-y-6 mx-auto min-h-full transition-all duration-300 ${
+                  sidebarState === 'collapsed' ? 'max-w-4xl' : 'max-w-3xl'
+                }`}>
+                  {currentChat?.messages.map((message) => (
+                    <MessageBubble
+                      key={message.id}
+                      message={message}
+                      isUser={message.role === 'user'}
+                    />
+                  ))}
+                  
+                  {/* AI Loading States */}
+                  <AILoadingStates
+                    isAIThinking={isAIThinking}
+                    showWaitingMessage={showWaitingMessage}
+                    isAIResponding={isAIResponding}
+                    streamingMessageId={streamingMessageId}
+                    streamingContent={streamingContent}
+                  />
+                  
+                  {/* Invisible div at the end for auto-scrolling */}
+                  <div ref={messagesEndRef} className="h-1" />
+                </div>
+              </ScrollArea>
+            )}
 
-        {/* Message Input - New Clean Design */}
+        {/* Message Input - Only show at bottom when chat is active */}
+        {!isChatEmpty && (
         <div className={`fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-md px-6 py-4 z-50 transition-all duration-300 ${
           sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
         }`}>
@@ -563,13 +751,14 @@ const ChatPage: React.FC = () => {
                               showToast.warning('Maksimum 3 dosya yükleyebilirsiniz! Pro plana geçerek daha fazla dosya yükleyebilirsiniz.', {
                                 duration: 5000,
                               });
-                              return;
-                            }
-                            const fileInput = document.getElementById('file-upload-input');
-                            if (fileInput) {
-                              fileInput.click();
-                            }
-                          }}
+                            return;
+                          }
+                          // Use different file input based on state
+                          const fileInput = document.getElementById(isChatEmpty ? 'file-upload-input' : 'file-upload-input-bottom');
+                          if (fileInput) {
+                            fileInput.click();
+                          }
+                        }}
                         >
                           <Paperclip className="h-4 w-4" />
                         </Button>
@@ -620,19 +809,22 @@ const ChatPage: React.FC = () => {
                   
                   {/* Right Side - Dynamic Button (Voice/Send/Stop) */}
                   <div className="flex items-center justify-center pb-1">
-                  {(isAIThinking || isAIResponding) ? (
-                    // Stop Button
+                  {(isAIThinking || isAIResponding || isTypingEffect) ? (
+                    // Stop Button - Only show when AI is actively processing
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <Button
-                          onClick={() => useChatStore.getState().stopStreaming()}
+                          onClick={() => {
+                            console.log('🛑 User clicked stop button');
+                            useChatStore.getState().stopStreaming();
+                          }}
                           size="sm"
-                          className="h-8 w-8 rounded-full bg-red-600 hover:bg-red-700 text-white p-0 flex items-center justify-center flex-shrink-0"
+                          className="h-8 w-8 rounded-full bg-red-600 hover:bg-red-700 text-white p-0 flex items-center justify-center flex-shrink-0 transition-all duration-200"
                         >
                           <Square className="h-3 w-3 fill-current" />
                         </Button>
                       </TooltipTrigger>
-                      <TooltipContent>Stop generating</TooltipContent>
+                      <TooltipContent>Mesajı durdur</TooltipContent>
                     </Tooltip>
                   ) : inputMessage.trim() || uploadedFiles.length > 0 ? (
                     // Send Button - when there's content
@@ -667,10 +859,10 @@ const ChatPage: React.FC = () => {
               </div>
             </div>
             
-            {/* Hidden file input */}
+            {/* Hidden file input - FOR BOTTOM STATE */}
             <input
               type="file"
-              id="file-upload-input"
+              id="file-upload-input-bottom"
               className="hidden"
               multiple
               accept="image/*,.pdf,.txt,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.html,.css,.js,.ts,.json,.xml,.yaml,.yml,.md,.py,.java,.cpp,.c,.php,.rb,.go,.rs,.swift,.sql,.zip,.rar,.7z,.mp3,.wav,.mp4,.avi,.mov,.webm,.svg,.psd,.ai"
@@ -678,6 +870,7 @@ const ChatPage: React.FC = () => {
             />
           </div>
         </div>
+        )}
           </div>
         </SidebarInset>
         
