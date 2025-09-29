@@ -393,7 +393,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
         >
-          <div className="bg-gray-800 text-gray-100 rounded-2xl rounded-br-sm px-4 py-3 shadow-sm">
+          <div className="bg-[#242628] text-gray-100 rounded-3xl rounded-br-sm px-4 py-2 shadow-sm border border-solid border-white/10">
             {/* Display files if any */}
             {message.files && message.files.length > 0 && (
               <div className="mb-3 space-y-2">
@@ -520,9 +520,9 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
         <div className="flex-1 min-w-0">
           {/* Show loading if streaming but no content yet */}
           {isCurrentlyStreaming && !finalDisplayText && (
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-muted-foreground animate-pulse">Bir saniye bekleyin...</span>
-              <div className="w-2 h-4 bg-muted-foreground animate-pulse rounded"></div>
+            <div className="flex items-center">
+              {/* Animasyonlu metin - sadece metin */}
+              <span className="text-sm text-gray-400 animate-pulse">Bir saniye bekleyin...</span>
             </div>
           )}
           
@@ -542,19 +542,19 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      h1: ({children}) => <h1 className="text-xl font-bold mb-2 text-foreground font-heading">{children}</h1>,
-                      h2: ({children}) => <h2 className="text-lg font-bold mb-2 text-foreground font-heading">{children}</h2>,
-                      h3: ({children}) => <h3 className="text-base font-bold mb-1 text-foreground font-heading">{children}</h3>,
-                      h4: ({children}) => <h4 className="text-base font-semibold mb-1 text-foreground font-heading">{children}</h4>,
-                      h5: ({children}) => <h5 className="text-sm font-semibold mb-1 text-foreground font-heading">{children}</h5>,
-                      h6: ({children}) => <h6 className="text-sm font-medium mb-1 text-foreground font-heading">{children}</h6>,
-                      p: ({children}) => <p className="mb-2 text-foreground font-content leading-relaxed">{children}</p>,
+                      h1: ({children}) => <h1 className="text-xl font-bold mb-5 text-foreground font-heading">{children}</h1>,
+                      h2: ({children}) => <h2 className="text-lg font-bold mb-5 text-foreground font-heading">{children}</h2>,
+                      h3: ({children}) => <h3 className="text-base font-bold mb-5 text-foreground font-heading">{children}</h3>,
+                      h4: ({children}) => <h4 className="text-base font-semibold mb-5 text-foreground font-heading">{children}</h4>,
+                      h5: ({children}) => <h5 className="text-sm font-semibold mb-5 text-foreground font-heading">{children}</h5>,
+                      h6: ({children}) => <h6 className="text-sm font-medium mb-5 text-foreground font-heading">{children}</h6>,
+                      p: ({children}) => <p className="mb-5 text-foreground font-content leading-relaxed">{children}</p>,
                       strong: ({children}) => <strong className="font-semibold text-foreground font-content">{children}</strong>,
                       em: ({children}) => <em className="italic text-foreground font-content">{children}</em>,
-                      ul: ({children}) => <ul className="list-disc list-inside mb-2 text-foreground font-content">{children}</ul>,
-                      ol: ({children}) => <ol className="list-decimal list-inside mb-2 text-foreground font-content">{children}</ol>,
+                      ul: ({children}) => <ul className="list-disc list-inside mb-5 text-foreground font-content">{children}</ul>,
+                      ol: ({children}) => <ol className="list-decimal list-inside mb-5 text-foreground font-content">{children}</ol>,
                       li: ({children}) => <li className="mb-1 text-foreground font-content">{children}</li>,
-                      blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-2 text-foreground font-content">{children}</blockquote>,
+                      blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 dark:border-gray-600 pl-4 italic mb-5 text-foreground font-content">{children}</blockquote>,
                       code: ({children, className}) => {
                         const match = /language-(\w+)/.exec(className || '')
                         const isInline = !match

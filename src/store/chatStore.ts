@@ -321,6 +321,7 @@ export const useChatStore = create<ChatState>()(
       
       // Streaming Actions
       startStreaming: (messageId: string) => {
+        console.log('🎉 Starting NEW streaming for message:', messageId.substring(0, 20) + '...');
         const abortController = new AbortController();
         set({ 
           streamingMessageId: messageId, 
@@ -369,7 +370,7 @@ export const useChatStore = create<ChatState>()(
       stopStreaming: () => {
         const { streamingAbortController, streamingMessageId, currentChatId } = get();
         
-        console.log('🛑 IMMEDIATE STOP - Setting streaming stopped flag');
+        console.log('🛑 IMMEDIATE STOP - Stopping current streaming, ID:', streamingMessageId);
         
         // FIRST: Immediately set stopped flag to prevent further updates
         set({ isStreamingStopped: true });
@@ -383,13 +384,18 @@ export const useChatStore = create<ChatState>()(
           }
         }
         
-        // Save current streaming content to message if exists
+        // Save current streaming content to message if exists (to preserve partial response)
         if (streamingMessageId && currentChatId) {
           const currentContent = get().streamingContent;
           if (currentContent.trim()) {
+            console.log('💾 Finalizing stopped message:', streamingMessageId.substring(0, 20) + '...');
             get().updateMessage(currentChatId, streamingMessageId, {
               content: currentContent
             });
+          } else {
+            // If no content, remove the empty AI message
+            console.log('🗑️ Removing empty stopped message:', streamingMessageId.substring(0, 20) + '...');
+            get().deleteMessage(currentChatId, streamingMessageId);
           }
         }
         
@@ -405,7 +411,7 @@ export const useChatStore = create<ChatState>()(
           isStreamingStopped: false // Reset this after cleanup
         });
         
-        console.log('✅ All AI states reset - Stop button should disappear immediately');
+        console.log('✅ Streaming stopped completely - Message finalized');
         
         // Small timeout to ensure UI has time to update
         setTimeout(() => {
@@ -524,6 +530,16 @@ export const useChatStore = create<ChatState>()(
 
       sendMessageStreaming: async (content: string, createNewChatIfNeeded = false, files: any[] = []) => {
         console.log('🚀 Starting STREAMING message send with:', { content, createNewChatIfNeeded, files: files.length });
+        
+        // CRITICAL: Stop any existing streaming immediately before starting new message
+        const { streamingAbortController, isAIResponding, isAIThinking } = get();
+        if (streamingAbortController || isAIResponding || isAIThinking) {
+          console.log('🛑 Stopping previous streaming before starting new message');
+          get().stopStreaming();
+          // Small delay to ensure cleanup completes
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        
         let { currentChatId } = get();
         let currentChat = get().getCurrentChat();
         console.log('📝 Current chat ID:', currentChatId);
@@ -702,6 +718,13 @@ export const useChatStore = create<ChatState>()(
                       break;
                     
                     case 'aiMessageStart':
+                      // CRITICAL: Only start NEW streaming if no other streaming is active
+                      const currentStreamingState = get();
+                      if (currentStreamingState.streamingMessageId && currentStreamingState.streamingMessageId !== data.data.id) {
+                        console.log('⚠️ Ignoring aiMessageStart - another streaming already active:', currentStreamingState.streamingMessageId?.substring(0, 20));
+                        break;
+                      }
+                      
                       // Create empty AI message and start streaming
                       streamingMessageId = data.data.id;
                       if (streamingMessageId) {
@@ -713,20 +736,29 @@ export const useChatStore = create<ChatState>()(
                         };
                         get().addMessage(currentChatId!, aiMessage);
                         get().startStreaming(streamingMessageId);
-                        console.log('🤖 AI message started, ID:', streamingMessageId);
+                        console.log('🤖 AI message started, ID:', streamingMessageId.substring(0, 20) + '...');
                       }
                       break;
                     
                     case 'chunk':
-                      // Check if streaming was stopped
+                      // CRITICAL: Check if this chunk belongs to the CURRENT active streaming
                       const currentState = get();
+                      const activeStreamingId = currentState.streamingMessageId;
+                      
+                      // Ignore if streaming was stopped or message ID doesn't match
                       if (currentState.isStreamingStopped || (!currentState.isAIResponding && !currentState.isAIThinking)) {
-                        console.log('🛑 Chunk ignored - streaming stopped or not active');
+                        console.log('🛑 Chunk REJECTED - streaming stopped or not active, chunk ID:', data.data.id?.substring(0, 20));
                         break;
                       }
                       
-                      // Update the streaming content
-                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                      // CRITICAL: Only accept chunks for the CURRENTLY ACTIVE streaming message
+                      if (!activeStreamingId || data.data.id !== activeStreamingId) {
+                        console.log('🛑 Chunk REJECTED - ID mismatch. Active:', activeStreamingId?.substring(0, 20), 'Chunk:', data.data.id?.substring(0, 20));
+                        break;
+                      }
+                      
+                      // Update the streaming content (only if ID matches)
+                      if (streamingMessageId && data.data.id === streamingMessageId && data.data.id === activeStreamingId) {
                         get().updateStreamingContent(data.data.fullContent);
                         
                         // Update the actual message in the chat
@@ -737,21 +769,31 @@ export const useChatStore = create<ChatState>()(
                       break;
                     
                     case 'complete':
-                      // Streaming completed
-                      if (streamingMessageId && data.data.id === streamingMessageId) {
-                        console.log('🎉 Streaming message completed');
+                      // Streaming completed - only accept if it matches active streaming
+                      const completeState = get();
+                      const activeCompleteId = completeState.streamingMessageId;
+                      
+                      if (streamingMessageId && data.data.id === streamingMessageId && data.data.id === activeCompleteId) {
+                        console.log('🎉 Streaming message completed for ID:', streamingMessageId.substring(0, 20) + '...');
                         get().finishStreaming();
+                      } else {
+                        console.log('⚠️ Ignoring complete - ID mismatch. Active:', activeCompleteId?.substring(0, 20), 'Complete:', data.data.id?.substring(0, 20));
                       }
                       break;
                     
                     case 'error':
-                      // Handle error
+                      // Handle error - only accept if it matches active streaming
+                      const errorState = get();
+                      const activeErrorId = errorState.streamingMessageId;
+                      
                       console.error('❌ Streaming error:', data.data.error);
-                      if (streamingMessageId && data.data.id === streamingMessageId) {
+                      if (streamingMessageId && data.data.id === streamingMessageId && data.data.id === activeErrorId) {
                         get().updateMessage(currentChatId!, streamingMessageId, {
                           content: data.data.content
                         });
                         get().finishStreaming();
+                      } else {
+                        console.log('⚠️ Ignoring error - ID mismatch. Active:', activeErrorId?.substring(0, 20), 'Error:', data.data.id?.substring(0, 20));
                       }
                       break;
                   }
@@ -772,6 +814,19 @@ export const useChatStore = create<ChatState>()(
           if (timeoutId) {
             clearTimeout(timeoutId);
           }
+          
+          // Check if error is from abort (user stopped streaming)
+          const isAbortError = error instanceof Error && 
+            (error.name === 'AbortError' || error.message.includes('aborted'));
+          
+          if (isAbortError) {
+            console.log('🛑 Streaming aborted by user - cleanup already done');
+            get().resetAIStates();
+            set({ isLoading: false });
+            return; // Don't show error message for user-initiated stops
+          }
+          
+          // For actual errors (not user abort), show error message
           get().resetAIStates();
           
           let errorMessage = 'Sorry, I encountered an error with streaming. Please try again.';
@@ -790,7 +845,7 @@ export const useChatStore = create<ChatState>()(
             });
           }
           
-          // Add error message to chat
+          // Add error message to chat (only for real errors, not aborts)
           if (currentChatId) {
             const chatErrorMessage: Message = {
               id: `error-${Date.now()}`,

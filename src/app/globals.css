@@ -176,27 +176,72 @@
   }
 }
 
-/* Code Block Styling */
-.code-block-container {
-  @apply relative my-4 rounded-lg border border-border/20 bg-[#0b1220] max-h-[500px] overflow-hidden flex flex-col;
+/* Modern CodeBlock Styling - Fumadocs Inspired */
+.not-prose {
+  all: revert;
 }
 
-.code-block-header {
-  @apply sticky top-0 z-10 flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-[#0b1220] text-gray-200 flex-shrink-0;
-  backdrop-filter: blur(4px);
+/* Smooth scrollbar for code blocks */
+.overflow-x-auto::-webkit-scrollbar {
+  height: 8px;
 }
 
-.code-block-content {
-  @apply bg-[#0d1117] text-gray-100 overflow-y-auto flex-1;
+.overflow-x-auto::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.code-block-pre {
-  @apply p-4 m-0 text-sm leading-relaxed font-mono;
+.overflow-x-auto::-webkit-scrollbar-thumb {
+  background: #374151;
+  border-radius: 4px;
 }
 
-/* Scrollbar for code blocks */
-.code-block-content::-webkit-scrollbar {
-  width: 8px;
+.overflow-x-auto::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* Highlight.js override for better colors */
+.hljs {
+  @apply !bg-transparent text-gray-100;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in {
+  @apply text-purple-400;
+}
+
+.hljs-string,
+.hljs-attr {
+  @apply text-emerald-400;
+}
+
+.hljs-title,
+.hljs-function {
+  @apply text-blue-400;
+}
+
+.hljs-comment {
+  @apply text-gray-500 italic;
+}
+
+.hljs-number,
+.hljs-literal {
+  @apply text-orange-400;
+}
+
+.hljs-variable,
+.hljs-template-variable {
+  @apply text-cyan-400;
+}
+
+.hljs-tag,
+.hljs-name {
+  @apply text-pink-400;
+}
+
+.hljs-regexp,
+.hljs-link {
+  @apply text-yellow-400;
 }
 
 .code-block-content::-webkit-scrollbar-track {

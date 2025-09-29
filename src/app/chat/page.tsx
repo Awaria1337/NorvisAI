@@ -429,9 +429,6 @@ const ChatPage: React.FC = () => {
 
   // Check if chat is empty (no messages and not processing)
   const isChatEmpty = (!currentChat?.messages || currentChat.messages.length === 0) && !isAIThinking && !isAIResponding;
-  
-  // Memoize to ensure consistent value during render
-  const chatEmpty = useMemo(() => isChatEmpty, [isChatEmpty]);
 
   return (
     <TooltipProvider>
@@ -476,13 +473,13 @@ const ChatPage: React.FC = () => {
               /* Empty Chat - Centered Layout */
               <div className="flex-1 flex flex-col items-center justify-center p-6">
                 {/* Logo and Title - Büyük ve Beyaz */}
-                <div className="flex items-center gap-4 mb-6">
+                <div className="flex items-center  mb-5">
                   <img
                     src="/norvis_logo.png"
                     alt="Norvis AI"
                     className="h-16 w-16 object-contain brightness-0 invert"
                   />
-                  <h1 className="text-5xl font-bold tracking-tight" style={{ color: 'white' }}>
+                  <h1 className="text-4xl font-bold tracking-tight" style={{ color: 'white' }}>
                     NorvisAI
                   </h1>
                 </div>
