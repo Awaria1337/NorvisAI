@@ -108,7 +108,7 @@ const FAQPage = () => {
       />
 
       <SidebarInset>
-        <div className="min-h-screen bg-background relative">
+        <div className="min-h-screen bg-background relative flex items-center justify-center">
           {/* Close Button */}
           <Button
             variant="ghost"
@@ -119,19 +119,16 @@ const FAQPage = () => {
             <X className="h-4 w-4" />
           </Button>
 
-          <div className={cn(
-            "max-w-4xl mx-auto px-6 py-16 transition-all duration-300",
-            sidebarState === 'collapsed' ? 'md:ml-16' : 'md:ml-0'
-          )}>
+          <div className="max-w-4xl w-full px-6 py-16">
             {/* Header */}
-            <div className="mb-12">
+            <div className="mb-12 text-center">
               <h1 className="text-4xl font-bold text-foreground mb-4">
                 Norvis Web SSS
               </h1>
-              <p className="text-sm text-muted-foreground mb-6">
+              <p className="text-sm text-blue-500 mb-6">
                 Güncellenme tarihi: 15 Ekim 2025
               </p>
-              <div className="text-base text-foreground leading-relaxed space-y-4">
+              <div className="text-base text-foreground leading-relaxed space-y-4 text-left max-w-3xl mx-auto">
                 <p>
                   Norvis Web SSS sayfasına hoş geldiniz! Norvis, yardımcı, esprili ve maksimal 
                   derecede doğru bir asistan olmak üzere tasarlanmış yapay zeka destekli bir sohbet 
@@ -140,37 +137,37 @@ const FAQPage = () => {
                 </p>
                 <p>
                   Yasal şartlar, gizlilik veya hesap sorunları için{' '}
-                  <a href="/legal" className="text-primary hover:underline">
+                  <button onClick={() => router.push('/legal')} className="text-blue-500 hover:underline">
                     yasal sayfamızı
-                  </a>{' '}
+                  </button>{' '}
                   ziyaret edin.
                 </p>
                 <p>
                   Sorunuz burada yanıtlanmadıysa, lütfen{' '}
-                  <a href="/support" className="text-primary hover:underline">
+                  <button onClick={() => router.push('/support')} className="text-blue-500 hover:underline">
                     Norvis ile doğrudan iletişime geçin
-                  </a>{' '}
+                  </button>{' '}
                   veya{' '}
-                  <a href="/community" className="text-primary hover:underline">
+                  <button onClick={() => router.push('/community')} className="text-blue-500 hover:underline">
                     topluluk forumumuzu
-                  </a>{' '}
+                  </button>{' '}
                   ziyaret edin.
                 </p>
               </div>
             </div>
 
             {/* FAQ Items */}
-            <div className="space-y-4">
+            <div className="space-y-0">
               {faqItems.map((item, index) => (
                 <div
                   key={index}
-                  className="border border-border rounded-lg overflow-hidden bg-card hover:border-primary/50 transition-colors"
+                  className="border-b border-border"
                 >
                   <button
                     onClick={() => handleToggle(index)}
-                    className="w-full flex items-center justify-between p-5 text-left hover:bg-accent/50 transition-colors"
+                    className="w-full flex items-center justify-between py-5 text-left hover:bg-accent/30 transition-colors"
                   >
-                    <span className="text-base font-medium text-foreground pr-4">
+                    <span className="text-base font-normal text-foreground pr-4">
                       {item.question}
                     </span>
                     <ChevronRight
@@ -182,7 +179,7 @@ const FAQPage = () => {
                   </button>
                   
                   {expandedIndex === index && (
-                    <div className="px-5 pb-5 pt-2 text-sm text-muted-foreground leading-relaxed">
+                    <div className="pb-5 pt-2 text-sm text-muted-foreground leading-relaxed">
                       <div className="whitespace-pre-line">
                         {item.answer}
                       </div>
