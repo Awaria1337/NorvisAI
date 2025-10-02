@@ -74,6 +74,17 @@ const FAQPage = () => {
     setExpandedIndex(expandedIndex === index ? null : index);
   };
 
+  // Format text to render bold (**text**) properly
+  const formatText = (text: string) => {
+    const parts = text.split(/\*\*(.*?)\*\*/g);
+    return parts.map((part, index) => {
+      if (index % 2 === 1) {
+        return <strong key={index} className="font-semibold">{part}</strong>;
+      }
+      return part;
+    });
+  };
+
   const handleClose = () => {
     router.push(ROUTES.CHAT);
   };
@@ -125,16 +136,16 @@ const FAQPage = () => {
             <X className="h-4 w-4" />
           </Button>
 
-          <div className="max-w-4xl w-full px-6 py-16">
+          <div className="max-w-3xl w-full px-6 py-16">
             {/* Header */}
-            <div className="mb-12 text-center">
+            <div className="mb-12 text-left">
               <h1 className="text-4xl font-bold text-foreground mb-4">
                 Norvis Web SSS
               </h1>
               <p className="text-sm text-blue-500 mb-6">
                 Güncellenme tarihi: 15 Ekim 2025
               </p>
-              <div className="text-base text-foreground leading-relaxed space-y-4 text-left max-w-3xl mx-auto">
+              <div className="text-base text-foreground leading-relaxed space-y-4 text-left max-w-4xl mx-auto">
                 <p>
                   Norvis Web SSS sayfasına hoş geldiniz! Norvis, yardımcı, esprili ve maksimal 
                   derecede doğru bir asistan olmak üzere tasarlanmış yapay zeka destekli bir sohbet 
@@ -176,7 +187,7 @@ const FAQPage = () => {
               {faqItems.map((item, index) => (
                 <div
                   key={index}
-                  className="border-b border-border"
+                  className=""
                 >
                   <button
                     onClick={() => handleToggle(index)}
@@ -196,7 +207,11 @@ const FAQPage = () => {
                   {expandedIndex === index && (
                     <div className="pb-5 pt-2 text-sm text-muted-foreground leading-relaxed">
                       <div className="whitespace-pre-line">
-                        {item.answer}
+                        {item.answer.split('\n').map((line, lineIndex) => (
+                          <div key={lineIndex}>
+                            {formatText(line)}
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
