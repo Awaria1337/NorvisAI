@@ -58,15 +58,21 @@ export async function POST(
       const limitStatus = await checkMessageLimit(payload.userId);
       
       if (!limitStatus.canSendMessage) {
+        const planName = limitStatus.subscriptionType === 'PRO' ? 'Pro' : limitStatus.subscriptionType === 'PREMIUM' ? 'Premium' : 'Ücretsiz';
+        const upgradeMessage = limitStatus.isPremium 
+          ? `${planName} planınızın aylık ${limitStatus.limit} mesaj limiti doldu. Limit ${new Date(limitStatus.resetsAt).toLocaleDateString('tr-TR')} tarihinde yenilenecek.`
+          : `Ücretsiz planınızın aylık ${limitStatus.limit} mesaj limiti doldu. Premium plana geçerek aylık 300 mesaj hakkı kazanabilirsiniz!`;
+        
         return new Response(
           JSON.stringify({ 
             success: false, 
-            error: 'Aylık mesaj limitinize ulaştınız', 
+            error: upgradeMessage,
             limitReached: true,
             limit: limitStatus.limit,
             remaining: 0,
             resetsAt: limitStatus.resetsAt,
-            isPremium: limitStatus.isPremium
+            isPremium: limitStatus.isPremium,
+            subscriptionType: limitStatus.subscriptionType
           }),
           { status: 429, headers: { 'Content-Type': 'application/json' } }
         );
