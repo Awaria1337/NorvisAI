@@ -525,10 +525,8 @@ const ChatPage: React.FC = () => {
                 {/* Mobile Sidebar Trigger - only show on mobile */}
                 <SidebarTrigger className="md:hidden bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent mr-3" />
                 
-                {/* Center the title when sidebar is collapsed, left align when expanded */}
-                <div className={`flex-1 ${
-                  sidebarState === 'collapsed' ? 'flex justify-center' : 'flex justify-start'
-                }`}>
+                {/* Always keep title left aligned */}
+                <div className="flex-1 flex justify-start">
                   <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">
                     Norvis AI
                   </h1>
