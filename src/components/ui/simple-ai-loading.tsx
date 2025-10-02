@@ -12,9 +12,9 @@ export const SimpleAILoading: React.FC<SimpleAILoadingProps> = ({
   className = ""
 }) => {
   return (
-    <div className={`flex items-center gap-3 ${className}`}>
+    <div className={`flex items-center gap-4 ${className}`}>
       {/* Logo with rotating beam around it (Gemini style) */}
-      <div className="relative w-8 h-8 flex items-center justify-center flex-shrink-0">
+      <div className="relative w-11 h-11 flex items-center justify-center flex-shrink-0">
         {/* Rotating beam effect */}
         <div 
           className="absolute inset-0 rounded-full"
@@ -25,14 +25,14 @@ export const SimpleAILoading: React.FC<SimpleAILoadingProps> = ({
         />
         
         {/* Inner circle to create beam effect */}
-        <div className="absolute inset-[2px] rounded-full bg-background" />
+        <div className="absolute inset-[3px] rounded-full bg-background" />
         
-        {/* Static Logo */}
+        {/* Static Logo - Bigger */}
         <div className="relative z-10 flex items-center justify-center">
           <img 
             src="/norvis_logo.png" 
             alt="Norvis AI" 
-            className="w-5 h-5 object-contain filter brightness-0 invert"
+            className="w-7 h-7 object-contain filter brightness-0 invert"
           />
         </div>
       </div>

@@ -26,18 +26,9 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   if ((isAIThinking || showWaitingMessage || (isAIResponding && (!streamingContent || streamingContent.trim().length === 0))) && !streamingMessageId) {
     return (
       <div className="flex justify-start mb-6">
-        <div className="flex items-start gap-3 max-w-[85%]">
-          {/* AI Avatar */}
-          <Avatar className="h-8 w-8 flex-shrink-0">
-            <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white text-xs font-bold">
-              AI
-            </AvatarFallback>
-          </Avatar>
-          
-          {/* Loading Animation */}
-          <div className="flex-1 pt-1">
-            <SimpleAILoading text="Bir saniye bekleyin..." />
-          </div>
+        <div className="flex items-center gap-4 max-w-[85%]">
+          {/* Loading Animation with Logo */}
+          <SimpleAILoading text="Bir saniye bekleyin..." />
         </div>
       </div>
     )
