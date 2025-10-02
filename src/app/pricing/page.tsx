@@ -8,7 +8,18 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Check, 
   X,
-  Circle
+  Circle,
+  Sparkles,
+  Brain,
+  Zap,
+  Database,
+  Mic,
+  Image,
+  Users,
+  CheckCircle2,
+  Crown,
+  Infinity,
+  Clock
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/constants';
@@ -107,12 +118,12 @@ const PricingPage = () => {
       popular: false,
       currentPlan: 'Mevcut Plan',
       features: [
-        { text: 'Norvis 3\'e sınırlı erişim', included: true },
-        { text: 'Sınırlı bağlam belleği', included: true },
-        { text: 'Aurora görsel modeli', included: true },
-        { text: 'Sesli erişim', included: true },
-        { text: 'Projeler', included: true },
-        { text: 'Görevler', included: true }
+        { text: 'Norvis 3\'e sınırlı erişim', icon: Circle },
+        { text: 'Sınırlı bağlam belleği', icon: Database },
+        { text: 'Aurora görsel modeli', icon: Image },
+        { text: 'Sesli erişim', icon: Mic },
+        { text: 'Projeler', icon: Users },
+        { text: 'Görevler', icon: CheckCircle2 }
       ]
     },
     {
@@ -123,14 +134,14 @@ const PricingPage = () => {
       popular: true,
       buttonText: 'SuperNorvis\'a Yükseltin',
       features: [
-        { text: 'Norvis 4\'e artırılmış erişim', included: true },
-        { text: 'Think ve DeepSearch\'ün yeni alır', included: true },
-        { text: 'Norvis 3\'e artırılmış erişim', included: true },
-        { text: 'Genişletilmiş hafıza 128,000 adet Token', included: true },
-        { text: 'Öncelikli ses erişimi', included: true },
-        { text: 'Imagine görsel modeli', included: true },
-        { text: 'Arkadaşlar Ani ve Valentine', included: true },
-        { text: 'Temeldeki her şey', included: true }
+        { text: 'Norvis 4\'e artırılmış erişim', icon: Sparkles },
+        { text: 'Think ve DeepSearch\'ün yeni alır', icon: Brain },
+        { text: 'Norvis 3\'e artırılmış erişim', icon: Zap },
+        { text: 'Genişletilmiş hafıza 128,000 adet Token', icon: Database },
+        { text: 'Öncelikli ses erişimi', icon: Mic },
+        { text: 'Imagine görsel modeli', icon: Image },
+        { text: 'Arkadaşlar Ani ve Valentine', icon: Users },
+        { text: 'Temeldeki her şey', icon: CheckCircle2 }
       ]
     },
     {
@@ -141,12 +152,12 @@ const PricingPage = () => {
       popular: false,
       buttonText: 'Heavy\'ye Yükseltin',
       features: [
-        { text: 'Norvis 4 Heavy için özel önizleme', included: true },
-        { text: 'Norvis 4\'e genişletilmiş erişim', included: true },
-        { text: 'Norvis 3\'e sınırsız erişim', included: true },
-        { text: 'En uzun hafıza 256,000 adet Token', included: true },
-        { text: 'Yeni özelliklere erken erişim', included: true },
-        { text: 'SuperNorvis\'taki her şey', included: true }
+        { text: 'Norvis 4 Heavy için özel önizleme', icon: Crown },
+        { text: 'Norvis 4\'e genişletilmiş erişim', icon: Sparkles },
+        { text: 'Norvis 3\'e sınırsız erişim', icon: Infinity },
+        { text: 'En uzun hafıza 256,000 adet Token', icon: Database },
+        { text: 'Yeni özelliklere erken erişim', icon: Clock },
+        { text: 'SuperNorvis\'taki her şey', icon: CheckCircle2 }
       ]
     }
   ];
@@ -208,35 +219,29 @@ const PricingPage = () => {
               className={cn(
                 "relative rounded-3xl p-6 transition-all duration-300",
                 plan.popular 
-                  ? "bg-white text-black border-2 border-white" 
-                  : "bg-transparent border-2 border-gray-700 text-white"
+                  ? "bg-[#1a1a1a] text-white border-2 border-white" 
+                  : "bg-[#1a1a1a] text-white"
               )}
             >
               {/* Plan Header */}
               <div className="mb-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className={cn(
-                    "text-lg font-semibold",
-                    plan.popular ? "text-black" : "text-white"
-                  )}>
+                  <h3 className="text-lg font-semibold text-white">
                     {plan.name}
                   </h3>
                   {plan.popular && (
-                    <Badge className="bg-black text-white px-3 py-1 text-xs font-semibold">
+                    <Badge className="bg-gray-700 text-white px-3 py-1 text-xs font-semibold rounded-md">
                       Populer
                     </Badge>
                   )}
                 </div>
                 
                 <div className="flex items-baseline gap-1 mb-6">
-                  <span className={cn(
-                    "text-4xl font-bold",
-                    plan.popular ? "text-black" : "text-white"
-                  )}>
+                  <span className="text-4xl font-bold text-white">
                     ${plan.price}
                   </span>
                   {plan.period && (
-                    <span className={plan.popular ? "text-gray-600" : "text-gray-400"}>
+                    <span className="text-gray-400">
                       {plan.period}
                     </span>
                   )}
@@ -247,9 +252,7 @@ const PricingPage = () => {
               <Button 
                 className={cn(
                   "w-full h-12 font-semibold rounded-full mb-6",
-                  plan.popular 
-                    ? "bg-black text-white hover:bg-gray-800" 
-                    : "bg-white text-black hover:bg-gray-100",
+                  "bg-white text-black hover:bg-gray-100",
                   isCurrentPlan(plan.planId) && "opacity-50 cursor-not-allowed"
                 )}
                 onClick={() => {
@@ -268,22 +271,19 @@ const PricingPage = () => {
 
               {/* Features List */}
               <div className="space-y-3">
-                {plan.features.map((feature, idx) => (
-                  <div key={idx} className="flex items-start gap-3">
-                    <Circle 
-                      className={cn(
-                        "h-4 w-4 mt-0.5 flex-shrink-0",
-                        plan.popular ? "text-black" : "text-white"
-                      )} 
-                    />
-                    <span className={cn(
-                      "text-sm leading-relaxed",
-                      plan.popular ? "text-gray-800" : "text-gray-300"
-                    )}>
-                      {feature.text}
-                    </span>
-                  </div>
-                ))}
+                {plan.features.map((feature, idx) => {
+                  const IconComponent = feature.icon;
+                  return (
+                    <div key={idx} className="flex items-start gap-3">
+                      <IconComponent 
+                        className="h-4 w-4 mt-0.5 flex-shrink-0 text-gray-400" 
+                      />
+                      <span className="text-sm leading-relaxed text-gray-300">
+                        {feature.text}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
