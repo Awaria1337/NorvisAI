@@ -77,13 +77,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
           try {
             set({ token });
             const response = await authAPI.me();
-            if (response.success) {
+            console.log('Auth initialization - me() response:', response);
+            
+            if (response && response.success && response.data && response.data.user) {
               set({ 
                 user: response.data.user, 
                 isAuthenticated: true,
                 isLoading: false 
               });
               return;
+            } else {
+              console.warn('Invalid response structure from me():', response);
+              localStorage.removeItem('token');
+              set({ token: null });
             }
           } catch (error) {
             console.warn('Token validation failed:', error);

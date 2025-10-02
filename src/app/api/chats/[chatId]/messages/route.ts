@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth';
+import { checkMessageLimit, incrementMessageCount } from '@/lib/messageLimit';
 
 // POST /api/chats/[chatId]/messages - Send message to chat
 export async function POST(
@@ -50,6 +51,29 @@ export async function POST(
         { success: false, error: 'Chat not found' },
         { status: 404 }
       );
+    }
+
+    // Check message limit
+    try {
+      const limitStatus = await checkMessageLimit(payload.userId);
+      
+      if (!limitStatus.canSendMessage) {
+        return NextResponse.json(
+          { 
+            success: false, 
+            error: 'Günlük mesaj limitinize ulaştınız', 
+            limitReached: true,
+            limit: limitStatus.limit,
+            remaining: 0,
+            resetsAt: limitStatus.resetsAt,
+            isPremium: limitStatus.isPremium
+          },
+          { status: 429 }
+        );
+      }
+    } catch (error) {
+      console.error('Message limit check error:', error);
+      // Continue anyway - don't block on limit check failure
     }
 
     // Process any attached files for AI context ONLY
@@ -227,6 +251,14 @@ export async function POST(
       }
     });
 
+    // Increment message count for user
+    try {
+      await incrementMessageCount(payload.userId);
+    } catch (error) {
+      console.error('Failed to increment message count:', error);
+      // Don't fail the request if count update fails
+    }
+
     // Get updated chat with new title
     const updatedChat = await prisma.chat.findUnique({
       where: { id: chatId },
@@ -239,13 +271,27 @@ export async function POST(
       }
     });
 
+    // Get updated limit status
+    let limitStatus;
+    try {
+      limitStatus = await checkMessageLimit(payload.userId);
+    } catch (error) {
+      console.error('Failed to get limit status:', error);
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         userMessage,
         aiMessage,
         chat: updatedChat
-      }
+      },
+      messageLimit: limitStatus ? {
+        remaining: limitStatus.remaining,
+        limit: limitStatus.limit,
+        resetsAt: limitStatus.resetsAt,
+        isPremium: limitStatus.isPremium
+      } : undefined
     }, { status: 201 });
 
   } catch (error) {

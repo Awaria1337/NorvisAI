@@ -59,7 +59,7 @@ import {
 } from "@/components/ui/tooltip";
 import { useTheme } from "next-themes";
 import ModernSettingsModal from "@/components/ui/modern-settings-modal";
-import ReportIssueModal from "@/components/ui/report-issue-modal";
+import { ReportModal } from "@/components/ui/report-modal";
 
 interface Chat {
   id: string;
@@ -334,8 +334,8 @@ export function AppSidebar({
                         <p className="text-sm font-semibold text-sidebar-foreground truncate">
                           {user?.name || "Kullanıcı"}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Ücretsiz
+                        <p className="text-xs text-muted-foreground truncate">
+                          {user?.email || ""}
                         </p>
                       </div>
                     </div>
@@ -443,8 +443,8 @@ export function AppSidebar({
         user={user || undefined}
       />
       
-      {/* Report Issue Modal */}
-      <ReportIssueModal
+      {/* Report Modal */}
+      <ReportModal
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
       />

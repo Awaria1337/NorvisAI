@@ -24,85 +24,83 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, feedback } = body;
+    const { type, description, feedback, title, email, name, url } = body;
+
+    // Accept either 'description' or 'feedback' field
+    const reportDescription = description || feedback;
 
     // Validation
-    if (!type || !feedback) {
+    if (!type || !reportDescription) {
       return NextResponse.json(
-        { success: false, error: 'Type and feedback are required' },
+        { success: false, error: 'Type and description are required' },
         { status: 400 }
       );
     }
 
-    if (feedback.length > 1000) {
+    if (reportDescription.length > 2000) {
       return NextResponse.json(
-        { success: false, error: 'Feedback cannot exceed 1000 characters' },
+        { success: false, error: 'Feedback cannot exceed 2000 characters' },
         { status: 400 }
       );
     }
 
-    const validTypes = [
-      'Genel',
-      'Geri bildirim', 
-      'Sorun',
-      'Hata bildir',
-      'Çocuk güvenliği endişesi'
-    ];
-
-    if (!validTypes.includes(type)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid report type' },
-        { status: 400 }
-      );
-    }
-
-    // For now, we'll just log the report
-    // In production, you might want to store this in a database or send to a support system
-    const reportData = {
-      id: `report_${Date.now()}`,
-      userId: payload.userId,
-      type,
-      feedback: feedback.trim(),
-      timestamp: new Date().toISOString(),
-      userAgent: request.headers.get('user-agent') || 'unknown',
-      ip: request.headers.get('x-forwarded-for') || 
-          request.headers.get('x-real-ip') || 
-          'unknown'
+    // Map Turkish types to English
+    const typeMap: Record<string, string> = {
+      'Genel': 'other',
+      'Geri bildirim': 'feedback',
+      'Sorun': 'bug',
+      'Hata bildir': 'bug',
+      'Çocuk güvenliği endişesi': 'other'
     };
 
-    console.log('📨 New Report Received:', {
-      id: reportData.id,
-      userId: reportData.userId,
-      type: reportData.type,
-      feedbackLength: reportData.feedback.length,
-      timestamp: reportData.timestamp
-    });
+    const mappedType = typeMap[type] || 'other';
+    const reportTitle = title || `${type} raporu`;
 
-    // TODO: In production, you might want to:
-    // 1. Store in database
-    // 2. Send email notification to support team
-    // 3. Create ticket in support system
-    // 4. Integrate with services like Zendesk, Intercom, etc.
+    // Get metadata
+    const userAgent = request.headers.get('user-agent') || undefined;
+    
+    // Determine priority based on type
+    const priority = type === 'Çocuk güvenliği endişesi' ? 'critical' : 'medium';
 
-    // Example database storage (if you want to add a reports table):
-    /*
-    await prisma.report.create({
+    // Save to database
+    const report = await prisma.userReport.create({
       data: {
         userId: payload.userId,
-        type,
-        content: feedback.trim(),
-        status: 'open',
-        priority: type === 'Çocuk güvenliği endişesi' ? 'high' : 'normal'
+        type: mappedType,
+        title: reportTitle,
+        description: reportDescription.trim(),
+        email: email || undefined,
+        name: name || undefined,
+        url: url || undefined,
+        userAgent,
+        priority,
+        status: 'open'
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true
+          }
+        }
       }
     });
-    */
+
+    console.log('📨 New Report Saved to Database:', {
+      id: report.id,
+      userId: report.userId,
+      type: report.type,
+      priority: report.priority,
+      timestamp: report.createdAt
+    });
 
     return NextResponse.json({
       success: true,
       message: 'Raporunuz başarıyla gönderildi. En kısa sürede değerlendirilerek size geri dönüş yapılacaktır.',
       data: {
-        reportId: reportData.id,
-        timestamp: reportData.timestamp
+        reportId: report.id,
+        timestamp: report.createdAt
       }
     });
 

@@ -14,8 +14,22 @@ model User {
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  apiKeys   ApiKey[]
-  chats     Chat[]
+  
+  // Premium/Subscription Fields
+  subscriptionType     String   @default("FREE") // FREE, PREMIUM, CUSTOM
+  subscriptionEndDate  DateTime? // null = never expires (for custom plans)
+  subscriptionStartDate DateTime?
+  
+  // Message Limits
+  dailyMessageCount    Int      @default(0)
+  lastMessageResetDate DateTime @default(now())
+  messageLimit         Int      @default(25) // FREE: 25, PREMIUM: 100
+  
+  // Relations
+  apiKeys      ApiKey[]
+  chats        Chat[]
+  reports      UserReport[]
+  subscription Subscription?
 
   @@map("users")
 }
@@ -35,13 +49,29 @@ model Chat {
 
 model Message {
   id        String   @id @default(cuid())
-  content   String
+  content   String   @db.Text
   role      String
+  model     String?
+  tokensUsed Int?    @map("tokens_used")
   createdAt DateTime @default(now())
   chatId    String
   chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  images    GeneratedImage[]
 
   @@map("messages")
+}
+
+model GeneratedImage {
+  id          String   @id @default(cuid())
+  url         String   @db.Text
+  prompt      String   @db.Text
+  model       String
+  size        String   @default("1024x1024")
+  createdAt   DateTime @default(now())
+  messageId   String
+  message     Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@map("generated_images")
 }
 
 model ApiKey {
@@ -55,4 +85,204 @@ model ApiKey {
 
   @@unique([userId, provider])
   @@map("api_keys")
+}
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  role      String   @default("admin") // admin, super_admin
+  active    Boolean  @default(true)
+  lastLogin DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("admins")
+}
+
+model UserReport {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  type        String   // bug, feature, feedback, other
+  title       String
+  description String   @db.Text
+  priority    String   @default("medium") // low, medium, high, critical
+  status      String   @default("open") // open, in_progress, resolved, closed
+  
+  // User info (if not logged in)
+  email       String?
+  name        String?
+  
+  // Metadata
+  userAgent   String?  @db.Text
+  url         String?  // Page where report was submitted
+  screenshot  String?  @db.Text // Base64 or URL
+  
+  // Admin response
+  adminNote   String?  @db.Text
+  resolvedBy  String?  // Admin email
+  resolvedAt  DateTime?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("user_reports")
+}
+
+model SystemSettings {
+  id        String   @id @default(cuid())
+  
+  // General Settings
+  siteName            String   @default("Norvis AI")
+  siteDescription     String?  @db.Text
+  logoUrl             String?  @default("/norvis_logo.png")
+  maintenanceMode     Boolean  @default(false)
+  maintenanceMessage  String?  @db.Text
+  allowRegistration   Boolean  @default(true)
+  
+  // AI Settings
+  defaultModel         String  @default("google/gemini-2.0-flash-exp:free")
+  maxTokensPerRequest  Int     @default(4000)
+  enableImageGeneration Boolean @default(true)
+  enableCodeGeneration Boolean @default(true)
+  enableVoiceChat     Boolean @default(true)
+  
+  // Security Settings
+  maxRequestsPerMinute    Int     @default(60)
+  sessionTimeout          Int     @default(168) // 7 days in hours
+  requireEmailVerification Boolean @default(false)
+  enableTwoFactor        Boolean @default(false)
+  passwordMinLength      Int     @default(8)
+  
+  // Email Settings
+  smtpEnabled   Boolean @default(false)
+  smtpHost      String? 
+  smtpPort      Int?    @default(587)
+  smtpUser      String?
+  smtpPassword  String? // Encrypted
+  smtpFrom      String?
+  smtpFromName  String? @default("Norvis AI")
+  
+  // Notification Settings
+  enableNotifications      Boolean @default(true)
+  notificationSound        Boolean @default(true)
+  enableEmailNotifications Boolean @default(false)
+  
+  // Analytics & Monitoring
+  enableAnalytics     Boolean @default(false)
+  enableErrorTracking Boolean @default(false)
+  logLevel           String  @default("info") // debug, info, warn, error
+  
+  // Rate Limiting & Performance
+  enableRateLimiting Boolean @default(true)
+  enableCaching      Boolean @default(true)
+  cacheTimeout       Int     @default(3600) // seconds
+  
+  // Metadata
+  updatedBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("system_settings")
+}
+
+model Subscription {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  planId          String
+  plan            Plan     @relation(fields: [planId], references: [id])
+  
+  status          String   @default("active") // active, cancelled, expired, pending
+  
+  // Payment Details
+  paymentMethod   String?  // stripe, paypal, manual
+  paymentId       String?  // External payment reference
+  amount          Float
+  currency        String   @default("USD")
+  
+  // Billing Period
+  startDate       DateTime @default(now())
+  endDate         DateTime
+  nextBillingDate DateTime?
+  
+  // Cancellation
+  cancelledAt     DateTime?
+  cancelReason    String?  @db.Text
+  
+  // Auto-renewal
+  autoRenew       Boolean  @default(true)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("subscriptions")
+}
+
+model Plan {
+  id              String   @id @default(cuid())
+  
+  name            String   @unique // "Free", "Premium", "Custom"
+  displayName     String   // "Premium Plan"
+  description     String?  @db.Text
+  
+  // Pricing
+  price           Float    // Monthly price
+  currency        String   @default("USD")
+  
+  // Features
+  messageLimit    Int      // Daily message limit
+  features        String   @db.Text // JSON array of features
+  
+  // Status
+  active          Boolean  @default(true)
+  featured        Boolean  @default(false)
+  
+  // Display Order
+  displayOrder    Int      @default(0)
+  
+  // Stripe/Payment Integration
+  stripeProductId String?  @unique
+  stripePriceId   String?  @unique
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  subscriptions   Subscription[]
+
+  @@map("plans")
+}
+
+model PaymentTransaction {
+  id              String   @id @default(cuid())
+  
+  userId          String
+  
+  // Payment Details
+  amount          Float
+  currency        String   @default("USD")
+  status          String   // pending, completed, failed, refunded
+  
+  // Payment Provider
+  provider        String   // stripe, paypal, manual
+  providerId      String?  // External transaction ID
+  
+  // Plan Info
+  planId          String?
+  planName        String?
+  
+  // Metadata
+  metadata        String?  @db.Text // JSON
+  
+  // Timestamps
+  paidAt          DateTime?
+  refundedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("payment_transactions")
 }

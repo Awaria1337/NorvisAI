@@ -1,10 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createUser, userExists } from '@/lib/db';
+import { createUser } from '@/lib/db';
 import { signToken } from '@/lib/auth';
 import { registerSchema } from '@/lib/validations';
+import { SettingsService } from '@/lib/services/settings.service';
 
 export async function POST(request: NextRequest) {
     try {
+        // Check if registration is allowed
+        const isAllowed = await SettingsService.isRegistrationAllowed();
+        if (!isAllowed) {
+            return NextResponse.json(
+                { 
+                    success: false, 
+                    error: 'Yeni kayıt alımı şu anda kapatılmıştır. Lütfen daha sonra tekrar deneyin.' 
+                },
+                { status: 403 }
+            );
+        }
+
         const body = await request.json();
         
         // Validate input data
