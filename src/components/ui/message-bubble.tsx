@@ -518,13 +518,6 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           />
         </div>
         <div className="flex-1 min-w-0">
-          {/* Show loading if streaming but no content yet */}
-          {isCurrentlyStreaming && !finalDisplayText && (
-            <div className="flex items-center">
-              {/* Animasyonlu metin - sadece metin */}
-              <span className="text-sm text-gray-400 animate-pulse">Bir saniye bekleyin...</span>
-            </div>
-          )}
           
           {/* Show content when available */}
           {finalDisplayText && (
