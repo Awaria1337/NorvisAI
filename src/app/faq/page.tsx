@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { ChevronRight, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -23,7 +24,12 @@ const FAQPage = () => {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
   const [sidebarState, setSidebarState] = useState<'expanded' | 'collapsed'>('expanded');
   
-  const { chats, currentChatId, navigateToChat } = useChatStore();
+  const { chats, currentChatId, navigateToChat, fetchChats } = useChatStore();
+
+  // Fetch chats on mount
+  useEffect(() => {
+    fetchChats();
+  }, [fetchChats]);
 
   const faqItems: FAQItem[] = [
     {
@@ -137,20 +143,29 @@ const FAQPage = () => {
                 </p>
                 <p>
                   Yasal şartlar, gizlilik veya hesap sorunları için{' '}
-                  <button onClick={() => router.push('/legal')} className="text-blue-500 hover:underline">
+                  <span 
+                    className="text-blue-500 hover:underline cursor-pointer"
+                    onClick={() => router.push('/legal')}
+                  >
                     yasal sayfamızı
-                  </button>{' '}
+                  </span>{' '}
                   ziyaret edin.
                 </p>
                 <p>
                   Sorunuz burada yanıtlanmadıysa, lütfen{' '}
-                  <button onClick={() => router.push('/support')} className="text-blue-500 hover:underline">
+                  <span 
+                    className="text-blue-500 hover:underline cursor-pointer"
+                    onClick={() => router.push('/support')}
+                  >
                     Norvis ile doğrudan iletişime geçin
-                  </button>{' '}
+                  </span>{' '}
                   veya{' '}
-                  <button onClick={() => router.push('/community')} className="text-blue-500 hover:underline">
+                  <span 
+                    className="text-blue-500 hover:underline cursor-pointer"
+                    onClick={() => router.push('/community')}
+                  >
                     topluluk forumumuzu
-                  </button>{' '}
+                  </span>{' '}
                   ziyaret edin.
                 </p>
               </div>
@@ -195,13 +210,13 @@ const FAQPage = () => {
                 Daha fazla yardıma mı ihtiyacınız var?
               </p>
               <div className="flex items-center justify-center gap-4">
-                <Button
+                <Button 
                   variant="outline"
                   onClick={() => router.push('/support')}
                 >
                   Destek Ekibiyle İletişime Geçin
                 </Button>
-                <Button
+                <Button 
                   variant="outline"
                   onClick={() => router.push('/community')}
                 >
