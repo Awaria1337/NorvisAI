@@ -1,7 +1,6 @@
 'use client'
 
 import React from 'react'
-import { Avatar, AvatarFallback } from './avatar'
 
 interface SimpleAILoadingProps {
   text?: string
@@ -13,25 +12,46 @@ export const SimpleAILoading: React.FC<SimpleAILoadingProps> = ({
   className = ""
 }) => {
   return (
-    <div className={`flex items-center space-x-3 ${className}`}>
-      {/* Norvis Logo with spinner */}
-      <div className="relative">
-        <div className="h-8 w-8 flex-shrink-0 flex items-center justify-center">
+    <div className={`flex items-center gap-4 ${className}`}>
+      {/* Logo with rotating beam around it (Gemini style) */}
+      <div className="relative w-11 h-11 flex items-center justify-center flex-shrink-0">
+        {/* Rotating beam effect */}
+        <div 
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: 'conic-gradient(from 0deg, transparent 70%, #60A5FA 100%)',
+            animation: 'spin 1.5s linear infinite'
+          }}
+        />
+        
+        {/* Inner circle to create beam effect */}
+        <div className="absolute inset-[3px] rounded-full bg-background" />
+        
+        {/* Static Logo - Bigger */}
+        <div className="relative z-10 flex items-center justify-center">
           <img 
             src="/norvis_logo.png" 
             alt="Norvis AI" 
-            className="h-8 w-8 object-contain filter invert"
+            className="w-7 h-7 object-contain filter brightness-0 invert"
           />
         </div>
-        
-        {/* Spinner around the logo */}
-        <div className="absolute inset-0 rounded-full border-2 border-transparent border-t-green-600 animate-spin"></div>
       </div>
-
+      
       {/* Loading text */}
-      <span className="text-sm text-muted-foreground animate-pulse">
+      <span className="text-sm font-medium text-muted-foreground">
         {text}
       </span>
+
+      <style jsx>{`
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   )
 }

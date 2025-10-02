@@ -25,8 +25,9 @@ export const AILoadingStates: React.FC<AILoadingStatesProps> = ({
   // Show loading during thinking, waiting, or responding (but NOT if streaming message exists)
   if ((isAIThinking || showWaitingMessage || (isAIResponding && (!streamingContent || streamingContent.trim().length === 0))) && !streamingMessageId) {
     return (
-      <div className="flex justify-start mb-8">
-        <div className="flex items-start space-x-3 max-w-[100%]">
+      <div className="flex justify-start mb-6">
+        <div className="flex items-center gap-4 max-w-[85%]">
+          {/* Loading Animation with Logo */}
           <SimpleAILoading text="Bir saniye bekleyin..." />
         </div>
       </div>

@@ -222,23 +222,26 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    // If no current chat, create one first
-    if (!currentChatId) {
-      console.log('🆕 No active chat, creating new chat first...');
-      try {
-        await createNewChat('New Chat');
-        // Wait a bit for the chat to be created and set as current
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (error) {
-        showToast.error('Sohbet oluşturulamadı');
-        return;
-      }
-    }
-
     // Clear input and files immediately for better UX
     setInputMessage('');
     const filesToSend = [...uploadedFiles];
     setUploadedFiles([]);
+
+    // If no current chat, create one first
+    if (!currentChatId) {
+      console.log('🆕 No active chat, creating new chat first...');
+      try {
+        const newChat = await createNewChat('New Chat');
+        // Wait a bit for the chat to be created and set as current
+        await new Promise(resolve => setTimeout(resolve, 200));
+      } catch (error) {
+        showToast.error('Sohbet oluşturulamadı');
+        // Restore input on error
+        setInputMessage(content);
+        setUploadedFiles(filesToSend);
+        return;
+      }
+    }
     
     try {
       // Check if user wants to generate image
@@ -522,10 +525,8 @@ const ChatPage: React.FC = () => {
                 {/* Mobile Sidebar Trigger - only show on mobile */}
                 <SidebarTrigger className="md:hidden bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent mr-3" />
                 
-                {/* Center the title when sidebar is collapsed, left align when expanded */}
-                <div className={`flex-1 ${
-                  sidebarState === 'collapsed' ? 'flex justify-center' : 'flex justify-start'
-                }`}>
+                {/* Always keep title left aligned */}
+                <div className="flex-1 flex justify-start">
                   <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">
                     Norvis AI
                   </h1>
