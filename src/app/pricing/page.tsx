@@ -4,22 +4,11 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { 
   Check, 
-  X, 
-  Sparkles,
-  MessageCircle,
-  Upload,
-  Clock,
-  Zap,
-  Database,
-  Search,
-  FileVideo,
-  Code,
-  Users,
-  Crown
+  X,
+  Circle
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/constants';
@@ -112,242 +101,199 @@ const PricingPage = () => {
   };
   const personalPlans = [
     {
-      name: 'Ücretsiz',
+      name: 'Temel',
+      planId: 'FREE',
       price: 0,
-      period: 'USD / ay',
-      description: 'Günlük görevler için zeka',
-      buttonText: 'Mevcut planın',
-      buttonVariant: 'outline' as const,
       popular: false,
+      currentPlan: 'Mevcut Plan',
       features: [
-        { text: 'GPT-5\'e erişim', included: true, icon: <Sparkles className="h-4 w-4" /> },
-        { text: 'Sınırlı dosya yüklemesi', included: true, icon: <Upload className="h-4 w-4" /> },
-        { text: 'Sınırlı ve daha yavaş görsel üretim', included: true, icon: <Clock className="h-4 w-4" /> },
-        { text: 'Sınırlı bellek ve bağlam', included: true, icon: <Database className="h-4 w-4" /> },
-        { text: 'Sınırlı derin araştırma', included: true, icon: <Search className="h-4 w-4" /> }
-      ],
-      footer: 'Mevcut bir planın mı var? Faturalama yardımına bak'
-    },
-    {
-      name: 'Plus',
-      price: 20,
-      period: 'USD / ay',
-      description: 'Gelişmiş zekaya daha fazla erişim',
-      buttonText: 'Plus edin',
-      buttonVariant: 'default' as const,
-      popular: true,
-      features: [
-        { text: 'Gelişmiş akıl yürütme özelliği GPT-5', included: true, icon: <Sparkles className="h-4 w-4" /> },
-        { text: 'Geliştmiş mesajlaşma ve yüklemeler', included: true, icon: <MessageCircle className="h-4 w-4" /> },
-        { text: 'Gelişmiş ve daha hızlı görsel oluşturma', included: true, icon: <Zap className="h-4 w-4" /> },
-        { text: 'Gelişmiş bellek ve bağlam', included: true, icon: <Database className="h-4 w-4" /> },
-        { text: 'Projeler görevler, özel GPT\'ler', included: true, icon: <Users className="h-4 w-4" /> },
-        { text: 'Sera video üretimi', included: true, icon: <FileVideo className="h-4 w-4" /> },
-        { text: 'Codex ajanı', included: true, icon: <Code className="h-4 w-4" /> }
+        { text: 'Norvis 3\'e sınırlı erişim', included: true },
+        { text: 'Sınırlı bağlam belleği', included: true },
+        { text: 'Aurora görsel modeli', included: true },
+        { text: 'Sesli erişim', included: true },
+        { text: 'Projeler', included: true },
+        { text: 'Görevler', included: true }
       ]
     },
     {
-      name: 'Pro',
-      price: 200,
-      period: 'USD / ay',
-      description: 'ChatGPT\'nin en iyi özelliklerine tam erişim',
-      buttonText: 'Pro edin',
-      buttonVariant: 'outline' as const,
-      popular: false,
+      name: 'SuperNorvis',
+      planId: 'PREMIUM',
+      price: 30,
+      period: '/ay',
+      popular: true,
+      buttonText: 'SuperNorvis\'a Yükseltin',
       features: [
-        { text: 'Pro akıl yürütme yeteneğine sahip GPT-5', included: true, icon: <Crown className="h-4 w-4" /> },
-        { text: 'Sınırsız mesajlar ve yüklemeler', included: true, icon: <MessageCircle className="h-4 w-4" /> },
-        { text: 'Sınırsız ve daha hızlı görsel oluşturma', included: true, icon: <Zap className="h-4 w-4" /> },
-        { text: 'Maksimum bellek ve bağlam', included: true, icon: <Database className="h-4 w-4" /> },
-        { text: 'Maksimum derin araştırma ve ajanı modu', included: true, icon: <Search className="h-4 w-4" /> },
-        { text: 'Gelişmiş projeler, görevler ve özel GPT\'ler', included: true, icon: <Users className="h-4 w-4" /> },
-        { text: 'Gelişmiş Sera video üretimi', included: true, icon: <FileVideo className="h-4 w-4" /> },
-        { text: 'Gelişmiş Codex ajanı', included: true, icon: <Code className="h-4 w-4" /> },
-        { text: 'Yeni özelliklerin araştırma ön izlemesi', included: true, icon: <Sparkles className="h-4 w-4" /> }
-      ],
-      footer: 'Şartnamal banyetine sınırsız olarak tabidır. Daha fazla bilgi'
-    }
-  ];
-
-  const businessPlans = [
-    {
-      name: 'Ücretsiz',
-      price: 0,
-      period: 'USD / ay',
-      description: 'Günlük görevler için zeka',
-      buttonText: 'Mevcut planın',
-      buttonVariant: 'outline' as const,
-      popular: false,
-      features: [
-        { text: 'GPT-5\'e erişim', included: true, icon: <Sparkles className="h-4 w-4" /> },
-        { text: 'Sınırlı dosya yüklemesi', included: true, icon: <Upload className="h-4 w-4" /> },
-        { text: 'Sınırlı ve daha yavaş görsel üretim', included: true, icon: <Clock className="h-4 w-4" /> },
-        { text: 'Sınırlı bellek ve bağlam', included: true, icon: <Database className="h-4 w-4" /> },
-        { text: 'Sınırlı derin araştırma', included: true, icon: <Search className="h-4 w-4" /> }
-      ],
-      footer: 'Mevcut bir planın mı var? Faturalama yardımına bak'
+        { text: 'Norvis 4\'e artırılmış erişim', included: true },
+        { text: 'Think ve DeepSearch\'ün yeni alır', included: true },
+        { text: 'Norvis 3\'e artırılmış erişim', included: true },
+        { text: 'Genişletilmiş hafıza 128,000 adet Token', included: true },
+        { text: 'Öncelikli ses erişimi', included: true },
+        { text: 'Imagine görsel modeli', included: true },
+        { text: 'Arkadaşlar Ani ve Valentine', included: true },
+        { text: 'Temeldeki her şey', included: true }
+      ]
     },
     {
-      name: 'Business',
-      price: 25,
-      period: 'USD / ay',
-      description: 'Güvenli ve iş birliğine dayalı bir çalışma alanıyla işletmenin çalışmalarına güç kat',
-      buttonText: 'Business abonesi ol',
-      buttonVariant: 'default' as const,
-      popular: true,
-      badge: 'ÖNERİLEN',
+      name: 'SuperNorvis Heavy',
+      planId: 'PRO',
+      price: 300,
+      period: '/ay',
+      popular: false,
+      buttonText: 'Heavy\'ye Yükseltin',
       features: [
-        { text: 'Pluslakı her şey ve daha fazlası: sınırsız GPT-5 mesajları, GPT-5 thinkinge kapsamlı erişim, GPT-5 pro erişimi ve etkinle beraber ölçeklenen isteğe bağlı krediler.', included: true, icon: <Sparkles className="h-4 w-4" /> },
-        { text: 'Şirket bilgilerini bağla: Google Drive, SharePoint, Dropbox, GitHub, Outlook ve özel entegrasyonlar', included: true, icon: <Database className="h-4 w-4" /> },
-        { text: 'İşletmeler için gerekli güvenlik: SAML SSO, MFA, SOC 2 Tip 2, alanını ve depolama sırasında şifreleme, eğitimden hariç tutulan veriler', included: true, icon: <Crown className="h-4 w-4" /> },
-        { text: 'Kayıt modu: macOS masaüstünde toplantıları ve sesli notları kaydet, ardından herhangi bir sohbette metin deşifrelerini arayarak referans olarak kullan.', included: true, icon: <FileVideo className="h-4 w-4" /> },
-        { text: 'Projeler, görevler, dosya yüklemeleri ve özel çalışma alanı GPT\'leri gibi iş özellikleri', included: true, icon: <Users className="h-4 w-4" /> },
-        { text: 'Verileşik ajanlar - derin araştırma, ChatGPT ajanı ve Codex; belgelerini, araçlarını ve kod tabanlarin arasında mantık yürütme yaparak sana saatler kazandırabilir.', included: true, icon: <Code className="h-4 w-4" /> },
-        { text: 'Çok modlu oluşturma - Sora ile videolar oluştur, görseller üret, canvas oluştur, gelişmiş veri analizi yap ve satır içi kod çalıştır', included: true, icon: <Zap className="h-4 w-4" /> }
-      ],
-      additionalInfo: '2+ kullanıcı için, yıllık olarak faturalanır\nŞubtamal banyetlerine sınırsız olarak tabidır. Daha fazla bilgi al'
+        { text: 'Norvis 4 Heavy için özel önizleme', included: true },
+        { text: 'Norvis 4\'e genişletilmiş erişim', included: true },
+        { text: 'Norvis 3\'e sınırsız erişim', included: true },
+        { text: 'En uzun hafıza 256,000 adet Token', included: true },
+        { text: 'Yeni özelliklere erken erişim', included: true },
+        { text: 'SuperNorvis\'taki her şey', included: true }
+      ]
     }
   ];
 
-  const plans = activeTab === 'personal' ? personalPlans : businessPlans;
+  const plans = personalPlans;
 
   return (
-    <div className="min-h-screen bg-background relative">
+    <div className="min-h-screen relative overflow-hidden" style={{
+      background: 'linear-gradient(to bottom, #0a0a0a 0%, #1a1a1a 100%)'
+    }}>
+      {/* Starry Background Effect */}
+      <div className="absolute inset-0 opacity-30" style={{
+        backgroundImage: `radial-gradient(2px 2px at 20% 30%, white, transparent),
+                         radial-gradient(2px 2px at 60% 70%, white, transparent),
+                         radial-gradient(1px 1px at 50% 50%, white, transparent),
+                         radial-gradient(1px 1px at 80% 10%, white, transparent),
+                         radial-gradient(2px 2px at 90% 60%, white, transparent),
+                         radial-gradient(1px 1px at 33% 90%, white, transparent),
+                         radial-gradient(1px 1px at 15% 70%, white, transparent)`,
+        backgroundSize: '200% 200%',
+        backgroundPosition: '0% 0%'
+      }} />
+      
       {/* Close Button */}
       <Button
         variant="ghost"
         size="sm"
         onClick={handleClose}
-        className="absolute top-6 right-6 z-10 h-8 w-8 p-0 rounded-full hover:bg-muted"
+        className="absolute top-6 right-6 z-10 h-8 w-8 p-0 rounded-full hover:bg-white/10 text-white"
       >
         <X className="h-4 w-4" />
       </Button>
 
-      <div className="max-w-7xl mx-auto px-6 py-16">
+      <div className="max-w-6xl mx-auto px-6 py-16 relative z-10">
         {/* Header */}
-        <div className="text-center mb-10">
-          <h1 className="text-4xl font-medium text-foreground mb-6">Planını yükselt</h1>
+        <div className="text-center mb-16">
+          <h1 className="text-5xl font-bold text-white mb-4">SuperNorvis</h1>
+          <p className="text-xl text-gray-400 mb-2">Norvis 4 Tanıtılıyor</p>
+          <p className="text-lg text-yellow-500">En güçlü yapay zeka modeli</p>
           
-          {/* Toggle Buttons */}
-          <div className="inline-flex items-center p-1 bg-muted rounded-lg mb-12">
+          {/* Billing Period Toggle */}
+          <div className="flex items-center justify-center gap-4 mt-8">
+            <span className="text-sm text-gray-400">Yıllık öde %18 tasarruf et</span>
             <Button 
-              variant={activeTab === 'personal' ? 'default' : 'ghost'}
-              size="sm" 
-              className="px-6"
-              onClick={() => setActiveTab('personal')}
+              variant="outline"
+              size="sm"
+              className="bg-transparent border-gray-600 text-white hover:bg-white/10"
             >
-              Personal
-            </Button>
-            <Button 
-              variant={activeTab === 'business' ? 'default' : 'ghost'}
-              size="sm" 
-              className="px-6"
-              onClick={() => setActiveTab('business')}
-            >
-              Business
+              Aylık öde
             </Button>
           </div>
         </div>
 
         {/* Pricing Cards */}
-        <div className={cn(
-          "grid gap-8 max-w-6xl mx-auto",
-          activeTab === 'business' ? "md:grid-cols-2" : "md:grid-cols-3"
-        )}>
-          {plans.map((plan, index) => (
-            <Card 
+        <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+          {plans.map((plan) => (
+            <div 
               key={plan.name} 
               className={cn(
-                "relative overflow-hidden transition-all duration-300 hover:shadow-xl",
-                plan.popular && "border-primary shadow-lg scale-105"
+                "relative rounded-3xl p-6 transition-all duration-300",
+                plan.popular 
+                  ? "bg-white text-black border-2 border-white" 
+                  : "bg-transparent border-2 border-gray-700 text-white"
               )}
             >
-              {plan.popular && (
-                <Badge 
-                  className="absolute top-4 right-4 bg-primary text-primary-foreground px-3 py-1"
-                >
-                  {(plan as any).badge || 'POPÜLER'}
-                </Badge>
-              )}
-              
-              <CardHeader>
-                <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-sm text-muted-foreground">$</span>
-                  <span className="text-4xl font-bold">{plan.price}</span>
-                  <span className="text-sm text-muted-foreground">{plan.period}</span>
-                </div>
-                <CardDescription className="text-base">
-                  {plan.description}
-                </CardDescription>
-              </CardHeader>
-
-              <CardContent className="space-y-4">
-                <Button 
-                  className={cn(
-                    "w-full h-12 font-semibold cursor-pointer flex items-center justify-center gap-2",
-                    plan.popular && "bg-primary hover:bg-primary/90",
-                    (plan.name === 'Ücretsiz' && isCurrentPlan('FREE')) && "cursor-not-allowed opacity-50",
-                    isCurrentPlan(plan.name === 'Plus' ? 'PREMIUM' : plan.name === 'Pro' ? 'PRO' : 'FREE') && "bg-green-600 hover:bg-green-600 cursor-not-allowed"
+              {/* Plan Header */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className={cn(
+                    "text-lg font-semibold",
+                    plan.popular ? "text-black" : "text-white"
+                  )}>
+                    {plan.name}
+                  </h3>
+                  {plan.popular && (
+                    <Badge className="bg-black text-white px-3 py-1 text-xs font-semibold">
+                      Populer
+                    </Badge>
                   )}
-                  variant={plan.buttonVariant}
-                  size="lg"
-                  onClick={() => {
-                    console.log('Button clicked:', plan.name);
-                    if (plan.name === 'Plus') {
-                      handleUpgrade('PREMIUM');
-                    } else if (plan.name === 'Pro') {
-                      handleUpgrade('PRO');
-                    } else if (plan.name === 'Business') {
-                      handleUpgrade('PREMIUM');
-                    }
-                  }}
-                  disabled={plan.name === 'Ücretsiz' || isCurrentPlan(plan.name === 'Plus' ? 'PREMIUM' : plan.name === 'Pro' ? 'PRO' : 'FREE')}
-                >
-                  {isCurrentPlan(plan.name === 'Plus' ? 'PREMIUM' : plan.name === 'Pro' ? 'PRO' : 'FREE') ? (
-                    <>
-                      <Check className="h-4 w-4" />
-                      Sizde var
-                    </>
-                  ) : (
-                    plan.buttonText
-                  )}
-                </Button>
-
-                <div className="space-y-3 pt-4">
-                  {plan.features.map((feature, featureIndex) => (
-                    <div key={featureIndex} className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-0.5">
-                        {feature.included ? (
-                          <div className="text-primary">
-                            {feature.icon}
-                          </div>
-                        ) : (
-                          <X className="h-4 w-4 text-muted-foreground" />
-                        )}
-                      </div>
-                      <span className={cn(
-                        "text-sm leading-relaxed",
-                        feature.included 
-                          ? "text-foreground" 
-                          : "text-muted-foreground line-through"
-                      )}>
-                        {feature.text}
-                      </span>
-                    </div>
-                  ))}
                 </div>
-              </CardContent>
+                
+                <div className="flex items-baseline gap-1 mb-6">
+                  <span className={cn(
+                    "text-4xl font-bold",
+                    plan.popular ? "text-black" : "text-white"
+                  )}>
+                    ${plan.price}
+                  </span>
+                  {plan.period && (
+                    <span className={plan.popular ? "text-gray-600" : "text-gray-400"}>
+                      {plan.period}
+                    </span>
+                  )}
+                </div>
+              </div>
 
-              {(plan.footer || (plan as any).additionalInfo) && (
-                <CardFooter className="pt-6">
-                  <p className="text-xs text-muted-foreground leading-relaxed whitespace-pre-line">
-                    {plan.footer || (plan as any).additionalInfo}
-                  </p>
-                </CardFooter>
-              )}
-            </Card>
+              {/* Action Button */}
+              <Button 
+                className={cn(
+                  "w-full h-12 font-semibold rounded-full mb-6",
+                  plan.popular 
+                    ? "bg-black text-white hover:bg-gray-800" 
+                    : "bg-white text-black hover:bg-gray-100",
+                  isCurrentPlan(plan.planId) && "opacity-50 cursor-not-allowed"
+                )}
+                onClick={() => {
+                  if (!isCurrentPlan(plan.planId) && plan.planId !== 'FREE') {
+                    handleUpgrade(plan.planId);
+                  }
+                }}
+                disabled={isCurrentPlan(plan.planId) || plan.planId === 'FREE'}
+              >
+                {isCurrentPlan(plan.planId) ? (
+                  plan.currentPlan || 'Mevcut Plan'
+                ) : (
+                  plan.buttonText || `${plan.name}\'a Yükseltin`
+                )}
+              </Button>
+
+              {/* Features List */}
+              <div className="space-y-3">
+                {plan.features.map((feature, idx) => (
+                  <div key={idx} className="flex items-start gap-3">
+                    <Circle 
+                      className={cn(
+                        "h-4 w-4 mt-0.5 flex-shrink-0",
+                        plan.popular ? "text-black" : "text-white"
+                      )} 
+                    />
+                    <span className={cn(
+                      "text-sm leading-relaxed",
+                      plan.popular ? "text-gray-800" : "text-gray-300"
+                    )}>
+                      {feature.text}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
           ))}
+        </div>
+        
+        {/* Footer */}
+        <div className="text-center mt-16">
+          <p className="text-sm text-gray-400">
+            Tüm Planlarını Görüntüle
+          </p>
         </div>
       </div>
     </div>
