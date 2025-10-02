@@ -222,23 +222,26 @@ const ChatPage: React.FC = () => {
       return;
     }
 
-    // If no current chat, create one first
-    if (!currentChatId) {
-      console.log('🆕 No active chat, creating new chat first...');
-      try {
-        await createNewChat('New Chat');
-        // Wait a bit for the chat to be created and set as current
-        await new Promise(resolve => setTimeout(resolve, 100));
-      } catch (error) {
-        showToast.error('Sohbet oluşturulamadı');
-        return;
-      }
-    }
-
     // Clear input and files immediately for better UX
     setInputMessage('');
     const filesToSend = [...uploadedFiles];
     setUploadedFiles([]);
+
+    // If no current chat, create one first
+    if (!currentChatId) {
+      console.log('🆕 No active chat, creating new chat first...');
+      try {
+        const newChat = await createNewChat('New Chat');
+        // Wait a bit for the chat to be created and set as current
+        await new Promise(resolve => setTimeout(resolve, 200));
+      } catch (error) {
+        showToast.error('Sohbet oluşturulamadı');
+        // Restore input on error
+        setInputMessage(content);
+        setUploadedFiles(filesToSend);
+        return;
+      }
+    }
     
     try {
       // Check if user wants to generate image
