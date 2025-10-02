@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         email: true,
+        profileImage: true,
         createdAt: true,
         updatedAt: true
       }
@@ -79,9 +80,10 @@ export async function PUT(request: NextRequest) {
     if (name !== undefined) {
       updateData.name = name.trim();
     }
-
-    // Note: profileImage will be handled when we add file storage
-    // For now, we'll just update the name
+    
+    if (profileImage !== undefined) {
+      updateData.profileImage = profileImage; // Store base64 encoded image
+    }
 
     const user = await prisma.user.update({
       where: { id: payload.userId },
@@ -90,6 +92,7 @@ export async function PUT(request: NextRequest) {
         id: true,
         name: true,
         email: true,
+        profileImage: true,
         createdAt: true,
         updatedAt: true
       }

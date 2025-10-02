@@ -16,7 +16,6 @@ function CheckoutContent() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
   
-  // Form states
   const [email, setEmail] = useState('zilelimert38@gmail.com');
   const [cardNumber, setCardNumber] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
@@ -31,7 +30,6 @@ function CheckoutContent() {
       fetchPlanDetails();
     }
     
-    // Debug: Test token validity
     const testToken = async () => {
       const token = localStorage.getItem('token');
       if (token) {
@@ -69,7 +67,6 @@ function CheckoutContent() {
   };
 
   const handleCheckout = async () => {
-    // Check token first
     const token = localStorage.getItem('token');
     if (!token) {
       toast.error('Giriş yapmanız gerekiyor');
@@ -77,7 +74,6 @@ function CheckoutContent() {
       return;
     }
 
-    // Validation
     if (!cardNumber || cardNumber.length < 16) {
       toast.error('Geçerli bir kart numarası girin');
       return;
