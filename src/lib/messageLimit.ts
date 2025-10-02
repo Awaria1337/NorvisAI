@@ -116,14 +116,27 @@ export async function checkMessageLimit(userId: string): Promise<MessageLimitSta
  * Increment user's daily message count
  */
 export async function incrementMessageCount(userId: string): Promise<void> {
-  await prisma.user.update({
+  console.log(`📊 Incrementing message count for user: ${userId}`);
+  
+  const before = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { dailyMessageCount: true, messageLimit: true }
+  });
+  
+  console.log(`Before increment - Count: ${before?.dailyMessageCount}, Limit: ${before?.messageLimit}`);
+  
+  const updated = await prisma.user.update({
     where: { id: userId },
     data: {
       dailyMessageCount: {
         increment: 1,
       },
     },
+    select: { dailyMessageCount: true, messageLimit: true }
   });
+  
+  console.log(`After increment - Count: ${updated.dailyMessageCount}, Limit: ${updated.messageLimit}`);
+  console.log(`Remaining messages: ${updated.messageLimit - updated.dailyMessageCount}`);
 }
 
 /**

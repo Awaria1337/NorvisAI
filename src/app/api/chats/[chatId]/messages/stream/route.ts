@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifyToken } from '@/lib/auth';
+import { checkMessageLimit, incrementMessageCount } from '@/lib/messageLimit';
 
 // POST /api/chats/[chatId]/messages/stream - Send message with streaming response
 export async function POST(
@@ -50,6 +51,29 @@ export async function POST(
         JSON.stringify({ success: false, error: 'Chat not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
+    }
+
+    // Check message limit
+    try {
+      const limitStatus = await checkMessageLimit(payload.userId);
+      
+      if (!limitStatus.canSendMessage) {
+        return new Response(
+          JSON.stringify({ 
+            success: false, 
+            error: 'Aylık mesaj limitinize ulaştınız', 
+            limitReached: true,
+            limit: limitStatus.limit,
+            remaining: 0,
+            resetsAt: limitStatus.resetsAt,
+            isPremium: limitStatus.isPremium
+          }),
+          { status: 429, headers: { 'Content-Type': 'application/json' } }
+        );
+      }
+    } catch (error) {
+      console.error('Message limit check error:', error);
+      // Continue anyway - don't block on limit check failure
     }
 
     // Process any attached files for AI context ONLY
@@ -218,12 +242,20 @@ export async function POST(
               data: { content: fullAiResponse }
             });
 
+            // Increment message count for user
+            try {
+              await incrementMessageCount(payload.userId);
+            } catch (error) {
+              console.error('Failed to increment message count:', error);
+              // Don't fail the request if count update fails
+            }
+
             // Send completion signal
             const completeData = JSON.stringify({
               type: 'complete',
               data: { id: aiMessage.id, content: fullAiResponse }
             });
-            controller.enqueue(encoder.encode(`data: ${completeData}\n\n`));
+            controller.enqueue(encoder.encode(`data: ${completeData}\\n\\n`));
 
             console.log('✅ Streaming completed successfully');
           } else {

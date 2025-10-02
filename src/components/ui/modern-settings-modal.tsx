@@ -134,6 +134,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
       const token = localStorage.getItem('token');
       if (!token) return;
 
+      console.log('🔄 Fetching subscription info...');
       const response = await fetch('/api/subscription', {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -142,8 +143,10 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
 
       if (response.ok) {
         const data = await response.json();
+        console.log('📊 Subscription data received:', data);
         if (data.success) {
           setSubscription(data.data);
+          console.log('✅ Subscription state updated - Remaining:', data.data.remaining, 'Limit:', data.data.limit);
         }
       }
     } catch (error) {
