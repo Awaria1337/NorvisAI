@@ -83,6 +83,7 @@ interface ChatState {
   sendMessageStreaming: (content: string, createNewChatIfNeeded?: boolean, files?: File[]) => Promise<void>;
   regenerateMessage: (messageId: string) => Promise<void>;
   editMessage: (messageId: string, newContent: string) => Promise<void>;
+  generateImage: (prompt: string, model?: string) => Promise<void>;
   
   // Cleanup Actions
   cleanup: () => void;
@@ -458,7 +459,7 @@ export const useChatStore = create<ChatState>()(
         }
       },
       
-      createNewChat: async (title = 'New Chat', model = 'google/gemma-2-9b-it:free') => {
+      createNewChat: async (title = 'New Chat', model = 'google/gemini-2.0-flash-exp:free') => {
         try {
           console.log('🆕 Creating new chat with:', { title, model });
           set({ isLoading: true, error: null });
@@ -588,7 +589,7 @@ export const useChatStore = create<ChatState>()(
           if (createNewChatIfNeeded || (!currentChatId && get().chats.length === 0)) {
             console.log('🆕 Creating new chat for streaming...');
             const smartTitle = generateChatTitle(content);
-            const newChat = await get().createNewChat(smartTitle, 'google/gemma-2-9b-it:free');
+            const newChat = await get().createNewChat(smartTitle, 'google/gemini-2.0-flash-exp:free');
             currentChatId = newChat.id;
             currentChat = newChat;
             console.log('✅ New chat created for streaming:', smartTitle, 'ID:', currentChatId);
@@ -954,6 +955,102 @@ export const useChatStore = create<ChatState>()(
           console.error('❌ Message edit failed:', error);
           set({ 
             error: error instanceof Error ? error.message : 'Failed to edit message'
+          });
+          throw error;
+        }
+      },
+
+      generateImage: async (prompt: string, model: string = 'dall-e-3') => {
+        console.log('🎨 Starting image generation:', { prompt, model });
+        let { currentChatId } = get();
+        
+        try {
+          set({ isLoading: true, error: null });
+          
+          // Create new chat if needed
+          if (!currentChatId) {
+            const newChat = await get().createNewChat(`Image: ${prompt.substring(0, 30)}...`);
+            currentChatId = newChat.id;
+          }
+          
+          const token = localStorage.getItem('token');
+          if (!token) {
+            throw new Error('No authentication token');
+          }
+          
+          // Add user prompt message
+          const userMessage: Message = {
+            id: `user-${Date.now()}`,
+            content: `🎨 Create image with ${model}: ${prompt}`,
+            role: 'user',
+            createdAt: new Date()
+          };
+          get().addMessage(currentChatId, userMessage);
+          
+          // Create AI message placeholder
+          const aiMessageId = `ai-${Date.now()}`;
+          const aiMessage: Message = {
+            id: aiMessageId,
+            content: '🎨 Generating image...',
+            role: 'assistant',
+            createdAt: new Date()
+          };
+          get().addMessage(currentChatId, aiMessage);
+          
+          // Call image generation API
+          const response = await fetch('/api/images/generate', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ 
+              prompt,
+              model,
+              messageId: aiMessageId
+            })
+          });
+          
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to generate image');
+          }
+          
+          const result = await response.json();
+          
+          if (!result.success) {
+            throw new Error(result.error || 'Image generation failed');
+          }
+          
+          // Update AI message with generated image
+          get().updateMessage(currentChatId, aiMessageId, {
+            content: `Here's your generated image:\n\n![Generated Image](${result.data.imageUrl})\n\n**Model:** ${result.data.model}\n**Prompt:** ${prompt}`,
+            images: [result.data.imageUrl]
+          });
+          
+          set({ isLoading: false });
+          console.log('✅ Image generated successfully');
+          
+        } catch (error) {
+          console.error('❌ Image generation failed:', error);
+          
+          const errorMessage = error instanceof Error ? error.message : 'Failed to generate image';
+          
+          // Update the AI message with error
+          if (currentChatId) {
+            const messages = get().getCurrentChat()?.messages || [];
+            const lastAiMessage = messages[messages.length - 1];
+            
+            if (lastAiMessage && lastAiMessage.role === 'assistant') {
+              get().updateMessage(currentChatId, lastAiMessage.id, {
+                content: `❌ Image generation failed: ${errorMessage}\n\nTry:\n- Using a different model\n- Simplifying your prompt\n- Checking your API keys`
+              });
+            }
+          }
+          
+          set({ 
+            error: errorMessage,
+            isLoading: false 
           });
           throw error;
         }

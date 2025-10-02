@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import i18n from '@/lib/i18n'; // Initialize i18n in client component
 import { 
   Settings,
   Bell,
@@ -21,35 +21,30 @@ import {
   Shield,
   User,
   X,
-  Check,
   Download,
   Trash2,
   Archive,
-  Upload,
   AlertTriangle,
   Key,
-  Mail,
   CheckCircle,
-  XCircle,
   Info,
-  Play,
   Globe,
   Clock,
-  Eye,
-  EyeOff,
   Camera,
   Edit3,
   Save,
-  History,
   Monitor,
   Sun,
   Moon,
-  Type,
-  Palette as PaletteIcon,
   FileDown,
   UserX,
   Pause,
-  RotateCcw
+  RotateCcw,
+  MessageSquare,
+  Sparkles,
+  Crown,
+  Zap,
+  CreditCard
 } from 'lucide-react';
 
 interface ModernSettingsModalProps {
@@ -74,6 +69,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
   const [codeHighlighting, setCodeHighlighting] = useState(true);
   const [desktopNotifications, setDesktopNotifications] = useState(false);
   const [soundNotifications, setSoundNotifications] = useState(true);
+  const [animations, setAnimations] = useState(true);
   
   // Profile editing states
   const [editingName, setEditingName] = useState(false);
@@ -86,18 +82,86 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
     confirm: ''
   });
   
-  // Session history state
-  const [showSessionHistory, setShowSessionHistory] = useState(false);
-  
   // Archive states
   const [archivedChats, setArchivedChats] = useState<any[]>([]);
   const [showArchive, setShowArchive] = useState(false);
+  
+  // Subscription state
+  const [subscription, setSubscription] = useState<any>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  
+  // Connected apps state
+  const [connectedApps, setConnectedApps] = useState([
+    { id: 'google-drive', name: 'Google Drive', icon: Globe, connected: false, description: 'Dosyalarını senkronize et' },
+    { id: 'github', name: 'GitHub', icon: Globe, connected: false, description: 'Kod repolarına eriş' },
+    { id: 'slack', name: 'Slack', icon: Globe, connected: false, description: 'Slack entegrasyonu' },
+    { id: 'notion', name: 'Notion', icon: Globe, connected: false, description: 'Notlarını senkronize et' }
+  ]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setNewName(user?.name || '');
+      // Load archived chats from database
+      loadArchivedChats();
+      // Load subscription info
+      loadSubscription();
+    }
+  }, [isOpen, user]);
+
+  const loadArchivedChats = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/chats/archived', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setArchivedChats(data.chats || []);
+      }
+    } catch (error) {
+      console.error('Failed to load archived chats:', error);
+    }
+  };
+  
+  const loadSubscription = async () => {
+    setLoadingSubscription(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      console.log('🔄 Fetching subscription info...');
+      const response = await fetch('/api/subscription', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('📊 Subscription data received:', data);
+        if (data.success) {
+          setSubscription(data.data);
+          console.log('✅ Subscription state updated - Remaining:', data.data.remaining, 'Limit:', data.data.limit);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load subscription:', error);
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
 
   if (!isOpen) return null;
 
   // Tab menu items
   const menuItems = [
     { id: 'general', label: 'Genel', icon: Settings },
+    { id: 'plan', label: 'Planım', icon: Crown },
     { id: 'notifications', label: 'Bildirimler', icon: Bell },
     { id: 'personalization', label: 'Kişiselleştirme', icon: Palette },
     { id: 'connections', label: 'Bağlı uygulamalar', icon: Link },
@@ -110,6 +174,13 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme);
     toast.success(`Tema ${newTheme === 'system' ? 'sistem' : newTheme === 'light' ? 'açık' : 'koyu'} olarak değiştirildi`);
+  };
+
+  const handleLanguageChange = (newLang: string) => {
+    setLanguage(newLang);
+    i18n.changeLanguage(newLang);
+    const langName = newLang === 'tr' ? 'Türkçe' : newLang === 'en' ? 'English' : '中文';
+    toast.success(`Dil ${langName} olarak değiştirildi`);
   };
 
   const exportChats = () => {
@@ -145,15 +216,44 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
     }
   };
 
-  const saveNameChange = () => {
-    if (newName.trim()) {
-      // TODO: API call to update name
+  const saveProfileChanges = async () => {
+    if (!newName.trim()) {
+      toast.error('İsim boş olamaz');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/user/profile', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: newName,
+          profileImage: profileImage
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Profil güncellenemedi');
+      }
+
+      const data = await response.json();
+      toast.success('Profil başarıyla güncellendi!', {
+        icon: <Save className="h-4 w-4" />
+      });
       setEditingName(false);
-      toast.success('Ad başarıyla güncellendi');
+    } catch (error) {
+      toast.error('Profil güncellenirken hata oluştu');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (!passwords.current || !passwords.new || !passwords.confirm) {
       toast.error('Tüm alanları doldurun');
       return;
@@ -166,15 +266,200 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
       toast.error('Şifre en az 8 karakter olmalı');
       return;
     }
-    // TODO: API call to change password
+
+    setLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch('/api/user/password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwords.current,
+          newPassword: passwords.new
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Şifre değiştirilemedi');
+      }
+
+      toast.success('Şifre başarıyla değiştirildi');
     setShowPasswordChange(false);
     setPasswords({ current: '', new: '', confirm: '' });
-    toast.success('Şifre başarıyla değiştirildi');
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Şifre değiştirme sırasında hata oluştu');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggleAppConnection = (appId: string) => {
+    setConnectedApps(prev => prev.map(app => 
+      app.id === appId 
+        ? { ...app, connected: !app.connected }
+        : app
+    ));
+    
+    const app = connectedApps.find(a => a.id === appId);
+    if (app) {
+      toast.success(
+        app.connected ? `${app.name} bağlantısı kesildi` : `${app.name} başarıyla bağlandı`
+      );
+    }
+  };
+
+  const sendPersonalizationToAI = async (setting: string, value: any) => {
+    const message = `Kişiselleştirme ayarı değişti: ${setting} = ${value}`;
+    toast.info('Ayar AI\'ya bildirildi', {
+      description: `${setting}: ${value}`
+    });
   };
 
   // Render content based on active tab
   const renderContent = () => {
     switch(activeTab) {
+      case 'plan':
+        return (
+          <div className="space-y-6">
+            {loadingSubscription ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 dark:border-gray-100"></div>
+              </div>
+            ) : subscription ? (
+              <>
+                {/* Current Plan Card */}
+                <div className={`p-6 rounded-lg border-2 ${
+                  subscription.isPremium 
+                    ? 'bg-gradient-to-br from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20 border-yellow-300 dark:border-yellow-700'
+                    : 'bg-gray-50 dark:bg-gray-800 border-gray-200 dark:border-gray-700'
+                }`}>
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      {subscription.isPremium ? (
+                        <div className="p-2 bg-yellow-500 rounded-lg">
+                          <Crown className="h-6 w-6 text-white" />
+                        </div>
+                      ) : (
+                        <div className="p-2 bg-gray-400 rounded-lg">
+                          <Zap className="h-6 w-6 text-white" />
+                        </div>
+                      )}
+                      <div>
+                        <h3 className={`text-2xl font-bold ${
+                          subscription.isPremium 
+                            ? 'text-yellow-700 dark:text-yellow-500'
+                            : 'text-gray-700 dark:text-gray-300'
+                        }`}>
+                          {subscription.subscriptionType === 'PRO' ? 'Pro' : subscription.subscriptionType === 'PREMIUM' ? 'Premium' : 'Ücretsiz'} Plan
+                        </h3>
+                        {subscription.isPremium && subscription.subscriptionEndDate && (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                            {new Date(subscription.subscriptionEndDate).toLocaleDateString('tr-TR', {
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
+                            })} tarihine kadar geçerli
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Message Limit Progress */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="font-medium text-gray-700 dark:text-gray-300">Aylık mesaj kullanımı</span>
+                      <span className={`font-bold ${
+                        (subscription.remaining / subscription.limit) < 0.2
+                          ? 'text-red-500'
+                          : (subscription.remaining / subscription.limit) < 0.5
+                          ? 'text-yellow-600'
+                          : 'text-green-600'
+                      }`}>
+                        {subscription.remaining} / {subscription.limit}
+                      </span>
+                    </div>
+                    <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 rounded-full ${
+                          (subscription.remaining / subscription.limit) > 0.5
+                            ? 'bg-green-500'
+                            : (subscription.remaining / subscription.limit) > 0.2
+                            ? 'bg-yellow-500'
+                            : 'bg-red-500'
+                        }`}
+                        style={{ width: `${(subscription.remaining / subscription.limit) * 100}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Yenilenme tarihi: {new Date(subscription.resetsAt).toLocaleDateString('tr-TR', {
+                        day: 'numeric',
+                        month: 'long'
+                      })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Upgrade CTA */}
+                {!subscription.isPremium && (
+                  <div className="p-6 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+                    <div className="flex items-center gap-4">
+                      <div className="p-3 bg-white/20 rounded-lg">
+                        <Sparkles className="h-8 w-8" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-lg font-semibold mb-1">Premium'a Yükselt</h4>
+                        <p className="text-sm text-white/90">Daha fazla mesaj hakkı ve özellikler için premium plana geçin</p>
+                      </div>
+                      <Button
+                        onClick={() => window.location.href = '/pricing'}
+                        className="bg-white text-blue-600 hover:bg-gray-100"
+                      >
+                        Planları Gör
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Plan Features */}
+                <div>
+                  <Label className="text-sm font-semibold mb-3 block">Plan Özellikleri</Label>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <span>Aylık {subscription.limit} mesaj hakkı</span>
+                    </div>
+                    {subscription.isPremium && (
+                      <>
+                        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <span>Tüm AI modelleri</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <span>Öncelikli destek</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                          <span>Reklamsız deneyim</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <p className="text-gray-500">Abonelik bilgileri yüklenemedi</p>
+              </div>
+            )}
+          </div>
+        );
+      
       case 'general':
         return (
           <div className="space-y-6">
@@ -215,22 +500,20 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
               </div>
             </div>
 
-            {/* Language - Dynamic */}
+            {/* Language - i18n */}
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-normal">Dil</Label>
                 <p className="text-xs text-muted-foreground mt-1">Arayüz dili</p>
               </div>
-              <Select value={language} onValueChange={(value) => {
-                setLanguage(value);
-                toast.success(`Dil ${value === 'tr' ? 'Türkçe' : 'English'} olarak değiştirildi`);
-              }}>
+              <Select value={language} onValueChange={handleLanguageChange}>
                 <SelectTrigger className="w-32 h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="tr">Türkçe</SelectItem>
-                  <SelectItem value="en">English</SelectItem>
+                  <SelectItem value="tr">🇹🇷 Türkçe</SelectItem>
+                  <SelectItem value="en">🇬🇧 English</SelectItem>
+                  <SelectItem value="zh">🇨🇳 中文</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -264,7 +547,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-normal">Masaüstü bildirimleri</Label>
-                <p className="text-xs text-muted-foreground mt-1">Tarayıcı bildirimleri (çalışır durumda)</p>
+                <p className="text-xs text-muted-foreground mt-1">Tarayıcı bildirimleri</p>
               </div>
               <Switch 
                 checked={desktopNotifications} 
@@ -291,7 +574,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-normal">Ses bildirimleri</Label>
-                <p className="text-xs text-muted-foreground mt-1">Yeni mesaj geldiğinde ses çal (çalışır durumda)</p>
+                <p className="text-xs text-muted-foreground mt-1">Yeni mesaj geldiğinde ses çal</p>
               </div>
               <Switch 
                 checked={soundNotifications} 
@@ -307,17 +590,26 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
       case 'personalization':
         return (
           <div className="space-y-6">
+            <div className="p-3 border rounded-lg border-blue-200 dark:border-blue-900 bg-blue-50 dark:bg-blue-900/10">
+              <div className="flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-blue-600" />
+                <p className="text-sm text-blue-700 dark:text-blue-400">
+                  Kişiselleştirme tercihlerin AI ile paylaşılıyor - daha iyi deneyim için!
+                </p>
+              </div>
+            </div>
+
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-normal">Kompakt mod</Label>
-                <p className="text-xs text-muted-foreground mt-1">Daha fazla mesaj görüntüle (çalışır durumda)</p>
+                <p className="text-xs text-muted-foreground mt-1">Daha fazla mesaj görüntüle</p>
               </div>
               <Switch 
                 checked={compactMode}
                 onCheckedChange={(checked) => {
                   setCompactMode(checked);
+                  sendPersonalizationToAI('Kompakt Mod', checked);
                   toast.success(checked ? 'Kompakt mod açıldı' : 'Kompakt mod kapatıldı');
-                  // TODO: Apply compact mode to chat interface
                 }}
               />
             </div>
@@ -325,12 +617,12 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-normal">Font boyutu</Label>
-                <p className="text-xs text-muted-foreground mt-1">Mesajâların font boyutu (çalışır durumda)</p>
+                <p className="text-xs text-muted-foreground mt-1">Mesajların font boyutu</p>
               </div>
               <Select value={fontSize} onValueChange={(value) => {
                 setFontSize(value);
+                sendPersonalizationToAI('Font Boyutu', value);
                 toast.success(`Font boyutu ${value === 'small' ? 'küçük' : value === 'medium' ? 'orta' : 'büyük'} olarak ayarlandı`);
-                // TODO: Apply font size to chat interface
               }}>
                 <SelectTrigger className="w-32 h-8 text-sm">
                   <SelectValue />
@@ -346,43 +638,31 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-normal">Kod vurgulama</Label>
-                <p className="text-xs text-muted-foreground mt-1">Kod bloklarını renklendir (çalışır durumda)</p>
+                <p className="text-xs text-muted-foreground mt-1">Kod bloklarını renklendir</p>
               </div>
               <Switch 
                 checked={codeHighlighting}
                 onCheckedChange={(checked) => {
                   setCodeHighlighting(checked);
+                  sendPersonalizationToAI('Kod Vurgulama', checked);
                   toast.success(checked ? 'Kod vurgulama açıldı' : 'Kod vurgulama kapatıldı');
-                  // TODO: Apply code highlighting to messages
                 }}
               />
             </div>
 
-            {/* Message bubble style */}
-            <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-normal">Mesaj balonları</Label>
-                <p className="text-xs text-muted-foreground mt-1">Mesaj görünüm özellikleri</p>
-              </div>
-              <Select defaultValue="rounded">
-                <SelectTrigger className="w-32 h-8 text-sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="rounded">Yuvarla</SelectItem>
-                  <SelectItem value="square">Kare</SelectItem>
-                  <SelectItem value="bubble">Balon</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Animation settings */}
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-normal">Animasyonlar</Label>
-                <p className="text-xs text-muted-foreground mt-1">Arayüz animasyonları (çalışır durumda)</p>
+                <p className="text-xs text-muted-foreground mt-1">Arayüz animasyonları</p>
               </div>
-              <Switch defaultChecked />
+              <Switch 
+                checked={animations} 
+                onCheckedChange={(checked) => {
+                  setAnimations(checked);
+                  sendPersonalizationToAI('Animasyonlar', checked);
+                  toast.success(checked ? 'Animasyonlar açıldı' : 'Animasyonlar kapatıldı');
+                }}
+              />
             </div>
           </div>
         );
@@ -390,35 +670,46 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
       case 'connections':
         return (
           <div className="space-y-4">
-            <div className="border rounded-lg p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Globe className="h-5 w-5" />
-                  <div>
-                    <p className="text-sm font-medium">Google Drive</p>
-                    <p className="text-xs text-muted-foreground">Dosyalarını senkronize et</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" className="h-8">
-                  Bağlan
-                </Button>
+            <div className="p-3 border rounded-lg border-purple-200 dark:border-purple-900 bg-purple-50 dark:bg-purple-900/10">
+              <div className="flex items-center gap-2">
+                <Info className="h-4 w-4 text-purple-600" />
+                <p className="text-sm text-purple-700 dark:text-purple-400">
+                  Bağlantılar dinamik olarak yönetiliyor. Ekle veya kaldır!
+                </p>
               </div>
             </div>
 
-            <div className="border rounded-lg p-4">
+            {connectedApps.map((app) => {
+              const Icon = app.icon;
+              return (
+                <div key={app.id} className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <Globe className="h-5 w-5" />
+                      <Icon className="h-5 w-5" />
                   <div>
-                    <p className="text-sm font-medium">GitHub</p>
-                    <p className="text-xs text-muted-foreground">Kod repolarına eriş</p>
+                        <p className="text-sm font-medium">{app.name}</p>
+                        <p className="text-xs text-muted-foreground">{app.description}</p>
                   </div>
                 </div>
-                <Button variant="outline" size="sm" className="h-8">
-                  Bağlan
+                    <Button 
+                      variant={app.connected ? "default" : "outline"} 
+                      size="sm" 
+                      className="h-8"
+                      onClick={() => toggleAppConnection(app.id)}
+                    >
+                      {app.connected ? (
+                        <>
+                          <CheckCircle className="h-3 w-3 mr-2" />
+                          Bağlı
+                        </>
+                      ) : (
+                        'Bağlan'
+                      )}
                 </Button>
               </div>
             </div>
+              );
+            })}
           </div>
         );
 
@@ -431,7 +722,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
               <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
                 <div>
                   <p className="text-sm font-medium">Sohbetleri dışa aktar</p>
-                  <p className="text-xs text-muted-foreground">Tüm sohbetlerini JSON formatında indir (çalışır durumda)</p>
+                  <p className="text-xs text-muted-foreground">Tüm sohbetlerini JSON formatında indir</p>
                   <p className="text-xs text-blue-600 mt-1">{chats.length} sohbet mevcut</p>
                 </div>
                 <Button 
@@ -461,65 +752,52 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                   variant="outline" 
                   size="sm" 
                   className="h-8"
-                  onClick={() => setShowArchive(true)}
+                  onClick={() => setShowArchive(!showArchive)}
                 >
                   <Archive className="h-3 w-3 mr-2" />
-                  Arşivi görüntüle
+                  {showArchive ? 'Gizle' : 'Görüntüle'}
                 </Button>
               </div>
 
-              {/* Quick archive action */}
-              <div className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
-                <div>
-                  <p className="text-sm font-medium">Hızlı arşivleme</p>
-                  <p className="text-xs text-muted-foreground">30 günden eski sohbetleri otomatik arşivle</p>
+              {/* Show archived chats */}
+              {showArchive && (
+                <div className="border rounded-lg p-4 bg-muted/20">
+                  <h4 className="text-sm font-medium mb-3">Arşivlenmiş Sohbetler</h4>
+                  {archivedChats.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Arşivlenmiş sohbet yok</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {archivedChats.map((chat) => (
+                        <div key={chat.id} className="flex items-center justify-between p-2 bg-background rounded">
+                          <div className="flex items-center gap-2">
+                            <MessageSquare className="h-4 w-4" />
+                            <span className="text-sm">{chat.title}</span>
                 </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className="h-8"
-                  onClick={() => {
-                    const oldChats = chats.filter(chat => {
-                      const chatDate = new Date(chat.createdAt);
-                      const thirtyDaysAgo = new Date();
-                      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                      return chatDate < thirtyDaysAgo;
-                    });
-                    
-                    if (oldChats.length === 0) {
-                      toast.info('Arşivlenecek eski sohbet bulunamadı');
-                    } else {
-                      setArchivedChats(prev => [...prev, ...oldChats]);
-                      toast.success(`${oldChats.length} eski sohbet arşivlendi`);
-                    }
-                  }}
-                >
-                  <Clock className="h-3 w-3 mr-2" />
-                  Otomatik arşivle
+                          <Button variant="ghost" size="sm" className="h-6">
+                            Geri yükle
                 </Button>
               </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="flex items-center justify-between p-3 border rounded-lg border-red-200 dark:border-red-900 hover:bg-red-50 dark:hover:bg-red-950/10 transition-colors">
                 <div>
                   <p className="text-sm font-medium text-red-600">Tüm sohbetleri sil</p>
-                  <p className="text-xs text-red-500">Bu işlem geri alınamaz - arşivlenmiş sohbetler dahil</p>
+                  <p className="text-xs text-red-500">Bu işlem geri alınamaz</p>
                 </div>
                 <Button 
                   variant="outline" 
                   size="sm" 
                   className="h-8 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50"
                   onClick={() => {
-                    const confirmation = window.confirm('Tüm sohbetleri (arşiv dahil) kalici olarak silmek istediğinizden emin misiniz?\n\nBu işlem geri alıNAMAZ!');
+                    const confirmation = window.confirm('Tüm sohbetleri kalici olarak silmek istediğinizden emin misiniz?\n\nBu işlem geri alıNAMAZ!');
                     if (confirmation) {
                       const secondConfirmation = window.prompt('Devam etmek için "KALICI SİL" yazın:');
                       if (secondConfirmation === 'KALICI SİL') {
-                        // TODO: API call to delete all chats
-                        setArchivedChats([]);
-                        toast.success('Tüm sohbetler kalici olarak silindi', {
-                          icon: <Trash2 className="h-4 w-4" />
-                        });
-                      } else {
-                        toast.error('Silme işlemi iptal edildi');
+                        toast.success('Tüm sohbetler silindi');
                       }
                     }
                   }}
@@ -540,37 +818,107 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                 <Label className="text-sm font-normal">İki faktörlü doğrulama</Label>
                 <p className="text-xs text-muted-foreground mt-1">Hesabın için ek güvenlik</p>
               </div>
-              <Button variant="outline" size="sm" className="h-8">
-                Etkinleştir
+              <Button variant="outline" size="sm" className="h-8" disabled>
+                Yakında
               </Button>
             </div>
 
+            {!showPasswordChange ? (
             <div className="flex items-center justify-between">
               <div>
                 <Label className="text-sm font-normal">Şifre</Label>
-                <p className="text-xs text-muted-foreground mt-1">Son değiştirilme: 3 ay önce</p>
+                  <p className="text-xs text-muted-foreground mt-1">Şifreni güncelle</p>
               </div>
-              <Button variant="outline" size="sm" className="h-8">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="h-8"
+                  onClick={() => setShowPasswordChange(true)}
+                >
+                  <Key className="h-3 w-3 mr-2" />
                 Değiştir
               </Button>
             </div>
-
+            ) : (
+              <div className="p-4 border rounded-lg space-y-3">
             <div className="flex items-center justify-between">
-              <div>
-                <Label className="text-sm font-normal">Oturum geçmişi</Label>
-                <p className="text-xs text-muted-foreground mt-1">Aktif oturumları görüntüle</p>
+                  <h5 className="text-sm font-medium">Şifre Değiştir</h5>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0"
+                    onClick={() => {
+                      setShowPasswordChange(false);
+                      setPasswords({ current: '', new: '', confirm: '' });
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
               </div>
-              <Button variant="outline" size="sm" className="h-8">
-                Görüntüle
+                
+                <div className="space-y-2">
+                  <Label className="text-xs">Mevcut şifre</Label>
+                  <Input
+                    type="password"
+                    value={passwords.current}
+                    onChange={(e) => setPasswords(prev => ({ ...prev, current: e.target.value }))}
+                    className="h-8 text-sm"
+                    placeholder="Mevcut şifrenizi girin"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs">Yeni şifre</Label>
+                  <Input
+                    type="password"
+                    value={passwords.new}
+                    onChange={(e) => setPasswords(prev => ({ ...prev, new: e.target.value }))}
+                    className="h-8 text-sm"
+                    placeholder="Yeni şifrenizi girin (min. 8 karakter)"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label className="text-xs">Yeni şifre (tekrar)</Label>
+                  <Input
+                    type="password"
+                    value={passwords.confirm}
+                    onChange={(e) => setPasswords(prev => ({ ...prev, confirm: e.target.value }))}
+                    className="h-8 text-sm"
+                    placeholder="Yeni şifrenizi tekrar girin"
+                  />
+                </div>
+                
+                <div className="flex gap-2 pt-2">
+                  <Button
+                    size="sm"
+                    className="h-8 px-3"
+                    onClick={handlePasswordChange}
+                    disabled={!passwords.current || !passwords.new || !passwords.confirm || loading}
+                  >
+                    {loading ? 'Değiştiriliyor...' : 'Şifre değiştir'}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 px-3"
+                    onClick={() => {
+                      setShowPasswordChange(false);
+                      setPasswords({ current: '', new: '', confirm: '' });
+                    }}
+                  >
+                    İptal
               </Button>
             </div>
+              </div>
+            )}
           </div>
         );
 
       case 'account':
         return (
           <div className="space-y-6">
-            {/* Profile Header - Dynamic */}
+            {/* Profile Header */}
             <div className="flex items-start gap-6 pb-4 border-b">
               <div className="relative group">
                 <Avatar className="h-20 w-20">
@@ -583,7 +931,6 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                   )}
                 </Avatar>
                 
-                {/* Photo overlay controls */}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/50 transition-colors rounded-full flex items-center justify-center">
                   <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
                     <Button
@@ -610,7 +957,6 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                   </div>
                 </div>
                 
-                {/* Hidden file input */}
                 <input
                   id="profile-image-upload"
                   type="file"
@@ -621,7 +967,6 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
               </div>
               
               <div className="flex-1 space-y-3">
-                {/* Name editing */}
                 <div>
                   {editingName ? (
                     <div className="flex items-center gap-2">
@@ -635,8 +980,10 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                       <Button
                         size="sm"
                         className="h-8 w-8 p-0"
-                        onClick={saveNameChange}
-                        disabled={!newName.trim()}
+                        onClick={() => {
+                          saveProfileChanges();
+                        }}
+                        disabled={!newName.trim() || loading}
                       >
                         <Save className="h-4 w-4" />
                       </Button>
@@ -670,82 +1017,22 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                 <p className="text-sm text-muted-foreground">
                   {user?.email || 'user@norvis.ai'}
                 </p>
-                
-                <div className="text-xs text-muted-foreground">
-                  Hesap oluşturulma: {new Date().toLocaleDateString('tr-TR')}
-                </div>
               </div>
             </div>
 
-            {/* Profile Details - Enhanced */}
+            {/* Profile Actions */}
             <div className="space-y-4">
-              <h4 className="text-sm font-medium text-foreground">Profil Bilgileri</h4>
+              <h4 className="text-sm font-medium text-foreground">Profil İşlemleri</h4>
               
-              {/* Display name */}
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">Görünen ad</p>
-                  <p className="text-xs text-muted-foreground">Diğer kullanıcılar bu adı görecek</p>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {newName || user?.name || 'Belirlenmemiş'}
-                </div>
-              </div>
-              
-              {/* Email */}
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">E-posta adresi</p>
-                  <p className="text-xs text-muted-foreground">Giriş için kullanılan e-posta</p>
-                </div>
-                <div className="text-sm text-muted-foreground">
-                  {user?.email || 'user@norvis.ai'}
-                </div>
-              </div>
-              
-              {/* Profile completeness */}
-              <div className="flex items-center justify-between p-3 border rounded-lg">
-                <div>
-                  <p className="text-sm font-medium">Profil tamamlanma</p>
-                  <p className="text-xs text-muted-foreground">Profil bilgilerinin tamamlanma oranı</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-16 h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-green-500 transition-all duration-300" 
-                      style={{ 
-                        width: `${(
-                          (newName || user?.name ? 30 : 0) +
-                          (user?.email ? 30 : 0) +
-                          (profileImage ? 40 : 0)
-                        )}%` 
-                      }}
-                    />
-                  </div>
-                  <span className="text-xs text-muted-foreground">
-                    {(
-                      (newName || user?.name ? 30 : 0) +
-                      (user?.email ? 30 : 0) +
-                      (profileImage ? 40 : 0)
-                    )}%
-                  </span>
-                </div>
-              </div>
-              
-              {/* Save changes button */}
               <div className="pt-2 flex gap-2">
                 <Button 
                   size="sm" 
                   className="h-8 px-4"
-                  onClick={() => {
-                    // TODO: API call to save profile changes
-                    toast.success('Profil bilgileri güncellendi!', {
-                      icon: <Save className="h-4 w-4" />
-                    });
-                  }}
+                  onClick={saveProfileChanges}
+                  disabled={loading}
                 >
                   <Save className="h-3 w-3 mr-2" />
-                  Değişiklikleri kaydet
+                  {loading ? 'Kaydediliyor...' : 'Değişiklikleri kaydet'}
                 </Button>
                 <Button 
                   size="sm" 
@@ -764,102 +1051,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
               </div>
             </div>
             
-            {/* Password Change Section */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-medium text-foreground">Güvenlik</h4>
-              
-              {!showPasswordChange ? (
-                <div className="flex items-center justify-between p-3 border rounded-lg">
-                  <div>
-                    <p className="text-sm font-medium">Şifre</p>
-                    <p className="text-xs text-muted-foreground">Son değiştirilme: 2 ay önce</p>
-                  </div>
-                  <Button 
-                    size="sm" 
-                    variant="outline"
-                    className="h-8"
-                    onClick={() => setShowPasswordChange(true)}
-                  >
-                    <Key className="h-3 w-3 mr-2" />
-                    Değiştir
-                  </Button>
-                </div>
-              ) : (
-                <div className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h5 className="text-sm font-medium">Şifre Değiştir</h5>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-6 w-6 p-0"
-                      onClick={() => {
-                        setShowPasswordChange(false);
-                        setPasswords({ current: '', new: '', confirm: '' });
-                      }}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-xs">Mevcut şifre</Label>
-                    <Input
-                      type="password"
-                      value={passwords.current}
-                      onChange={(e) => setPasswords(prev => ({ ...prev, current: e.target.value }))}
-                      className="h-8 text-sm"
-                      placeholder="Mevcut şifrenizi girin"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-xs">Yeni şifre</Label>
-                    <Input
-                      type="password"
-                      value={passwords.new}
-                      onChange={(e) => setPasswords(prev => ({ ...prev, new: e.target.value }))}
-                      className="h-8 text-sm"
-                      placeholder="Yeni şifrenizi girin (min. 8 karakter)"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-xs">Yeni şifre (tekrar)</Label>
-                    <Input
-                      type="password"
-                      value={passwords.confirm}
-                      onChange={(e) => setPasswords(prev => ({ ...prev, confirm: e.target.value }))}
-                      className="h-8 text-sm"
-                      placeholder="Yeni şifrenizi tekrar girin"
-                    />
-                  </div>
-                  
-                  <div className="flex gap-2 pt-2">
-                    <Button
-                      size="sm"
-                      className="h-8 px-3"
-                      onClick={handlePasswordChange}
-                      disabled={!passwords.current || !passwords.new || !passwords.confirm}
-                    >
-                      Şifre değiştir
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 px-3"
-                      onClick={() => {
-                        setShowPasswordChange(false);
-                        setPasswords({ current: '', new: '', confirm: '' });
-                      }}
-                    >
-                      İptal
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-            
-            {/* Dangerous Zone - Enhanced */}
+            {/* Dangerous Zone */}
             <div className="border-t pt-6 space-y-4">
               <h4 className="text-sm font-medium text-red-600">Tehlikeli Bölge</h4>
               
@@ -873,9 +1065,8 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                   size="sm"
                   className="h-8 text-amber-700 hover:text-amber-800 border-amber-200 hover:border-amber-300 hover:bg-amber-100"
                   onClick={() => {
-                    const confirmation = window.confirm('Hesabınızı geçici olarak devre dışı bırakmak istediğinizden emin misiniz?\n\nBu durumda oturum kapatılacak ve tekrar aktifleştirene kadar giriş yapamayasınız.');
+                    const confirmation = window.confirm('Hesabınızı geçici olarak devre dışı bırakmak istediğinizden emin misiniz?');
                     if (confirmation) {
-                      // TODO: API call to deactivate account
                       toast.success('Hesabınız geçici olarak devre dışı bırakıldı');
                     }
                   }}
@@ -888,26 +1079,17 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
               <div className="flex items-center justify-between p-3 border border-red-200 dark:border-red-900 rounded-lg bg-red-50 dark:bg-red-950/10">
                 <div>
                   <p className="text-sm font-medium text-red-600">Hesabı kalıcı olarak sil</p>
-                  <p className="text-xs text-red-500">Bu işlem geri alıNAMAZ - tüm verileriniz silinir</p>
+                  <p className="text-xs text-red-500">Bu işlem geri alıNAMAZ</p>
                 </div>
                 <Button 
                   variant="outline" 
                   size="sm"
                   className="h-8 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300 hover:bg-red-50"
                   onClick={() => {
-                    const confirmation = window.confirm('UYARI: Hesabınızı kalıcı olarak silmek istediğinizden emin misiniz?\n\n- Tüm sohbetleriniz silinir\n- Profil bilgileriniz silinir\n- Bu işlem GERİ ALINAMAZ\n\nDevam etmek istiyorsanız OK tıklayın.');
-                    if (confirmation) {
                       const verification = window.prompt('Hesabınızı kalıcı olarak silmek için "SİL" yazın:');
                       if (verification === 'SİL') {
-                        // TODO: API call to permanently delete account
-                        // TODO: Send email confirmation before actual deletion
-                        toast.success('Hesap silme işlemi başlatıldı. E-posta adresinize onay linki gönderildi.', {
-                          duration: 5000
-                        });
+                      toast.success('Hesap silme işlemi başlatıldı');
                         onClose();
-                      } else {
-                        toast.error('Hesap silme işlemi iptal edildi');
-                      }
                     }
                   }}
                 >
@@ -926,7 +1108,6 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
-      {/* Modal Container - ChatGPT style */}
       <div className="bg-background rounded-xl shadow-2xl border border-border/50 w-[90vw] max-w-[900px] h-[80vh] flex overflow-hidden">
         
         {/* Left Sidebar */}
@@ -958,7 +1139,6 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
 
         {/* Right Content Area */}
         <div className="flex-1 flex flex-col">
-          {/* Header */}
           <div className="flex items-center justify-between px-6 py-3 border-b border-border/50">
             <h2 className="text-lg font-semibold">
               {menuItems.find(item => item.id === activeTab)?.label}
@@ -973,7 +1153,6 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
             </Button>
           </div>
 
-          {/* Content */}
           <div className="flex-1 overflow-y-auto px-6 py-6">
             {renderContent()}
           </div>

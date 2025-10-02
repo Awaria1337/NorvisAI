@@ -1,7 +1,8 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import toast from 'react-hot-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,12 +24,91 @@ import {
 import { cn } from '@/lib/utils';
 import { ROUTES } from '@/constants';
 
+interface Plan {
+  id: string;
+  name: string;
+  displayName: string;
+  description: string;
+  price: number;
+  currency: string;
+  messageLimit: number;
+  features: string[];
+  featured: boolean;
+}
+
 const PricingPage = () => {
   const router = useRouter();
   const [activeTab, setActiveTab] = React.useState<'personal' | 'business'>('personal');
+  const [dbPlans, setDbPlans] = useState<Plan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<any>(null);
+
+  useEffect(() => {
+    fetchPlans();
+    fetchSubscription();
+  }, []);
+
+  const fetchPlans = async () => {
+    try {
+      const response = await fetch('/api/plans');
+      const result = await response.json();
+      if (result.success) {
+        setDbPlans(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch plans:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const fetchSubscription = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) return;
+
+      const response = await fetch('/api/subscription', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+
+      const result = await response.json();
+      if (result.success) {
+        setSubscription(result.data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch subscription:', error);
+    }
+  };
 
   const handleClose = () => {
     router.push(ROUTES.CHAT);
+  };
+
+  const handleUpgrade = (planName: string) => {
+    console.log('handleUpgrade called with:', planName);
+    console.log('dbPlans:', dbPlans);
+    const plan = dbPlans.find(p => p.name === planName);
+    console.log('Found plan:', plan);
+    
+    // Check if user already has this plan
+    if (subscription && subscription.subscriptionType === planName) {
+      toast.error('Bu plana zaten sahipsiniz');
+      return;
+    }
+    
+    if (plan) {
+      console.log('Redirecting to:', `/checkout?planId=${plan.id}`);
+      router.push(`/checkout?planId=${plan.id}`);
+    } else {
+      toast.error('Plan bulunamadı');
+    }
+  };
+  
+  const isCurrentPlan = (planName: string) => {
+    if (!subscription) return planName === 'FREE';
+    return subscription.subscriptionType === planName;
   };
   const personalPlans = [
     {
@@ -205,13 +285,33 @@ const PricingPage = () => {
               <CardContent className="space-y-4">
                 <Button 
                   className={cn(
-                    "w-full h-12 font-semibold",
-                    plan.popular && "bg-primary hover:bg-primary/90"
+                    "w-full h-12 font-semibold cursor-pointer flex items-center justify-center gap-2",
+                    plan.popular && "bg-primary hover:bg-primary/90",
+                    (plan.name === 'Ücretsiz' && isCurrentPlan('FREE')) && "cursor-not-allowed opacity-50",
+                    isCurrentPlan(plan.name === 'Plus' ? 'PREMIUM' : plan.name === 'Pro' ? 'PRO' : 'FREE') && "bg-green-600 hover:bg-green-600 cursor-not-allowed"
                   )}
                   variant={plan.buttonVariant}
                   size="lg"
+                  onClick={() => {
+                    console.log('Button clicked:', plan.name);
+                    if (plan.name === 'Plus') {
+                      handleUpgrade('PREMIUM');
+                    } else if (plan.name === 'Pro') {
+                      handleUpgrade('PRO');
+                    } else if (plan.name === 'Business') {
+                      handleUpgrade('PREMIUM');
+                    }
+                  }}
+                  disabled={plan.name === 'Ücretsiz' || isCurrentPlan(plan.name === 'Plus' ? 'PREMIUM' : plan.name === 'Pro' ? 'PRO' : 'FREE')}
                 >
-                  {plan.buttonText}
+                  {isCurrentPlan(plan.name === 'Plus' ? 'PREMIUM' : plan.name === 'Pro' ? 'PRO' : 'FREE') ? (
+                    <>
+                      <Check className="h-4 w-4" />
+                      Sizde var
+                    </>
+                  ) : (
+                    plan.buttonText
+                  )}
                 </Button>
 
                 <div className="space-y-3 pt-4">

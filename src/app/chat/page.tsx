@@ -38,6 +38,8 @@ import {
   Search,
   Upload,
   CheckCircle,
+  Sparkles,
+  ImagePlus,
   AlertTriangle,
   XCircle,
   Clock,
@@ -94,7 +96,8 @@ const ChatPage: React.FC = () => {
     setChats,
     deleteChat,
     renameChat,
-    cleanup
+    cleanup,
+    generateImage
   } = useChatStore();
   
   // Sidebar state will be passed from AppSidebar
@@ -219,13 +222,75 @@ const ChatPage: React.FC = () => {
       return;
     }
 
+    // If no current chat, create one first
+    if (!currentChatId) {
+      console.log('🆕 No active chat, creating new chat first...');
+      try {
+        await createNewChat('New Chat');
+        // Wait a bit for the chat to be created and set as current
+        await new Promise(resolve => setTimeout(resolve, 100));
+      } catch (error) {
+        showToast.error('Sohbet oluşturulamadı');
+        return;
+      }
+    }
+
     // Clear input and files immediately for better UX
     setInputMessage('');
     const filesToSend = [...uploadedFiles];
     setUploadedFiles([]);
     
     try {
-      await sendMessage(content, false, filesToSend);
+      // Check if user wants to generate image
+      const imageKeywords = ['görsel oluştur', 'resim oluştur', 'image generate', 'create image', 'draw', 'çiz'];
+      const isImageRequest = imageKeywords.some(keyword => content.toLowerCase().includes(keyword));
+      
+      if (isImageRequest) {
+        // Extract prompt and model
+        let prompt = content;
+        let model = 'dall-e-3'; // Default model
+        
+        // Check for model specification
+        const modelPatterns = [
+          { keyword: 'dall-e-3', model: 'dall-e-3' },
+          { keyword: 'dall-e-2', model: 'dall-e-2' },
+          { keyword: 'gemini', model: 'google/imagen-3' },
+          { keyword: 'imagen', model: 'google/imagen-3' },
+          { keyword: 'flux pro', model: 'black-forest-labs/flux-pro' },
+          { keyword: 'flux', model: 'black-forest-labs/flux-schnell' },
+          { keyword: 'stable diffusion', model: 'stability-ai/stable-diffusion-3' }
+        ];
+        
+        for (const pattern of modelPatterns) {
+          if (content.toLowerCase().includes(pattern.keyword)) {
+            model = pattern.model;
+            prompt = prompt.replace(new RegExp(pattern.keyword, 'gi'), '').trim();
+            break;
+          }
+        }
+        
+        // Remove trigger keywords from prompt
+        imageKeywords.forEach(keyword => {
+          prompt = prompt.replace(new RegExp(keyword, 'gi'), '').trim();
+        });
+        
+        if (prompt.length < 3) {
+          showToast.warning('Lütfen daha detaylı bir görsel açıklaması yazın.', {
+            duration: 3000,
+          });
+          setInputMessage(content);
+          return;
+        }
+        
+        showToast.info(`🎨 ${model} ile görsel oluşturuluyor...`, {
+          duration: 2000,
+        });
+        
+        await generateImage(prompt, model);
+      } else {
+        // Normal message
+        await sendMessage(content, false, filesToSend);
+      }
     } catch (error) {
       // If message fails, restore the input content and files
       setInputMessage(content);
@@ -644,32 +709,32 @@ const ChatPage: React.FC = () => {
                 </div>
                 
                 {/* Suggestion Buttons - 3 adet - EN ALTTA */}
-                <div className="flex flex-wrap justify-center gap-3 max-w-2xl">
+                <div className="flex flex-wrap justify-center gap-3 max-w-3xl">
                   <Button
                     variant="outline"
-                    onClick={() => handleSendMessage('Son dakika haberlerini özetle')}
+                    onClick={() => handleSendMessage('Kodlama konusunda yardım')}
                     className="px-4 py-5 rounded-2xl bg-transparent backdrop-blur-sm border border-gray-700 hover:bg-gray-800/50 text-white text-sm font-medium transition-all"
                   >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Son Dakika Haberleri
+                    <Upload className="h-4 w-4 mr-2" />
+                    Kod yardımı
                   </Button>
                   
                   <Button
                     variant="outline"
-                    onClick={() => handleSendMessage('Kod yazmama yardım et')}
+                    onClick={() => handleSendMessage('Yaratıcı bir hikaye yaz')}
                     className="px-4 py-5 rounded-2xl bg-transparent backdrop-blur-sm border border-gray-700 hover:bg-gray-800/50 text-white text-sm font-medium transition-all"
                   >
-                    <FileText className="h-4 w-4 mr-2" />
-                    Kod Yardımı
+                    <Upload className="h-4 w-4 mr-2" />
+                    Hikaye yaz
                   </Button>
                   
                   <Button
                     variant="outline"
-                    onClick={() => handleSendMessage('Yaratıcı bir fikir üret')}
+                    onClick={() => handleSendMessage('Bir şey öğrenmeme yardım et')}
                     className="px-4 py-5 rounded-2xl bg-transparent backdrop-blur-sm border border-gray-700 hover:bg-gray-800/50 text-white text-sm font-medium transition-all"
                   >
-                    <MessageSquare className="h-4 w-4 mr-2" />
-                    Yaratıcı Fikirler
+                    <Upload className="h-4 w-4 mr-2" />
+                    Öğren
                   </Button>
                 </div>
               </div>
