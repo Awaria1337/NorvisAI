@@ -15,8 +15,8 @@
       "language": "语言",
       "selectLanguage": "选择语言",
       "theme": "主题",
-      "themeLight": "浅色",
-      "themeDark": "深色",
+      "themeLight": "亮色",
+      "themeDark": "暗色",
       "themeSystem": "系统",
       "compactMode": "紧凑模式",
       "compactModeDesc": "显示更多内容"
@@ -33,18 +33,65 @@
       "medium": "中",
       "large": "大",
       "codeHighlighting": "代码高亮",
-      "codeDesc": "代码块中的颜色高亮",
+      "codeDesc": "代码块颜色高亮",
       "animations": "动画",
-      "animationsDesc": "用户界面动画"
+      "animationsDesc": "UI动画"
     },
     "data": {
       "exportChats": "导出聊天",
-      "exportDesc": "下载所有聊天记录为JSON格式"
+      "exportDesc": "下载所有聊天记录为JSON"
     },
     "account": {
       "deleteAccount": "删除账户",
       "deleteWarning": "此操作无法撤销"
     }
+  },
+  "sidebar": {
+    "newChat": "新建聊天",
+    "searchChats": "搜索聊天...",
+    "today": "今天",
+    "yesterday": "昨天",
+    "last7Days": "最近7天",
+    "last30Days": "最近30天",
+    "older": "更早",
+    "noChats": "还没有聊天",
+    "rename": "重命名",
+    "archive": "归档",
+    "delete": "删除",
+    "confirmDelete": "确定要删除这个聊天吗？",
+    "collapse": "收起侧边栏",
+    "expand": "展开侧边栏"
+  },
+  "chat": {
+    "placeholder": "Norvis可以帮你什么？",
+    "send": "发送",
+    "uploadFile": "上传文件",
+    "voiceInput": "语音输入",
+    "imageUpload": "上传图像",
+    "stopGenerating": "停止",
+    "thinking": "思考中...",
+    "typing": "输入中...",
+    "maxFilesWarning": "最多可上传3个文件！升级到Pro以上传更多文件。",
+    "fileRemoved": "文件已移除",
+    "fileUploaded": "已上传{{count}}个文件",
+    "chatRenamed": "聊天已重命名",
+    "chatDeleted": "聊天已删除",
+    "chatArchived": "聊天已归档",
+    "errorRename": "重命名失败。请重试。",
+    "errorDelete": "删除失败。请重试。",
+    "copy": "复制",
+    "copied": "已复制！",
+    "edit": "编辑",
+    "retry": "重试",
+    "share": "分享"
+  },
+  "ai": {
+    "greeting": "你好！我可以帮你什么？",
+    "error": "抱歉，出错了。请重试。",
+    "processingImage": "正在处理图像...",
+    "processingFile": "正在处理文件...",
+    "generatingResponse": "正在生成回复...",
+    "waitingForResponse": "等待回复..."
   },
   "common": {
     "save": "保存",
@@ -52,6 +99,10 @@
     "close": "关闭",
     "loading": "加载中...",
     "success": "成功！",
-    "error": "发生错误"
+    "error": "发生错误",
+    "yes": "是",
+    "no": "否",
+    "ok": "确定",
+    "continue": "继续"
   }
 }

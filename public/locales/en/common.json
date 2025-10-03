@@ -46,12 +46,63 @@
       "deleteWarning": "This action cannot be undone"
     }
   },
+  "sidebar": {
+    "newChat": "New Chat",
+    "searchChats": "Search chats...",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "older": "Older",
+    "noChats": "No chats yet",
+    "rename": "Rename",
+    "archive": "Archive",
+    "delete": "Delete",
+    "confirmDelete": "Are you sure you want to delete this chat?",
+    "collapse": "Collapse sidebar",
+    "expand": "Expand sidebar"
+  },
+  "chat": {
+    "placeholder": "How can Norvis help you?",
+    "send": "Send",
+    "uploadFile": "Upload file",
+    "voiceInput": "Voice input",
+    "imageUpload": "Upload image",
+    "stopGenerating": "Stop",
+    "thinking": "Thinking...",
+    "typing": "Typing...",
+    "maxFilesWarning": "You can upload maximum 3 files! Upgrade to Pro to upload more files.",
+    "fileRemoved": "File removed",
+    "fileUploaded": "{{count}} file(s) uploaded",
+    "chatRenamed": "Chat renamed",
+    "chatDeleted": "Chat deleted",
+    "chatArchived": "Chat archived",
+    "errorRename": "Failed to rename chat. Please try again.",
+    "errorDelete": "Failed to delete chat. Please try again.",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "edit": "Edit",
+    "retry": "Retry",
+    "share": "Share"
+  },
+  "ai": {
+    "greeting": "Hello! How can I help you today?",
+    "error": "Sorry, an error occurred. Please try again.",
+    "processingImage": "Processing image...",
+    "processingFile": "Processing file...",
+    "generatingResponse": "Generating response...",
+    "waitingForResponse": "Waiting for response..."
+  },
   "common": {
     "save": "Save",
     "cancel": "Cancel",
     "close": "Close",
     "loading": "Loading...",
     "success": "Success!",
-    "error": "Error occurred"
+    "error": "Error occurred",
+    "yes": "Yes",
+    "no": "No",
+    "ok": "OK",
+    "continue": "Continue"
   }
 }

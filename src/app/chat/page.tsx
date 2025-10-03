@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import toast from 'react-hot-toast';
 import AdvancedFilePreview, { FileUploadStats } from '@/components/ui/advanced-file-preview';
 import { getFileDisplayInfo, formatFileSize, validateFile } from '@/utils/fileUtils';
+import { useTranslation } from 'react-i18next';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -58,6 +59,7 @@ import KeyboardShortcutsModal from '@/components/ui/keyboard-shortcuts-modal';
 
 
 const ChatPage: React.FC = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const { isAuthenticated, isLoading, logout, user } = useAuthStore();
   

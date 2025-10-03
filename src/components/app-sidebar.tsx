@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { ROUTES } from "@/constants";
+import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -93,6 +94,7 @@ export function AppSidebar({
   onChatArchive,
   onSidebarStateChange,
 }: AppSidebarProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { state } = useSidebar();
@@ -175,8 +177,8 @@ export function AppSidebar({
               </TooltipTrigger>
               <TooltipContent>
                 {state === "expanded"
-                  ? "Kenar çubuğunu kapat"
-                  : "Kenar çubuğunu aç"}
+                  ? t('sidebar.collapse')
+                  : t('sidebar.expand')}
               </TooltipContent>
             </Tooltip>
           </div>
@@ -189,7 +191,7 @@ export function AppSidebar({
             >
               <PenSquare className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
               <span className="group-data-[collapsible=icon]:hidden font-medium">
-                Yeni sohbet
+                {t('sidebar.newChat')}
               </span>
             </Button>
 
