@@ -258,8 +258,8 @@ export default function Home() {
                       role: msg.role,
                       chatId: 'guest',
                       createdAt: msg.timestamp,
-                      model: null,
-                      tokensUsed: null
+                      model: undefined,
+                      tokensUsed: undefined
                     }}
                     isUser={msg.role === 'user'}
                   />
