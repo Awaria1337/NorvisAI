@@ -179,7 +179,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
 );
 PasswordInput.displayName = "PasswordInput";
 
-function SignInForm({ onSubmit }: { onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {
+function SignInForm({ onSubmit, onGoogleSignIn }: { onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onGoogleSignIn?: () => void }) {
   return (
     <form onSubmit={onSubmit} autoComplete="on" className="flex flex-col gap-8">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -187,6 +187,24 @@ function SignInForm({ onSubmit }: { onSubmit: (event: React.FormEvent<HTMLFormEl
         <p className="text-balance text-sm text-muted-foreground">Giriş yapmak için email adresinizi girin</p>
       </div>
       <div className="grid gap-4">
+        {onGoogleSignIn && (
+          <>
+            <Button type="button" variant="outline" className="w-full" onClick={onGoogleSignIn}>
+              <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
+                <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
+              </svg>
+              Google ile giriş yap
+            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Veya</span>
+              </div>
+            </div>
+          </>
+        )}
         <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="m@example.com" required autoComplete="email" /></div>
         <PasswordInput name="password" label="Şifre" required autoComplete="current-password" placeholder="Şifre" />
         <Button type="submit" variant="outline" className="mt-2">Giriş Yap</Button>
@@ -195,7 +213,7 @@ function SignInForm({ onSubmit }: { onSubmit: (event: React.FormEvent<HTMLFormEl
   );
 }
 
-function SignUpForm({ onSubmit }: { onSubmit: (event: React.FormEvent<HTMLFormElement>) => void }) {
+function SignUpForm({ onSubmit, onGoogleSignIn }: { onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onGoogleSignIn?: () => void }) {
   return (
     <form onSubmit={onSubmit} autoComplete="on" className="flex flex-col gap-8">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -203,6 +221,24 @@ function SignUpForm({ onSubmit }: { onSubmit: (event: React.FormEvent<HTMLFormEl
         <p className="text-balance text-sm text-muted-foreground">Kayıt olmak için bilgilerinizi girin</p>
       </div>
       <div className="grid gap-4">
+        {onGoogleSignIn && (
+          <>
+            <Button type="button" variant="outline" className="w-full" onClick={onGoogleSignIn}>
+              <svg className="mr-2 h-4 w-4" aria-hidden="true" focusable="false" data-prefix="fab" data-icon="google" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 488 512">
+                <path fill="currentColor" d="M488 261.8C488 403.3 391.1 504 248 504 110.8 504 0 393.2 0 256S110.8 8 248 8c66.8 0 123 24.5 166.3 64.9l-67.5 64.9C258.5 52.6 94.3 116.6 94.3 256c0 86.5 69.1 156.6 153.7 156.6 98.2 0 135-70.4 140.8-106.9H248v-85.3h236.1c2.3 12.7 3.9 24.9 3.9 41.4z"></path>
+              </svg>
+              Google ile kayıt ol
+            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">Veya</span>
+              </div>
+            </div>
+          </>
+        )}
         <div className="grid gap-1"><Label htmlFor="name">Ad Soyad</Label><Input id="name" name="name" type="text" placeholder="Ahmet Yılmaz" required autoComplete="name" /></div>
         <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="m@example.com" required autoComplete="email" /></div>
         <PasswordInput name="password" label="Şifre" required autoComplete="new-password" placeholder="Şifre"/>
@@ -216,16 +252,18 @@ function AuthFormContainer({
   isSignIn, 
   onToggle, 
   onSignInSubmit, 
-  onSignUpSubmit 
+  onSignUpSubmit,
+  onGoogleSignIn
 }: { 
   isSignIn: boolean; 
   onToggle: () => void;
   onSignInSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onSignUpSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
+  onGoogleSignIn?: () => void;
 }) {
     return (
         <div className="mx-auto grid w-[350px] gap-2">
-            {isSignIn ? <SignInForm onSubmit={onSignInSubmit} /> : <SignUpForm onSubmit={onSignUpSubmit} />}
+            {isSignIn ? <SignInForm onSubmit={onSignInSubmit} onGoogleSignIn={onGoogleSignIn} /> : <SignUpForm onSubmit={onSignUpSubmit} onGoogleSignIn={onGoogleSignIn} />}
             <div className="text-center text-sm">
                 {isSignIn ? "Hesabınız yok mu?" : "Zaten hesabınız var mı?"}{" "}
                 <Button variant="link" className="pl-1 text-foreground" onClick={onToggle}>
@@ -252,6 +290,7 @@ export interface AuthUIProps {
     signUpContent?: AuthContentProps;
     onSignIn?: (event: React.FormEvent<HTMLFormElement>) => void;
     onSignUp?: (event: React.FormEvent<HTMLFormElement>) => void;
+    onGoogleSignIn?: () => void;
 }
 
 const defaultSignInContent = {
@@ -280,7 +319,8 @@ export function AuthUI({
   signInContent = {}, 
   signUpContent = {},
   onSignIn,
-  onSignUp
+  onSignUp,
+  onGoogleSignIn
 }: AuthUIProps) {
   const [isSignIn, setIsSignIn] = useState(true);
   const toggleForm = () => setIsSignIn((prev) => !prev);
@@ -350,6 +390,7 @@ export function AuthUI({
           onToggle={toggleForm} 
           onSignInSubmit={handleSignIn}
           onSignUpSubmit={handleSignUp}
+          onGoogleSignIn={onGoogleSignIn}
         />
       </div>
     </div>
