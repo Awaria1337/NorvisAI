@@ -4,12 +4,13 @@ import type { NextRequest } from 'next/server';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow access to maintenance page, admin panel, API routes, and static assets
+  // Allow access to maintenance page, admin panel, API routes, guest routes, and static assets
   if (
     pathname === '/maintenance' ||
+    pathname === '/' || // Allow guest access to home page
     pathname.startsWith('/admin') || // Admin panel always accessible
     pathname.startsWith('/_next') ||
-    pathname.startsWith('/api/') ||
+    pathname.startsWith('/api/') || // All API routes
     pathname.startsWith('/static') ||
     pathname.match(/\.(ico|png|jpg|jpeg|svg|gif|css|js)$/)
   ) {
