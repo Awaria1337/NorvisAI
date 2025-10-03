@@ -11,8 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
-import i18n from '@/lib/i18n'; // Initialize i18n in client component
-import { 
+import { useTranslation } from 'react-i18next';
+import '@/lib/i18n'; // Initialize i18n
+import {
   Settings,
   Bell,
   Palette,
@@ -57,6 +58,7 @@ interface ModernSettingsModalProps {
 }
 
 const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClose, user }) => {
+  const { t, i18n } = useTranslation();
   const [activeTab, setActiveTab] = useState('general');
   const [loading, setLoading] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -168,14 +170,14 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
 
   // Tab menu items
   const menuItems = [
-    { id: 'general', label: 'Genel', icon: Settings },
-    { id: 'plan', label: 'Planım', icon: Crown },
-    { id: 'notifications', label: 'Bildirimler', icon: Bell },
-    { id: 'personalization', label: 'Kişiselleştirme', icon: Palette },
-    { id: 'connections', label: 'Bağlı uygulamalar', icon: Link },
-    { id: 'data', label: 'Veri kontrolleri', icon: Database },
-    { id: 'security', label: 'Güvenlik', icon: Shield },
-    { id: 'account', label: 'Hesap', icon: User },
+    { id: 'general', label: t('general'), icon: Settings },
+    { id: 'plan', label: t('settings'), icon: Crown },
+    { id: 'notifications', label: t('notifications'), icon: Bell },
+    { id: 'personalization', label: t('personalization'), icon: Palette },
+    { id: 'connections', label: t('connections'), icon: Link },
+    { id: 'data', label: t('data'), icon: Database },
+    { id: 'security', label: t('security'), icon: Shield },
+    { id: 'account', label: t('account'), icon: User },
   ];
 
   // Helper functions
@@ -184,9 +186,9 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
     toast.success(`Tema ${newTheme === 'system' ? 'sistem' : newTheme === 'light' ? 'açık' : 'koyu'} olarak değiştirildi`);
   };
 
-  const handleLanguageChange = (newLang: string) => {
+  const handleLanguageChange = async (newLang: string) => {
     setLanguage(newLang);
-    i18n.changeLanguage(newLang);
+    await i18n.changeLanguage(newLang);
     const langNames: Record<string, string> = {
       'tr': 'Türkçe',
       'en': 'English',
@@ -194,11 +196,13 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
       'zh': '中文'
     };
     const langName = langNames[newLang] || 'Unknown';
-    toast.success(`Dil ${langName} olarak değiştirildi`);
+    toast.success(`${t('language')} ${langName}`);
     // Save preference to localStorage
     if (typeof window !== 'undefined') {
       localStorage.setItem('language', newLang);
     }
+    // Force re-render by updating state
+    setActiveTab(activeTab);
   };
 
   const exportChats = () => {
@@ -484,8 +488,8 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
             {/* Theme - Dynamic */}
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-sm font-normal">Tema</Label>
-                <p className="text-xs text-muted-foreground mt-1">Arayüz temasını seçin</p>
+                <Label className="text-sm font-normal">{t('theme')}</Label>
+                <p className="text-xs text-muted-foreground mt-1">{t('themeDescription')}</p>
               </div>
               <div className="flex items-center gap-2">
                 <Button
@@ -495,7 +499,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                   onClick={() => handleThemeChange('light')}
                 >
                   <Sun className="h-4 w-4 mr-1" />
-                  Açık
+                  {t('light')}
                 </Button>
                 <Button
                   variant={theme === 'dark' ? 'default' : 'outline'}
@@ -504,7 +508,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                   onClick={() => handleThemeChange('dark')}
                 >
                   <Moon className="h-4 w-4 mr-1" />
-                  Koyu
+                  {t('dark')}
                 </Button>
                 <Button
                   variant={theme === 'system' ? 'default' : 'outline'}
@@ -513,7 +517,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                   onClick={() => handleThemeChange('system')}
                 >
                   <Monitor className="h-4 w-4 mr-1" />
-                  Sistem
+                  {t('system')}
                 </Button>
               </div>
             </div>
@@ -521,8 +525,8 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
             {/* Language - i18n */}
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-sm font-normal">Dil</Label>
-                <p className="text-xs text-muted-foreground mt-1">Arayüz dili</p>
+                <Label className="text-sm font-normal">{t('language')}</Label>
+                <p className="text-xs text-muted-foreground mt-1">{t('languageDescription')}</p>
               </div>
               <Select value={language} onValueChange={handleLanguageChange}>
                 <SelectTrigger className="w-40 h-8 text-sm">
@@ -1132,7 +1136,7 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
         {/* Left Sidebar */}
         <div className="w-48 bg-muted/30 border-r border-border/50 flex flex-col">
           <div className="p-4 border-b border-border/50">
-            <h2 className="text-base font-semibold">Ayarlar</h2>
+            <h2 className="text-base font-semibold">{t('settings')}</h2>
           </div>
           
           <nav className="flex-1 p-2">
