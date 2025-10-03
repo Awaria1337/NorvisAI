@@ -1,0 +1,57 @@
+{
+  "settings": {
+    "title": "设置",
+    "tabs": {
+      "general": "通用",
+      "plan": "我的计划",
+      "notifications": "通知",
+      "personalization": "个性化",
+      "connections": "已连接应用",
+      "data": "数据控制",
+      "security": "安全",
+      "account": "账户"
+    },
+    "general": {
+      "language": "语言",
+      "selectLanguage": "选择语言",
+      "theme": "主题",
+      "themeLight": "浅色",
+      "themeDark": "深色",
+      "themeSystem": "系统",
+      "compactMode": "紧凑模式",
+      "compactModeDesc": "显示更多内容"
+    },
+    "notifications": {
+      "desktop": "桌面通知",
+      "desktopDesc": "接收新消息通知",
+      "sound": "声音通知",
+      "soundDesc": "通知声音"
+    },
+    "personalization": {
+      "fontSize": "字体大小",
+      "small": "小",
+      "medium": "中",
+      "large": "大",
+      "codeHighlighting": "代码高亮",
+      "codeDesc": "代码块中的颜色高亮",
+      "animations": "动画",
+      "animationsDesc": "用户界面动画"
+    },
+    "data": {
+      "exportChats": "导出聊天",
+      "exportDesc": "下载所有聊天记录为JSON格式"
+    },
+    "account": {
+      "deleteAccount": "删除账户",
+      "deleteWarning": "此操作无法撤销"
+    }
+  },
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "close": "关闭",
+    "loading": "加载中...",
+    "success": "成功！",
+    "error": "发生错误"
+  }
+}

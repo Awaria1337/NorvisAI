@@ -1,0 +1,57 @@
+{
+  "settings": {
+    "title": "Настройки",
+    "tabs": {
+      "general": "Основные",
+      "plan": "Мой план",
+      "notifications": "Уведомления",
+      "personalization": "Персонализация",
+      "connections": "Подключенные приложения",
+      "data": "Управление данными",
+      "security": "Безопасность",
+      "account": "Аккаунт"
+    },
+    "general": {
+      "language": "Язык",
+      "selectLanguage": "Выберите язык",
+      "theme": "Тема",
+      "themeLight": "Светлая",
+      "themeDark": "Тёмная",
+      "themeSystem": "Системная",
+      "compactMode": "Компактный режим",
+      "compactModeDesc": "Показать больше контента"
+    },
+    "notifications": {
+      "desktop": "Уведомления рабочего стола",
+      "desktopDesc": "Получать уведомления о новых сообщениях",
+      "sound": "Звуковые уведомления",
+      "soundDesc": "Звуки уведомлений"
+    },
+    "personalization": {
+      "fontSize": "Размер шрифта",
+      "small": "Маленький",
+      "medium": "Средний",
+      "large": "Большой",
+      "codeHighlighting": "Подсветка кода",
+      "codeDesc": "Цветовая подсветка в блоках кода",
+      "animations": "Анимации",
+      "animationsDesc": "Анимации интерфейса"
+    },
+    "data": {
+      "exportChats": "Экспорт чатов",
+      "exportDesc": "Скачать все ваши чаты в формате JSON"
+    },
+    "account": {
+      "deleteAccount": "Удалить аккаунт",
+      "deleteWarning": "Это действие нельзя отменить"
+    }
+  },
+  "common": {
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "close": "Закрыть",
+    "loading": "Загрузка...",
+    "success": "Успешно!",
+    "error": "Произошла ошибка"
+  }
+}

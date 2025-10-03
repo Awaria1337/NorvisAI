@@ -141,6 +141,75 @@ const resources = {
       change: 'Change'
     }
   },
+  ru: {
+    translation: {
+      // Settings
+      settings: 'Настройки',
+      general: 'Основные',
+      notifications: 'Уведомления',
+      personalization: 'Персонализация',
+      connections: 'Подключенные приложения',
+      data: 'Управление данными',
+      security: 'Безопасность',
+      account: 'Аккаунт',
+      
+      // General
+      theme: 'Тема',
+      themeDescription: 'Выберите тему интерфейса',
+      light: 'Светлая',
+      dark: 'Тёмная',
+      system: 'Системная',
+      language: 'Язык',
+      languageDescription: 'Язык интерфейса',
+      autoSave: 'Автосохранение',
+      autoSaveActive: 'Активно',
+      
+      // Notifications
+      desktopNotifications: 'Уведомления рабочего стола',
+      desktopNotificationsDesc: 'Уведомления браузера',
+      soundNotifications: 'Звуковые уведомления',
+      soundNotificationsDesc: 'Воспроизводить звук при новом сообщении',
+      
+      // Personalization
+      compactMode: 'Компактный режим',
+      compactModeDesc: 'Показать больше сообщений',
+      fontSize: 'Размер шрифта',
+      fontSizeDesc: 'Размер шрифта сообщений',
+      small: 'Маленький',
+      medium: 'Средний',
+      large: 'Большой',
+      codeHighlighting: 'Подсветка кода',
+      codeHighlightingDesc: 'Раскрасить блоки кода',
+      messageBubbles: 'Пузыри сообщений',
+      animations: 'Анимации',
+      
+      // Security
+      twoFactorAuth: 'Двухфакторная аутентификация',
+      twoFactorAuthDesc: 'Дополнительная безопасность для вашего аккаунта',
+      password: 'Пароль',
+      passwordLastChanged: 'Последнее изменение',
+      changePassword: 'Изменить пароль',
+      sessionHistory: 'История сеансов',
+      
+      // Account
+      profileInfo: 'Информация профиля',
+      displayName: 'Отображаемое имя',
+      email: 'Адрес электронной почты',
+      saveChanges: 'Сохранить изменения',
+      reset: 'Сбросить',
+      
+      // Common
+      save: 'Сохранить',
+      cancel: 'Отмена',
+      delete: 'Удалить',
+      export: 'Экспорт',
+      import: 'Импорт',
+      enable: 'Включить',
+      disable: 'Выключить',
+      view: 'Просмотр',
+      change: 'Изменить'
+    }
+  },
   zh: {
     translation: {
       // Settings

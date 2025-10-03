@@ -105,6 +105,14 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
       loadArchivedChats();
       // Load subscription info
       loadSubscription();
+      // Load language preference from localStorage
+      if (typeof window !== 'undefined') {
+        const savedLang = localStorage.getItem('language');
+        if (savedLang && ['tr', 'en', 'ru', 'zh'].includes(savedLang)) {
+          setLanguage(savedLang);
+          i18n.changeLanguage(savedLang);
+        }
+      }
     }
   }, [isOpen, user]);
 
@@ -179,8 +187,18 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
   const handleLanguageChange = (newLang: string) => {
     setLanguage(newLang);
     i18n.changeLanguage(newLang);
-    const langName = newLang === 'tr' ? 'Türkçe' : newLang === 'en' ? 'English' : '中文';
+    const langNames: Record<string, string> = {
+      'tr': 'Türkçe',
+      'en': 'English',
+      'ru': 'Русский',
+      'zh': '中文'
+    };
+    const langName = langNames[newLang] || 'Unknown';
     toast.success(`Dil ${langName} olarak değiştirildi`);
+    // Save preference to localStorage
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('language', newLang);
+    }
   };
 
   const exportChats = () => {
@@ -507,12 +525,13 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
                 <p className="text-xs text-muted-foreground mt-1">Arayüz dili</p>
               </div>
               <Select value={language} onValueChange={handleLanguageChange}>
-                <SelectTrigger className="w-32 h-8 text-sm">
+                <SelectTrigger className="w-40 h-8 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="tr">🇹🇷 Türkçe</SelectItem>
                   <SelectItem value="en">🇬🇧 English</SelectItem>
+                  <SelectItem value="ru">🇷🇺 Русский</SelectItem>
                   <SelectItem value="zh">🇨🇳 中文</SelectItem>
                 </SelectContent>
               </Select>

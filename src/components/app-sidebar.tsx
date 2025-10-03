@@ -377,26 +377,6 @@ export function AppSidebar({
                   <DropdownMenuItem
                     className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
                     onClick={() => {
-                      /* TODO: Add tasks function */
-                    }}
-                  >
-                    <FileText className="mr-2 h-3.5 w-3.5 text-white" />
-                    <span className="text-white text-sm">Tasks</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
-                    onClick={() => {
-                      /* TODO: Add files function */
-                    }}
-                  >
-                    <FolderOpen className="mr-2 h-3.5 w-3.5 text-white" />
-                    <span className="text-white text-sm">Files</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
-                    onClick={() => {
                       // TODO: SSS sayfasına yönlendir
                       window.open("/faq", "_blank");
                     }}
