@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
         where: { email },
         data: {
           name: name || user.name,
-          image: image || user.image,
+          profileImage: image || user.profileImage,
           updatedAt: new Date()
         }
       });
@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
         data: {
           email,
           name: name || email.split('@')[0],
-          image: image || null,
+          profileImage: image || null,
           password: null, // No password for OAuth users
         }
       });
@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         id: user.id,
         email: user.email,
         name: user.name,
-        image: user.image
+        profileImage: user.profileImage
       },
       token,
       message: isNewUser ? 'Hesap başarıyla oluşturuldu!' : 'Hoş geldiniz!'
