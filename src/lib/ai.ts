@@ -736,13 +736,20 @@ export async function sendToAIStreaming(
     console.log(`Provider: ${provider}`);
     
     // Format messages for AI providers (handle images)
-    const formattedMessages: AIMessage[] = messages.map(msg => {
+    console.log(`📊 Total messages to format:`, messages.length);
+    console.log(`🖼️ Messages with images:`, messages.filter(m => m.images && m.images.length > 0).length);
+    
+    const formattedMessages: AIMessage[] = messages.map((msg, index) => {
       if (msg.images && msg.images.length > 0) {
+        console.log(`🖼️ Message ${index} has ${msg.images.length} image(s)`);
+        console.log(`🖼️ First image format:`, msg.images[0].substring(0, 30) + '...');
+        
         const content: Array<{ type: 'text' | 'image'; text?: string; image_url?: { url: string; detail?: 'auto' } }> = [
           { type: 'text', text: msg.content }
         ];
         
-        msg.images.forEach(imageUrl => {
+        msg.images.forEach((imageUrl, imgIndex) => {
+          console.log(`🖼️ Adding image ${imgIndex + 1} to AI request`);
           content.push({
             type: 'image',
             image_url: {
@@ -751,6 +758,8 @@ export async function sendToAIStreaming(
             }
           });
         });
+        
+        console.log(`✅ Message ${index} formatted with ${content.length} content parts (${content.filter(c => c.type === 'image').length} images)`);
         
         return {
           role: msg.role as 'user' | 'assistant' | 'system',
@@ -763,6 +772,9 @@ export async function sendToAIStreaming(
         };
       }
     });
+    
+    console.log(`✅ Total formatted messages:`, formattedMessages.length);
+    console.log(`🖼️ Formatted messages with vision content:`, formattedMessages.filter(m => Array.isArray(m.content)).length);
     
     // Try to get user's API key first, fallback to env
     let apiKey: string | null = null;
