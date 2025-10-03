@@ -256,7 +256,6 @@ export default function Home() {
                       id: msg.id,
                       content: msg.content,
                       role: msg.role,
-                      chatId: 'guest',
                       createdAt: msg.timestamp,
                       model: undefined,
                       tokensUsed: undefined
