@@ -98,24 +98,49 @@ export async function POST(request: NextRequest) {
     // Upgrade user to premium/pro
     await upgradeToPremium(payload.userId, 30, planType); // 30 days
 
-    // Create subscription record
+    // Create or update subscription record (upsert)
     const now = new Date();
     const endDate = new Date(now);
     endDate.setDate(endDate.getDate() + 30);
 
-    await prisma.subscription.create({
-      data: {
-        userId: payload.userId,
-        planId: plan.id,
-        amount: transaction.amount,
-        currency: transaction.currency,
-        startDate: now,
-        endDate: endDate,
-        status: 'active',
-        paymentMethod: transaction.provider,
-        paymentId: transactionId,
-      },
+    // Check if subscription already exists
+    const existingSubscription = await prisma.subscription.findUnique({
+      where: { userId: payload.userId },
     });
+
+    if (existingSubscription) {
+      // Update existing subscription (upgrade)
+      await prisma.subscription.update({
+        where: { userId: payload.userId },
+        data: {
+          planId: plan.id,
+          amount: transaction.amount,
+          currency: transaction.currency,
+          startDate: now,
+          endDate: endDate,
+          status: 'active',
+          paymentMethod: transaction.provider,
+          paymentId: transactionId,
+        },
+      });
+      console.log(`🔄 Subscription upgraded for user ${payload.userId}`);
+    } else {
+      // Create new subscription
+      await prisma.subscription.create({
+        data: {
+          userId: payload.userId,
+          planId: plan.id,
+          amount: transaction.amount,
+          currency: transaction.currency,
+          startDate: now,
+          endDate: endDate,
+          status: 'active',
+          paymentMethod: transaction.provider,
+          paymentId: transactionId,
+        },
+      });
+      console.log(`✨ New subscription created for user ${payload.userId}`);
+    }
 
     const messageLimit = planType === 'PRO' ? 700 : 300;
     

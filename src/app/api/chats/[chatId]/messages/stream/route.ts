@@ -180,11 +180,11 @@ export async function POST(
           });
           controller.enqueue(encoder.encode(`data: ${aiMessageStartData}\n\n`));
 
-          // Get chat history for context
+          // Get chat history for context - Increased limit for better memory
           const chatMessages = await prisma.message.findMany({
             where: { chatId },
             orderBy: { createdAt: 'asc' },
-            take: 10
+            take: 50 // 50 mesaj = yaklaşık 25 soru-cevap çifti - Uzun sohbetleri hatırlama
           });
 
           // Convert to AI format with enhanced content
