@@ -67,6 +67,7 @@ export const authOptions: NextAuthOptions = {
   pages: {
     signIn: "/auth/login",
     error: "/auth/login",
+    newUser: "/auth/callback", // Redirect new users after OAuth
   },
   callbacks: {
     async jwt({ token, user, account }) {

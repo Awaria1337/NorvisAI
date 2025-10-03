@@ -55,14 +55,11 @@ const LoginPage: React.FC = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      const result = await signIn('google', {
-        callbackUrl: ROUTES.CHAT,
+      // Redirect to callback page for auth processing
+      await signIn('google', {
+        callbackUrl: '/auth/callback',
         redirect: true,
       });
-      
-      if (result?.error) {
-        toast.error('Google ile giriş başarısız oldu.');
-      }
     } catch (error) {
       console.error('Google sign-in error:', error);
       toast.error('Google ile giriş sırasında bir hata oluştu.');
