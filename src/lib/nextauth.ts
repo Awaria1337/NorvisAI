@@ -1,12 +1,12 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { MongoDBAdapter } from "@auth/mongodb-adapter";
-import clientPromise from "@/lib/mongodb";
+// import { MongoDBAdapter } from "@auth/mongodb-adapter";
+// import clientPromise from "@/lib/mongodb";
 import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
-  adapter: MongoDBAdapter(clientPromise),
+  // adapter: MongoDBAdapter(clientPromise), // Temporarily disabled - MongoDB not running
   providers: [
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "",
@@ -30,39 +30,29 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Email ve şifre gereklidir");
         }
 
+        // TODO: Implement proper database authentication when MongoDB is available
+        // For now, using your existing auth system
         try {
-          const client = await clientPromise;
-          const db = client.db();
-          
-          // Find user by email
-          const user = await db.collection("users").findOne({
-            email: credentials.email
+          const response = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: credentials.email,
+              password: credentials.password
+            })
           });
 
-          if (!user) {
-            throw new Error("Kullanıcı bulunamadı");
-          }
+          const data = await response.json();
 
-          // Check if user has a password (not OAuth user)
-          if (!user.password) {
-            throw new Error("Bu hesap Google ile kayıt olmuş. Lütfen Google ile giriş yapın.");
-          }
-
-          // Verify password
-          const isPasswordValid = await bcrypt.compare(
-            credentials.password,
-            user.password
-          );
-
-          if (!isPasswordValid) {
-            throw new Error("Geçersiz şifre");
+          if (!response.ok || !data.success) {
+            throw new Error(data.error || "Giriş başarısız");
           }
 
           return {
-            id: user._id.toString(),
-            email: user.email,
-            name: user.name,
-            image: user.image
+            id: data.user.id,
+            email: data.user.email,
+            name: data.user.name,
+            image: data.user.image || null
           };
         } catch (error: any) {
           throw new Error(error.message || "Giriş başarısız");
@@ -99,17 +89,27 @@ export const authOptions: NextAuthOptions = {
       // Allow OAuth sign-ins
       if (account?.provider === "google") {
         try {
-          const client = await clientPromise;
-          const db = client.db();
-          
-          // Check if user exists
-          const existingUser = await db.collection("users").findOne({
-            email: user.email
+          // Register/login user via your existing API
+          const response = await fetch(`${process.env.NEXTAUTH_URL}/api/auth/google-callback`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email,
+              name: user.name,
+              image: user.image
+            })
           });
 
-          // If user exists with password (credentials), prevent OAuth login
-          if (existingUser && existingUser.password) {
-            return false; // Prevent sign in
+          const data = await response.json();
+          
+          if (!response.ok || !data.success) {
+            console.error("Google sign-in failed:", data.error);
+            return false;
+          }
+
+          // Update user id from your database
+          if (data.user && data.user.id) {
+            user.id = data.user.id;
           }
 
           return true;
