@@ -78,7 +78,7 @@ export default function Home() {
 
   return (
     <TooltipProvider>
-      <div className="flex flex-col h-screen text-white" style={{ backgroundColor: '#0a0a0a' }}>
+      <div className="flex flex-col h-screen text-white" style={{ backgroundColor: '#161618' }}>
         {/* Header */}
         <header className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-2">
@@ -94,7 +94,7 @@ export default function Home() {
               Oturum aç
             </Button>
             <Button
-              className="bg-gray-800 text-white hover:bg-gray-700 rounded-full px-6"
+              className="bg-white text-black hover:bg-gray-700 rounded-full px-6"
               onClick={() => router.push(ROUTES.REGISTER)}
             >
               Üye ol
@@ -304,7 +304,7 @@ export default function Home() {
 
         {/* Input Area - Only show at bottom when messages exist */}
         {messages.length > 0 && (
-          <div className="w-full" style={{ backgroundColor: '#0a0a0a' }}>
+          <div className="w-full" style={{ backgroundColor: '#161618' }}>
             <div className="max-w-3xl mx-auto px-4 py-4">
               {messageCount > 0 && canSendMessage() && (
                 <div className="text-center mb-3 text-sm text-gray-500">
@@ -316,9 +316,8 @@ export default function Home() {
                 backgroundColor: '#242628', 
                 borderRadius: '28px',
                 minHeight: '60px', 
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                padding: '15px'
-              }}>
+                border: '1px solid rgba(255, 255, 255, 0.1)'
+                              }}>
                 <div className="flex flex-col">
                   <div className="flex items-end justify-between gap-2" style={{ minHeight: '48px' }}>
                     <div className="flex items-center justify-center pb-2">
