@@ -88,13 +88,13 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
-              className="text-gray-300 hover:text-white hover:bg-gray-800 rounded-full"
+              className="text-gray-300 hover:text-white hover:bg-gray-800 rounded-full cursor-pointer"
               onClick={() => router.push(ROUTES.LOGIN)}
             >
               Oturum aç
             </Button>
             <Button
-              className="bg-white text-black hover:bg-gray-700 rounded-full px-6"
+              className="bg-white text-black hover:bg-white rounded-full px-6 cursor-pointer"
               onClick={() => router.push(ROUTES.REGISTER)}
             >
               Üye ol

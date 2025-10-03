@@ -183,7 +183,7 @@ export function AppSidebar({
 
           <div className="px-1 pb-3 space-y-0.5">
             <Button
-              className="w-full justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0"
+              className="w-full cursor-pointer justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0"
               variant="ghost"
               onClick={handleNewChat}
             >
@@ -194,7 +194,7 @@ export function AppSidebar({
             </Button>
 
             <Button
-              className="w-full justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0"
+              className="w-full cursor-pointer justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0"
               variant="ghost"
               onClick={onSearchOpen}
             >

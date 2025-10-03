@@ -11,8 +11,9 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
-  password  String
-  profileImage String?  @db.Text // Base64 encoded image
+  password  String?
+  profileImage String?  @db.Text // Base64 encoded image (custom upload)
+  image     String?  @db.Text // Google OAuth profile photo URL
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

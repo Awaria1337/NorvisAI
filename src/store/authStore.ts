@@ -6,6 +6,7 @@ interface User {
   id: string;
   email: string;
   name: string;
+  image?: string | null; // Google profile photo or custom avatar
   createdAt: string;
 }
 
