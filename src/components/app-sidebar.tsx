@@ -191,7 +191,7 @@ export function AppSidebar({
             >
               <PenSquare className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
               <span className="group-data-[collapsible=icon]:hidden font-medium">
-                {t('sidebar.newChat')}
+                {t('Yeni Sohbet')}
               </span>
             </Button>
 

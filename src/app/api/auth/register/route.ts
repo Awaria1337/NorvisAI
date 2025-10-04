@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createUser } from '@/lib/db';
+import { createUser, userExists } from '@/lib/db';
 import { signToken } from '@/lib/auth';
 import { registerSchema } from '@/lib/validations';
 import { SettingsService } from '@/lib/services/settings.service';
+import { generateToken, generateVerificationUrl, sendVerificationEmail, sendWelcomeEmail } from '@/lib/email';
+import { prisma } from '@/lib/db';
 
 export async function POST(request: NextRequest) {
     try {
@@ -44,12 +46,28 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Create new user in database
+        // Generate email verification token
+        const verificationToken = generateToken();
+        const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+        // Create new user in database with verification token
         const newUser = await createUser({
             name,
             email,
-            password
+            password,
+            verificationToken,
+            verificationExpires
         });
+
+        // Send verification email
+        try {
+            const verificationUrl = generateVerificationUrl(verificationToken);
+            await sendVerificationEmail(newUser.email, newUser.name, verificationUrl);
+            console.log('✅ Verification email sent to:', newUser.email);
+        } catch (emailError) {
+            console.error('❌ Failed to send verification email:', emailError);
+            // Don't fail registration if email fails
+        }
 
         // Generate JWT token
         const token = signToken({
@@ -61,14 +79,17 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
+            message: 'Registration successful! Please check your email to verify your account.',
             data: {
                 user: {
                     id: newUser.id,
                     name: newUser.name,
                     email: newUser.email,
+                    emailVerified: false,
                     createdAt: newUser.createdAt
                 },
-                token
+                token,
+                requiresVerification: true
             }
         }, { status: 201 });
 

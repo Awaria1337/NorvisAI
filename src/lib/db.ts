@@ -5,6 +5,8 @@ export interface CreateUserData {
   name: string;
   email: string;
   password: string;
+  verificationToken?: string;
+  verificationExpires?: Date;
 }
 
 export interface UserResponse {
@@ -26,6 +28,9 @@ export async function createUser(userData: CreateUserData): Promise<UserResponse
       name: userData.name,
       email: userData.email.toLowerCase(),
       password: hashedPassword,
+      verificationToken: userData.verificationToken,
+      verificationExpires: userData.verificationExpires,
+      emailVerified: false,
     },
     select: {
       id: true,

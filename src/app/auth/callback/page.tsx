@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAuthStore } from '@/store/authStore';
@@ -10,12 +10,18 @@ import toast from 'react-hot-toast';
 export default function AuthCallbackPage() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const { setUser } = useAuthStore();
+  const { login } = useAuthStore();
+  const hasProcessed = useRef(false);
 
   useEffect(() => {
     const handleGoogleAuth = async () => {
       if (status === 'loading') {
         return; // Still loading session
+      }
+
+      // Prevent multiple executions
+      if (hasProcessed.current) {
+        return;
       }
 
       if (status === 'unauthenticated') {
@@ -25,6 +31,7 @@ export default function AuthCallbackPage() {
       }
 
       if (status === 'authenticated' && session?.user) {
+        hasProcessed.current = true;
         try {
           // Get JWT token from our backend
           const response = await fetch('/api/auth/google-callback', {
@@ -40,17 +47,18 @@ export default function AuthCallbackPage() {
           const data = await response.json();
 
           if (data.success && data.token) {
-            // Save token to localStorage
-            localStorage.setItem('token', data.token);
+            // Update authStore with user info and token
+            login(
+              {
+                id: data.user.id,
+                email: data.user.email,
+                name: data.user.name,
+                image: data.user.image,
+                createdAt: data.user.createdAt || new Date().toISOString(),
+              },
+              data.token
+            );
             
-            // Update authStore with user info
-            setUser({
-              id: data.user.id,
-              email: data.user.email,
-              name: data.user.name,
-              image: data.user.image,
-            });
-
             // Show success message
             if (data.isNewUser) {
               toast.success('🎉 ' + (data.message || 'Hesap başarıyla oluşturuldu!'));
@@ -75,7 +83,7 @@ export default function AuthCallbackPage() {
     };
 
     handleGoogleAuth();
-  }, [session, status, router, setUser]);
+  }, [session, status, router, login]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">

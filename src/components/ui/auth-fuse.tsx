@@ -213,6 +213,159 @@ function SignInForm({ onSubmit, onGoogleSignIn }: { onSubmit: (event: React.Form
   );
 }
 
+// OTP Verification Form
+function OTPVerificationForm({ 
+  email, 
+  onVerify, 
+  onResend, 
+  onBack,
+  isVerifying,
+  isResending 
+}: { 
+  email: string; 
+  onVerify: (otp: string) => void; 
+  onResend: () => void;
+  onBack: () => void;
+  isVerifying?: boolean;
+  isResending?: boolean;
+}) {
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
+  const inputRefs = React.useRef<(HTMLInputElement | null)[]>([]);
+  const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
+
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  const handleChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value;
+    setOtp(newOtp);
+
+    if (value && index < 5) {
+      inputRefs.current[index + 1]?.focus();
+    }
+
+    if (index === 5 && value) {
+      const fullOtp = newOtp.join('');
+      if (fullOtp.length === 6) {
+        onVerify(fullOtp);
+      }
+    }
+  };
+
+  const handleKeyDown = (index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      inputRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pastedData = e.clipboardData.getData('text').slice(0, 6);
+    if (!/^\d+$/.test(pastedData)) return;
+    const newOtp = pastedData.split('').concat(Array(6 - pastedData.length).fill(''));
+    setOtp(newOtp.slice(0, 6));
+    const lastIndex = Math.min(pastedData.length, 5);
+    inputRefs.current[lastIndex]?.focus();
+    if (pastedData.length === 6) {
+      onVerify(pastedData);
+    }
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+          <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold">Doğrulama Kodu</h1>
+        <p className="text-balance text-sm text-muted-foreground">
+          <span className="font-medium">{email}</span> adresine gönderilen 6 haneli kodu girin
+        </p>
+      </div>
+
+      <div className="grid gap-6">
+        {/* OTP Inputs */}
+        <div className="flex justify-center gap-2">
+          {otp.map((digit, index) => (
+            <input
+              key={index}
+              ref={(el) => { inputRefs.current[index] = el; }}
+              type="text"
+              inputMode="numeric"
+              maxLength={1}
+              value={digit}
+              onChange={(e) => handleChange(index, e.target.value)}
+              onKeyDown={(e) => handleKeyDown(index, e)}
+              onPaste={handlePaste}
+              disabled={isVerifying}
+              className="w-11 h-12 text-center text-xl font-bold border-2 border-input dark:border-input/50 rounded-lg focus:border-primary focus:ring-2 focus:ring-primary/20 bg-background text-foreground transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              autoFocus={index === 0}
+            />
+          ))}
+        </div>
+
+        {/* Timer */}
+        <div className="text-center">
+          {timeLeft > 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Kod geçerlilik süresi: <span className="font-medium text-primary">{formatTime(timeLeft)}</span>
+            </p>
+          ) : (
+            <p className="text-sm text-destructive font-medium">Kodun süresi doldu</p>
+          )}
+        </div>
+
+        {/* Verify Button */}
+        <Button 
+          onClick={() => onVerify(otp.join(''))}
+          disabled={isVerifying || otp.join('').length !== 6}
+          variant="outline" 
+          className="w-full cursor-pointer"
+        >
+          {isVerifying ? 'Doğrulanıyor...' : 'Doğrula'}
+        </Button>
+
+        {/* Resend & Back */}
+        <div className="flex items-center justify-between text-sm">
+          <Button 
+            type="button"
+            variant="link" 
+            className="text-muted-foreground hover:text-foreground p-0"
+            onClick={onBack}
+            disabled={isVerifying}
+          >
+            ← Geri Dön
+          </Button>
+          <Button 
+            type="button"
+            variant="link" 
+            className="text-muted-foreground hover:text-foreground p-0"
+            onClick={onResend}
+            disabled={isResending || timeLeft > 240}
+          >
+            {isResending ? 'Gönderiliyor...' : timeLeft > 240 ? `Yeniden gönder (${formatTime(timeLeft - 240)})` : 'Yeniden gönder'}
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SignUpForm({ onSubmit, onGoogleSignIn }: { onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onGoogleSignIn?: () => void }) {
   return (
     <form onSubmit={onSubmit} autoComplete="on" className="flex flex-col gap-8">
@@ -253,23 +406,50 @@ function AuthFormContainer({
   onToggle, 
   onSignInSubmit, 
   onSignUpSubmit,
-  onGoogleSignIn
+  onGoogleSignIn,
+  showOTP,
+  otpEmail,
+  onOTPVerify,
+  onOTPResend,
+  onOTPBack,
+  isVerifying,
+  isResending
 }: { 
   isSignIn: boolean; 
   onToggle: () => void;
   onSignInSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onSignUpSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onGoogleSignIn?: () => void;
+  showOTP?: boolean;
+  otpEmail?: string;
+  onOTPVerify?: (otp: string) => void;
+  onOTPResend?: () => void;
+  onOTPBack?: () => void;
+  isVerifying?: boolean;
+  isResending?: boolean;
 }) {
     return (
         <div className="mx-auto grid w-[350px] gap-2">
-            {isSignIn ? <SignInForm onSubmit={onSignInSubmit} onGoogleSignIn={onGoogleSignIn} /> : <SignUpForm onSubmit={onSignUpSubmit} onGoogleSignIn={onGoogleSignIn} />}
-            <div className="text-center text-sm">
-                {isSignIn ? "Hesabınız yok mu?" : "Zaten hesabınız var mı?"}{" "}
-                <Button variant="link" className="pl-1 text-foreground" onClick={onToggle}>
-                    {isSignIn ? "Kayıt ol" : "Giriş yap"}
-                </Button>
-            </div>
+            {showOTP && otpEmail ? (
+                <OTPVerificationForm 
+                    email={otpEmail}
+                    onVerify={onOTPVerify!}
+                    onResend={onOTPResend!}
+                    onBack={onOTPBack!}
+                    isVerifying={isVerifying}
+                    isResending={isResending}
+                />
+            ) : (
+                <>
+                    {isSignIn ? <SignInForm onSubmit={onSignInSubmit} onGoogleSignIn={onGoogleSignIn} /> : <SignUpForm onSubmit={onSignUpSubmit} onGoogleSignIn={onGoogleSignIn} />}
+                    <div className="text-center text-sm">
+                        {isSignIn ? "Hesabınız yok mu?" : "Zaten hesabınız var mı?"}{" "}
+                        <Button variant="link" className="pl-1 text-foreground" onClick={onToggle}>
+                            {isSignIn ? "Kayıt ol" : "Giriş yap"}
+                        </Button>
+                    </div>
+                </>
+            )}
         </div>
     )
 }
@@ -291,6 +471,13 @@ export interface AuthUIProps {
     onSignIn?: (event: React.FormEvent<HTMLFormElement>) => void;
     onSignUp?: (event: React.FormEvent<HTMLFormElement>) => void;
     onGoogleSignIn?: () => void;
+    showOTP?: boolean;
+    otpEmail?: string;
+    onOTPVerify?: (otp: string) => void;
+    onOTPResend?: () => void;
+    onOTPBack?: () => void;
+    isVerifying?: boolean;
+    isResending?: boolean;
 }
 
 const defaultSignInContent = {
@@ -320,20 +507,25 @@ export function AuthUI({
   signUpContent = {},
   onSignIn,
   onSignUp,
-  onGoogleSignIn
+  onGoogleSignIn,
+  showOTP,
+  otpEmail,
+  onOTPVerify,
+  onOTPResend,
+  onOTPBack,
+  isVerifying,
+  isResending
 }: AuthUIProps) {
   const [isSignIn, setIsSignIn] = useState(true);
   const toggleForm = () => setIsSignIn((prev) => !prev);
 
   const handleSignIn = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
     if (onSignIn) {
       onSignIn(event);
     }
   };
 
   const handleSignUp = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
     if (onSignUp) {
       onSignUp(event);
     }
@@ -391,6 +583,13 @@ export function AuthUI({
           onSignInSubmit={handleSignIn}
           onSignUpSubmit={handleSignUp}
           onGoogleSignIn={onGoogleSignIn}
+          showOTP={showOTP}
+          otpEmail={otpEmail}
+          onOTPVerify={onOTPVerify}
+          onOTPResend={onOTPResend}
+          onOTPBack={onOTPBack}
+          isVerifying={isVerifying}
+          isResending={isResending}
         />
       </div>
     </div>

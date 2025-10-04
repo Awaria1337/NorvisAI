@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PrismaClient } from '@prisma/client';
 import { generateToken } from '@/lib/auth';
+import { sendWelcomeEmail } from '@/lib/email';
 
 const prisma = new PrismaClient();
 
@@ -47,30 +48,40 @@ export async function POST(request: NextRequest) {
           name: name || email.split('@')[0],
           profileImage: image || null,
           password: null, // No password for OAuth users
+          emailVerified: true, // Google OAuth users are pre-verified
         }
       });
       console.log('✅ New user created:', user.id);
+      
+      // Send welcome email to new Google OAuth users
+      try {
+        await sendWelcomeEmail(user.email, user.name);
+        console.log('✅ Welcome email sent to:', user.email);
+      } catch (emailError) {
+        console.error('❌ Failed to send welcome email:', emailError);
+        // Don't fail registration if email fails
+      }
     }
 
-    // Generate JWT token
-    const token = generateToken({
-      userId: user.id,
-      email: user.email
-    });
-
-    console.log('✅ JWT token generated');
+    // Generate JWT token for Google OAuth users (no OTP needed)
+    const token = generateToken({ userId: user.id, email: user.email });
+    
+    console.log('✅ JWT token generated for Google user');
 
     return NextResponse.json({
       success: true,
-      isNewUser,
+      token,
       user: {
         id: user.id,
         email: user.email,
         name: user.name,
-        profileImage: user.profileImage
+        image: user.profileImage,
+        createdAt: user.createdAt.toISOString()
       },
-      token,
-      message: isNewUser ? 'Hesap başarıyla oluşturuldu!' : 'Hoş geldiniz!'
+      isNewUser,
+      message: isNewUser 
+        ? 'Hesap başarıyla oluşturuldu!' 
+        : 'Hoş geldiniz!'
     });
   } catch (error: any) {
     console.error('❌ Google callback error:', error);

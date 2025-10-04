@@ -6,13 +6,16 @@ A modern, professional chat application that allows users to connect with multip
 
 ### Phase 1 - Core Features (Current)
 - ✅ User Authentication (Register/Login)
+- ✅ **Email Verification System**
+- ✅ **Password Reset Flow**
+- ✅ **Professional Email Templates**
 - ✅ Modern UI with Tailwind CSS
 - ✅ Responsive Design with Dark Mode Support
 - ✅ State Management with Zustand
 - ✅ TypeScript Support
-- 🔄 Chat Interface (In Progress)
-- 🔄 API Key Management
-- 🔄 Multiple AI Provider Support
+- ✅ Chat Interface
+- ✅ API Key Management
+- ✅ Multiple AI Provider Support
 
 ### Phase 2 - Advanced Features (Planned)
 - 📁 File Upload Support
@@ -50,18 +53,49 @@ src/
 
 ## 🚦 Getting Started
 
+### Quick Setup
+
 1. **Install dependencies**
    ```bash
    npm install
    ```
 
-2. **Run the development server**
+2. **Set up environment variables**
+   ```bash
+   cp .env.example .env
+   ```
+   
+   Edit `.env` and add your credentials:
+   - Database URL (PostgreSQL)
+   - SMTP settings for email (see `QUICK_SMTP_GUIDE.md`)
+   - JWT secret
+   - Optional: AI API keys
+
+3. **Set up database**
+   ```bash
+   npm run db:migrate
+   ```
+
+4. **Run the development server**
    ```bash
    npm run dev
    ```
 
-3. **Open your browser**
-   Navigate to [http://localhost:3000](http://localhost:3000) (or the port shown in terminal)
+5. **Open your browser**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+### 📧 Email System Setup
+
+For email verification and password reset features:
+
+**Quick Start (5 minutes):**
+- 🇬🇧 English: See `QUICK_SMTP_GUIDE.md` for fast setup
+- 🇹🇷 Türkçe: `HIZLI_SMTP_KURULUM.md` dosyasına bakın
+
+**Detailed Guide:**
+- 🇬🇧 English: See `GMAIL_SMTP_SETUP.md` for complete instructions
+- 🇹🇷 Türkçe: `GMAIL_SMTP_KURULUM.md` dosyasına bakın
+- 📚 Technical Docs: `EMAIL_SETUP_GUIDE.md` for full documentation
 
 ## 🔧 Development Guidelines
 
