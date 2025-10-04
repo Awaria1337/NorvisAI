@@ -972,6 +972,46 @@ const ChatPage: React.FC = () => {
               </div>
             </div>
             
+            {/* Guest Message Counter */}
+            {!isAuthenticated && (
+              <div className="mt-2 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {canSendGuestMessage() ? (
+                    <span>
+                      Misafir kullanıcı - Kalan mesaj: <span className="font-semibold text-primary">{getRemainingMessages()}/3</span>
+                      {' '}•{' '}
+                      <button 
+                        onClick={() => router.push(ROUTES.LOGIN)}
+                        className="text-primary hover:underline"
+                      >
+                        Sınırsız mesaj için giriş yapın
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="text-destructive font-medium">
+                      ⚠️ Mesaj limitiniz doldu! 
+                      {' '}
+                      <button 
+                        onClick={() => router.push(ROUTES.LOGIN)}
+                        className="text-primary hover:underline font-semibold"
+                      >
+                        Giriş yapın
+                      </button>
+                      {' '}
+veya
+                      {' '}
+                      <button 
+                        onClick={() => router.push('/auth/register')}
+                        className="text-primary hover:underline font-semibold"
+                      >
+                        Kayıt olun
+                      </button>
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+            
             {/* Hidden file input - FOR BOTTOM STATE */}
             <input
               type="file"

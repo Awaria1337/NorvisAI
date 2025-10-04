@@ -28,9 +28,34 @@ interface GuestStore {
 
 const MAX_GUEST_MESSAGES = 3;
 
+// Initialize message count from localStorage
+const getInitialMessageCount = (): number => {
+  if (typeof window === 'undefined') return 0;
+  
+  const stored = localStorage.getItem('guest_message_count');
+  const timestamp = localStorage.getItem('guest_count_timestamp');
+  
+  if (stored && timestamp) {
+    const dayInMs = 24 * 60 * 60 * 1000; // 24 hours
+    const now = Date.now();
+    const storedTime = parseInt(timestamp);
+    
+    // Reset after 24 hours
+    if (now - storedTime > dayInMs) {
+      localStorage.removeItem('guest_message_count');
+      localStorage.removeItem('guest_count_timestamp');
+      return 0;
+    }
+    
+    return parseInt(stored) || 0;
+  }
+  
+  return 0;
+};
+
 export const useGuestStore = create<GuestStore>((set, get) => ({
   messages: [],
-  messageCount: 0,
+  messageCount: getInitialMessageCount(),
   isLoading: false,
   isTyping: false,
 
@@ -58,7 +83,19 @@ export const useGuestStore = create<GuestStore>((set, get) => ({
 
     set({ isLoading: true });
     state.addMessage(userMessage);
-    set((state) => ({ messageCount: state.messageCount + 1 }));
+    
+    // Increment and save to localStorage
+    const newCount = state.messageCount + 1;
+    set({ messageCount: newCount });
+    
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('guest_message_count', newCount.toString());
+      
+      // Set timestamp on first message
+      if (!localStorage.getItem('guest_count_timestamp')) {
+        localStorage.setItem('guest_count_timestamp', Date.now().toString());
+      }
+    }
 
     try {
       // Call guest API

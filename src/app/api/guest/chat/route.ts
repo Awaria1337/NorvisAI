@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const MAX_GUEST_MESSAGES = 3;
-const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
+const RATE_LIMIT_WINDOW = 24 * 60 * 60 * 1000; // 24 hours
 
 // In-memory store for IP-based rate limiting
 // In production, use Redis or similar
@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
           {
             success: false,
             error: 'Misafir kullanıcı limiti aşıldı',
-            message: 'Bu IP adresinden 1 saat içinde maksimum mesaj limitine ulaştınız. Lütfen kayıt olun veya 1 saat sonra tekrar deneyin.',
+            message: 'Bu IP adresinden 24 saat içinde maksimum mesaj limitine ulaştınız. Sınırsız mesajlaşma için lütfen kayıt olun!',
             needsRegistration: true
           },
           { status: 429 }
