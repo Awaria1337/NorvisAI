@@ -5,7 +5,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { sendAIMessage } from '@/lib/ai';
 
 const MAX_GUEST_MESSAGES = 3;
 const RATE_LIMIT_WINDOW = 60 * 60 * 1000; // 1 hour
@@ -105,56 +104,101 @@ export async function POST(request: NextRequest) {
 
     // Get default free AI model
     const defaultModel = 'google/gemini-2.0-flash-exp:free';
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
 
-    // Send to AI
-    const aiResponse = await sendAIMessage(
-      aiMessages,
-      defaultModel,
-      {
-        maxTokens: 1000, // Limit tokens for guest users
-        temperature: 0.7,
-        stream: false // No streaming for guest users
-      }
-    );
-
-    if (!aiResponse.success || !aiResponse.content) {
-      console.error('AI response error:', aiResponse);
+    if (!OPENROUTER_API_KEY) {
+      console.error('OPENROUTER_API_KEY not configured');
       return NextResponse.json(
         {
           success: false,
-          error: 'AI servisinden yanıt alınamadı. Lütfen daha sonra tekrar deneyin.'
+          error: 'AI servisi yapılandırılmamış. Lütfen daha sonra tekrar deneyin.'
         },
         { status: 503 }
       );
     }
-    
-    // Increment IP counter on successful response
-    const currentIPData = ipMessageCount.get(clientIP);
-    if (currentIPData) {
-      ipMessageCount.set(clientIP, {
-        count: currentIPData.count + 1,
-        timestamp: currentIPData.timestamp
+
+    // Send to OpenRouter AI
+    try {
+      const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json',
+          'HTTP-Referer': process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
+          'X-Title': 'Norvis AI'
+        },
+        body: JSON.stringify({
+          model: defaultModel,
+          messages: aiMessages,
+          max_tokens: 1000,
+          temperature: 0.7,
+          stream: false
+        })
       });
-    }
 
-    // Check if this is the last message
-    const isLastMessage = messageCount + 1 >= MAX_GUEST_MESSAGES;
-    let responseContent = aiResponse.content;
-
-    // Add registration message if it's the last free message
-    if (isLastMessage) {
-      responseContent += '\n\n---\n\n⚠️ **Ücretsiz mesaj hakkınız doldu!**\n\nDaha fazla mesaj göndermek, dosya yüklemek ve tüm özellikleri kullanmak için lütfen [kayıt olun](/auth/register) veya [giriş yapın](/auth/login).';
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: {
-        content: responseContent,
-        model: defaultModel,
-        remainingMessages: MAX_GUEST_MESSAGES - (messageCount + 1),
-        needsRegistration: isLastMessage
+      if (!aiResponse.ok) {
+        const errorData = await aiResponse.json().catch(() => ({}));
+        console.error('OpenRouter API error:', errorData);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'AI servisinden yanıt alınamadı. Lütfen daha sonra tekrar deneyin.'
+          },
+          { status: 503 }
+        );
       }
-    });
+
+      const aiData = await aiResponse.json();
+      const aiContent = aiData.choices?.[0]?.message?.content;
+
+      if (!aiContent) {
+        console.error('No content in AI response:', aiData);
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'AI servisinden geçerli bir yanıt alınamadı.'
+          },
+          { status: 503 }
+        );
+      }
+
+      // Increment IP counter on successful response
+      const currentIPData = ipMessageCount.get(clientIP);
+      if (currentIPData) {
+        ipMessageCount.set(clientIP, {
+          count: currentIPData.count + 1,
+          timestamp: currentIPData.timestamp
+        });
+      }
+
+      // Check if this is the last message
+      const isLastMessage = messageCount + 1 >= MAX_GUEST_MESSAGES;
+      let responseContent = aiContent;
+
+      // Add registration message if it's the last free message
+      if (isLastMessage) {
+        responseContent += '\n\n---\n\n⚠️ **Ücretsiz mesaj hakkınız doldu!**\n\nDaha fazla mesaj göndermek, dosya yüklemek ve tüm özellikleri kullanmak için lütfen [kayıt olun](/auth/register) veya [giriş yapın](/auth/login).';
+      }
+
+      return NextResponse.json({
+        success: true,
+        data: {
+          content: responseContent,
+          model: defaultModel,
+          remainingMessages: MAX_GUEST_MESSAGES - (messageCount + 1),
+          needsRegistration: isLastMessage
+        }
+      });
+    } catch (aiError) {
+      console.error('AI API call error:', aiError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'AI servisi ile bağlantı kurulamadı. Lütfen daha sonra tekrar deneyin.'
+        },
+        { status: 503 }
+      );
+    }
 
   } catch (error) {
     console.error('Guest chat error:', error);
