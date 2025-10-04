@@ -50,14 +50,28 @@ export async function POST(request: NextRequest) {
 
     // Send password reset email
     const resetUrl = generateResetPasswordUrl(resetToken);
-    await sendPasswordResetEmail(user.email, user.name, resetUrl);
+    console.log('📧 Attempting to send password reset email to:', user.email);
+    console.log('🔗 Reset URL:', resetUrl);
+    
+    const emailSent = await sendPasswordResetEmail(user.email, user.name, resetUrl);
+    
+    if (!emailSent) {
+      console.error('❌ Email failed to send');
+      return NextResponse.json(
+        { error: 'Failed to send email. Please check your email configuration.' },
+        { status: 500 }
+      );
+    }
+    
+    console.log('✅ Password reset email sent successfully');
 
     return NextResponse.json(
       { message: 'Password reset link has been sent to your email' },
       { status: 200 }
     );
   } catch (error) {
-    console.error('Forgot password error:', error);
+    console.error('❌ Forgot password error:', error);
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
     return NextResponse.json(
       { error: 'An error occurred while processing your request' },
       { status: 500 }

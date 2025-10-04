@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { AuthUI } from '@/components/ui/auth-fuse';
 import { useAuthStore } from '@/store/authStore';
@@ -10,12 +10,49 @@ import toast from 'react-hot-toast';
 
 const LoginPage: React.FC = () => {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const resetToken = searchParams.get('token');
+  
   const { loginUser, registerUser, isLoading, login } = useAuthStore();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showOTP, setShowOTP] = React.useState(false);
   const [otpEmail, setOtpEmail] = React.useState<string>('');
   const [isVerifying, setIsVerifying] = React.useState(false);
   const [isResending, setIsResending] = React.useState(false);
+  const [showForgotPassword, setShowForgotPassword] = React.useState(false);
+  const [isForgotPasswordLoading, setIsForgotPasswordLoading] = React.useState(false);
+  const [forgotPasswordEmailSent, setForgotPasswordEmailSent] = React.useState(false);
+  const [showResetPassword, setShowResetPassword] = React.useState(false);
+  const [isResetPasswordLoading, setIsResetPasswordLoading] = React.useState(false);
+  const [resetPasswordSuccess, setResetPasswordSuccess] = React.useState(false);
+  const [isVerifyingToken, setIsVerifyingToken] = React.useState(false);
+
+  // Check if there's a reset token in URL
+  React.useEffect(() => {
+    if (resetToken) {
+      verifyResetToken(resetToken);
+    }
+  }, [resetToken]);
+
+  const verifyResetToken = async (token: string) => {
+    setIsVerifyingToken(true);
+    try {
+      const response = await fetch(`/api/auth/reset-password?token=${token}`);
+      const data = await response.json();
+
+      if (response.ok) {
+        setShowResetPassword(true);
+      } else {
+        toast.error(data.error || 'Geçersiz veya süresi dolmuş bağlantı');
+        router.push('/auth/login');
+      }
+    } catch (error) {
+      toast.error('Bağlantı doğrulanamadı');
+      router.push('/auth/login');
+    } finally {
+      setIsVerifyingToken(false);
+    }
+  };
 
   const handleSignIn = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -181,7 +218,100 @@ const LoginPage: React.FC = () => {
     }
   };
 
-  console.log('🔄 Render - showOTP:', showOTP, 'otpEmail:', otpEmail);
+  const handleForgotPasswordClick = () => {
+    setShowForgotPassword(true);
+    setShowOTP(false);
+  };
+
+  const handleForgotPasswordSubmit = async (email: string) => {
+    setIsForgotPasswordLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setForgotPasswordEmailSent(true);
+        toast.success('Şifre sıfırlama bağlantısı gönderildi!');
+      } else {
+        toast.error(data.error || 'Sıfırlama bağlantısı gönderilemedi');
+      }
+    } catch (error) {
+      console.error('Forgot password error:', error);
+      toast.error('Bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setIsForgotPasswordLoading(false);
+    }
+  };
+
+  const handleForgotPasswordBack = () => {
+    setShowForgotPassword(false);
+    setForgotPasswordEmailSent(false);
+  };
+
+  const handleResetPasswordSubmit = async (password: string, confirmPassword: string) => {
+    if (password !== confirmPassword) {
+      toast.error('Şifreler eşleşmiyor');
+      return;
+    }
+
+    if (password.length < 8) {
+      toast.error('Şifre en az 8 karakter olmalıdır');
+      return;
+    }
+
+    setIsResetPasswordLoading(true);
+
+    try {
+      const response = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: resetToken, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResetPasswordSuccess(true);
+        toast.success('Şifre başarıyla sıfırlandı!');
+        setTimeout(() => {
+          router.push('/auth/login');
+        }, 2000);
+      } else {
+        toast.error(data.error || 'Şifre sıfırlanamadı');
+      }
+    } catch (error) {
+      console.error('Reset password error:', error);
+      toast.error('Bir hata oluştu. Lütfen tekrar deneyin.');
+    } finally {
+      setIsResetPasswordLoading(false);
+    }
+  };
+
+  const handleResetPasswordBack = () => {
+    setShowResetPassword(false);
+    setResetPasswordSuccess(false);
+    router.push('/auth/login');
+  };
+
+  console.log('🔄 Render - showOTP:', showOTP, 'otpEmail:', otpEmail, 'showForgotPassword:', showForgotPassword, 'showResetPassword:', showResetPassword);
+
+  // Show loading while verifying token
+  if (isVerifyingToken) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Sıfırlama bağlantısı doğrulanıyor...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <AuthUI 
@@ -195,6 +325,17 @@ const LoginPage: React.FC = () => {
       onOTPBack={handleOTPBack}
       isVerifying={isVerifying}
       isResending={isResending}
+      showForgotPassword={showForgotPassword}
+      onForgotPasswordSubmit={handleForgotPasswordSubmit}
+      onForgotPasswordBack={handleForgotPasswordBack}
+      isForgotPasswordLoading={isForgotPasswordLoading}
+      forgotPasswordEmailSent={forgotPasswordEmailSent}
+      onForgotPasswordClick={handleForgotPasswordClick}
+      showResetPassword={showResetPassword}
+      onResetPasswordSubmit={handleResetPasswordSubmit}
+      onResetPasswordBack={handleResetPasswordBack}
+      isResetPasswordLoading={isResetPasswordLoading}
+      resetPasswordSuccess={resetPasswordSuccess}
     />
   );
 };

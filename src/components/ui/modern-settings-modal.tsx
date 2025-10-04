@@ -493,15 +493,6 @@ const ModernSettingsModal: React.FC<ModernSettingsModalProps> = ({ isOpen, onClo
               </div>
               <div className="flex items-center gap-2">
                 <Button
-                  variant={theme === 'light' ? 'default' : 'outline'}
-                  size="sm"
-                  className="h-8"
-                  onClick={() => handleThemeChange('light')}
-                >
-                  <Sun className="h-4 w-4 mr-1" />
-                  {t('light')}
-                </Button>
-                <Button
                   variant={theme === 'dark' ? 'default' : 'outline'}
                   size="sm"
                   className="h-8"

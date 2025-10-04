@@ -16,7 +16,7 @@ export default function ForgotPasswordPage() {
     e.preventDefault();
 
     if (!email) {
-      toast.error('Please enter your email address');
+      toast.error('Lütfen email adresinizi girin');
       return;
     }
 
@@ -33,12 +33,12 @@ export default function ForgotPasswordPage() {
 
       if (response.ok) {
         setSuccess(true);
-        toast.success('Password reset link sent!');
+        toast.success('Şifre sıfırlama bağlantısı gönderildi!');
       } else {
-        toast.error(data.error || 'Failed to send reset link');
+        toast.error(data.error || 'Sıfırlama bağlantısı gönderilemedi');
       }
     } catch (error) {
-      toast.error('An error occurred. Please try again.');
+      toast.error('Bir hata oluştu. Lütfen tekrar deneyin.');
     } finally {
       setLoading(false);
     }
@@ -53,19 +53,19 @@ export default function ForgotPasswordPage() {
               <CheckCircle className="w-10 h-10 text-green-600 dark:text-green-400" />
             </div>
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
-              Check Your Email
+              Email'inizi Kontrol Edin
             </h1>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              We've sent a password reset link to <strong>{email}</strong>
+              <strong>{email}</strong> adresine şifre sıfırlama bağlantısı gönderdik
             </p>
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-              The link will expire in 1 hour. If you don't receive an email, check your spam folder.
+              Bağlantı 1 saat içinde geçersiz olacaktır. Email almadıysanız spam klasörünüzü kontrol edin.
             </p>
             <Link
               href="/auth/login"
               className="inline-block w-full px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-medium rounded-lg hover:from-blue-700 hover:to-purple-700 transition-all duration-200"
             >
-              Back to Login
+              Giriş Sayfasına Dön
             </Link>
           </div>
         </div>
@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
           className="inline-flex items-center gap-2 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white mb-6 transition-colors"
         >
           <ArrowLeft className="w-4 h-4" />
-          Back to Login
+          Giriş Sayfasına Dön
         </Link>
 
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
@@ -92,10 +92,10 @@ export default function ForgotPasswordPage() {
               <Mail className="w-8 h-8 text-blue-600 dark:text-blue-400" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
-              Forgot Password?
+              Şifrenizi mi Unuttunuz?
             </h1>
             <p className="text-gray-600 dark:text-gray-300">
-              No worries, we'll send you reset instructions
+              Endişelenmeyin, size sıfırlama talimatları göndereceğiz
             </p>
           </div>
 
@@ -103,14 +103,14 @@ export default function ForgotPasswordPage() {
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Email Address
+                Email Adresi
               </label>
               <input
                 id="email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="Enter your email"
+                placeholder="Email adresinizi girin"
                 className="w-full px-4 py-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all"
                 required
               />
@@ -124,12 +124,12 @@ export default function ForgotPasswordPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-5 h-5 animate-spin" />
-                  Sending...
+                  Gönderiliyor...
                 </>
               ) : (
                 <>
                   <Mail className="w-5 h-5" />
-                  Send Reset Link
+                  Sıfırlama Bağlantısı Gönder
                 </>
               )}
             </button>
@@ -138,9 +138,9 @@ export default function ForgotPasswordPage() {
 
         {/* Footer */}
         <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-6">
-          Remember your password?{' '}
+          Şifrenizi hatırladınız mı?{' '}
           <Link href="/auth/login" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
-            Sign in
+            Giriş Yap
           </Link>
         </p>
       </div>

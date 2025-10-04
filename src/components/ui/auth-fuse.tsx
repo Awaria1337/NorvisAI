@@ -160,8 +160,9 @@ export interface PasswordInputProps extends React.InputHTMLAttributes<HTMLInputE
     label?: string;
 }
 const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
-  ({ className, label, ...props }, ref) => {
-    const id = useId();
+  ({ className, label, id: providedId, ...props }, ref) => {
+    const generatedId = useId();
+    const id = providedId || generatedId;
     const [showPassword, setShowPassword] = useState(false);
     const togglePasswordVisibility = () => setShowPassword((prev) => !prev);
     return (
@@ -179,7 +180,7 @@ const PasswordInput = React.forwardRef<HTMLInputElement, PasswordInputProps>(
 );
 PasswordInput.displayName = "PasswordInput";
 
-function SignInForm({ onSubmit, onGoogleSignIn }: { onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onGoogleSignIn?: () => void }) {
+function SignInForm({ onSubmit, onGoogleSignIn, onForgotPassword }: { onSubmit: (event: React.FormEvent<HTMLFormElement>) => void; onGoogleSignIn?: () => void; onForgotPassword?: () => void }) {
   return (
     <form onSubmit={onSubmit} autoComplete="on" className="flex flex-col gap-8">
       <div className="flex flex-col items-center gap-2 text-center">
@@ -206,15 +207,260 @@ function SignInForm({ onSubmit, onGoogleSignIn }: { onSubmit: (event: React.Form
           </>
         )}
         <div className="grid gap-2"><Label htmlFor="email">Email</Label><Input id="email" name="email" type="email" placeholder="m@example.com" required autoComplete="email" /></div>
-        <PasswordInput name="password" label="Şifre" required autoComplete="current-password" placeholder="Şifre" />
+        <div className="grid gap-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password">Şifre</Label>
+            {onForgotPassword && (
+              <button type="button" onClick={onForgotPassword} className="text-sm text-primary hover:underline">
+                Şifremi unuttum?
+              </button>
+            )}
+          </div>
+          <PasswordInput id="password" name="password" required autoComplete="current-password" placeholder="Şifre" />
+        </div>
         <Button type="submit" variant="outline" className="mt-2 cursor-pointer">Giriş Yap</Button>
       </div>
     </form>
   );
 }
 
+// Reset Password Form
+function ResetPasswordForm({
+  onSubmit,
+  onBack,
+  isLoading,
+  success
+}: {
+  onSubmit: (password: string, confirmPassword: string) => void;
+  onBack: () => void;
+  isLoading?: boolean;
+  success?: boolean;
+}) {
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password && confirmPassword) {
+      onSubmit(password, confirmPassword);
+    }
+  };
+
+  if (success) {
+    return (
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-2">
+            <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold">Şifre Sıfırlama Başarılı!</h1>
+          <p className="text-balance text-sm text-muted-foreground">
+            Şifreniz başarıyla sıfırlandı. Artık yeni şifrenizle giriş yapabilirsiniz.
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          className="w-full cursor-pointer"
+          onClick={onBack}
+        >
+          Giriş Sayfasına Dön
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+          <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold">Şifre Sıfırla</h1>
+        <p className="text-balance text-sm text-muted-foreground">
+          Yeni şifrenizi girin
+        </p>
+      </div>
+
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="reset-password">Yeni Şifre</Label>
+          <div className="relative">
+            <Input 
+              id="reset-password" 
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="En az 8 karakter" 
+              required 
+              minLength={8}
+              disabled={isLoading}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <div className="grid gap-2">
+          <Label htmlFor="reset-confirm-password">Yeni Şifre (Tekrar)</Label>
+          <div className="relative">
+            <Input 
+              id="reset-confirm-password" 
+              type={showConfirmPassword ? 'text' : 'password'}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Şifrenizi tekrar girin" 
+              required 
+              minLength={8}
+              disabled={isLoading}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            >
+              {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        <Button 
+          type="submit" 
+          variant="outline" 
+          className="w-full cursor-pointer"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Sıfırlanıyor...' : 'Şifre Sıfırla'}
+        </Button>
+
+        <Button 
+          type="button"
+          variant="link" 
+          className="text-muted-foreground hover:text-foreground p-0"
+          onClick={onBack}
+          disabled={isLoading}
+        >
+          ← Geri Dön
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+// Forgot Password Form
+function ForgotPasswordForm({
+  onSubmit,
+  onBack,
+  isLoading,
+  emailSent
+}: {
+  onSubmit: (email: string) => void;
+  onBack: () => void;
+  isLoading?: boolean;
+  emailSent?: boolean;
+}) {
+  const [email, setEmail] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email) {
+      onSubmit(email);
+    }
+  };
+
+  if (emailSent) {
+    return (
+      <div className="flex flex-col gap-8">
+        <div className="flex flex-col items-center gap-2 text-center">
+          <div className="w-16 h-16 rounded-full bg-green-500/10 flex items-center justify-center mb-2">
+            <svg className="w-8 h-8 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold">Email'inizi Kontrol Edin</h1>
+          <p className="text-balance text-sm text-muted-foreground">
+            <span className="font-medium">{email}</span> adresine şifre sıfırlama bağlantısı gönderdik
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">
+            Bağlantı 1 saat içinde geçersiz olacaktır
+          </p>
+        </div>
+        <Button 
+          variant="outline" 
+          className="w-full cursor-pointer"
+          onClick={onBack}
+        >
+          Giriş Sayfasına Dön
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="flex flex-col gap-8">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+          <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+        </div>
+        <h1 className="text-2xl font-bold">Şifrenizi mi Unuttunuz?</h1>
+        <p className="text-balance text-sm text-muted-foreground">
+          Endişelenmeyin, size sıfırlama talimatları göndereceğiz
+        </p>
+      </div>
+
+      <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="forgot-email">Email Adresi</Label>
+          <Input 
+            id="forgot-email" 
+            type="email" 
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="m@example.com" 
+            required 
+            disabled={isLoading}
+          />
+        </div>
+
+        <Button 
+          type="submit" 
+          variant="outline" 
+          className="w-full cursor-pointer"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Gönderiliyor...' : 'Sıfırlama Bağlantısı Gönder'}
+        </Button>
+
+        <Button 
+          type="button"
+          variant="link" 
+          className="text-muted-foreground hover:text-foreground p-0"
+          onClick={onBack}
+          disabled={isLoading}
+        >
+          ← Geri Dön
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 // OTP Verification Form
-function OTPVerificationForm({ 
+function OTPVerificationForm({
   email, 
   onVerify, 
   onResend, 
@@ -413,7 +659,18 @@ function AuthFormContainer({
   onOTPResend,
   onOTPBack,
   isVerifying,
-  isResending
+  isResending,
+  showForgotPassword,
+  onForgotPasswordSubmit,
+  onForgotPasswordBack,
+  isForgotPasswordLoading,
+  forgotPasswordEmailSent,
+  onForgotPasswordClick,
+  showResetPassword,
+  onResetPasswordSubmit,
+  onResetPasswordBack,
+  isResetPasswordLoading,
+  resetPasswordSuccess
 }: { 
   isSignIn: boolean; 
   onToggle: () => void;
@@ -427,6 +684,17 @@ function AuthFormContainer({
   onOTPBack?: () => void;
   isVerifying?: boolean;
   isResending?: boolean;
+  showForgotPassword?: boolean;
+  onForgotPasswordSubmit?: (email: string) => void;
+  onForgotPasswordBack?: () => void;
+  isForgotPasswordLoading?: boolean;
+  forgotPasswordEmailSent?: boolean;
+  onForgotPasswordClick?: () => void;
+  showResetPassword?: boolean;
+  onResetPasswordSubmit?: (password: string, confirmPassword: string) => void;
+  onResetPasswordBack?: () => void;
+  isResetPasswordLoading?: boolean;
+  resetPasswordSuccess?: boolean;
 }) {
     return (
         <div className="mx-auto grid w-[350px] gap-2">
@@ -439,9 +707,23 @@ function AuthFormContainer({
                     isVerifying={isVerifying}
                     isResending={isResending}
                 />
+            ) : showResetPassword ? (
+                <ResetPasswordForm 
+                    onSubmit={onResetPasswordSubmit!}
+                    onBack={onResetPasswordBack!}
+                    isLoading={isResetPasswordLoading}
+                    success={resetPasswordSuccess}
+                />
+            ) : showForgotPassword ? (
+                <ForgotPasswordForm 
+                    onSubmit={onForgotPasswordSubmit!}
+                    onBack={onForgotPasswordBack!}
+                    isLoading={isForgotPasswordLoading}
+                    emailSent={forgotPasswordEmailSent}
+                />
             ) : (
                 <>
-                    {isSignIn ? <SignInForm onSubmit={onSignInSubmit} onGoogleSignIn={onGoogleSignIn} /> : <SignUpForm onSubmit={onSignUpSubmit} onGoogleSignIn={onGoogleSignIn} />}
+                    {isSignIn ? <SignInForm onSubmit={onSignInSubmit} onGoogleSignIn={onGoogleSignIn} onForgotPassword={onForgotPasswordClick} /> : <SignUpForm onSubmit={onSignUpSubmit} onGoogleSignIn={onGoogleSignIn} />}
                     <div className="text-center text-sm">
                         {isSignIn ? "Hesabınız yok mu?" : "Zaten hesabınız var mı?"}{" "}
                         <Button variant="link" className="pl-1 text-foreground" onClick={onToggle}>
@@ -478,6 +760,17 @@ export interface AuthUIProps {
     onOTPBack?: () => void;
     isVerifying?: boolean;
     isResending?: boolean;
+    showForgotPassword?: boolean;
+    onForgotPasswordSubmit?: (email: string) => void;
+    onForgotPasswordBack?: () => void;
+    isForgotPasswordLoading?: boolean;
+    forgotPasswordEmailSent?: boolean;
+    onForgotPasswordClick?: () => void;
+    showResetPassword?: boolean;
+    onResetPasswordSubmit?: (password: string, confirmPassword: string) => void;
+    onResetPasswordBack?: () => void;
+    isResetPasswordLoading?: boolean;
+    resetPasswordSuccess?: boolean;
 }
 
 const defaultSignInContent = {
@@ -514,7 +807,18 @@ export function AuthUI({
   onOTPResend,
   onOTPBack,
   isVerifying,
-  isResending
+  isResending,
+  showForgotPassword,
+  onForgotPasswordSubmit,
+  onForgotPasswordBack,
+  isForgotPasswordLoading,
+  forgotPasswordEmailSent,
+  onForgotPasswordClick,
+  showResetPassword,
+  onResetPasswordSubmit,
+  onResetPasswordBack,
+  isResetPasswordLoading,
+  resetPasswordSuccess
 }: AuthUIProps) {
   const [isSignIn, setIsSignIn] = useState(true);
   const toggleForm = () => setIsSignIn((prev) => !prev);
@@ -590,6 +894,17 @@ export function AuthUI({
           onOTPBack={onOTPBack}
           isVerifying={isVerifying}
           isResending={isResending}
+          showForgotPassword={showForgotPassword}
+          onForgotPasswordSubmit={onForgotPasswordSubmit}
+          onForgotPasswordBack={onForgotPasswordBack}
+          isForgotPasswordLoading={isForgotPasswordLoading}
+          forgotPasswordEmailSent={forgotPasswordEmailSent}
+          onForgotPasswordClick={onForgotPasswordClick}
+          showResetPassword={showResetPassword}
+          onResetPasswordSubmit={onResetPasswordSubmit}
+          onResetPasswordBack={onResetPasswordBack}
+          isResetPasswordLoading={isResetPasswordLoading}
+          resetPasswordSuccess={resetPasswordSuccess}
         />
       </div>
     </div>

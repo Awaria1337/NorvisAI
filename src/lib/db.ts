@@ -1,6 +1,9 @@
 import { prisma } from './prisma';
 import { hashPassword, comparePassword } from './auth';
 
+// Re-export prisma for convenience
+export { prisma };
+
 export interface CreateUserData {
   name: string;
   email: string;

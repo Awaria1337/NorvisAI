@@ -387,16 +387,6 @@ export function AppSidebar({
                     <span className="text-white text-sm">SSS</span>
                   </DropdownMenuItem>
 
-                  <DropdownMenuItem
-                    className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
-                    onClick={() => {
-                      /* TODO: Add changelog function */
-                    }}
-                  >
-                    <Clock className="mr-2 h-3.5 w-3.5 text-white" />
-                    <span className="text-white text-sm">Changelog</span>
-                  </DropdownMenuItem>
-
                   <Link href={ROUTES.PRICING}>
                     <DropdownMenuItem className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors">
                       <CreditCard className="mr-2 h-3.5 w-3.5 text-white" />
