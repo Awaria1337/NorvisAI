@@ -7,6 +7,38 @@ import crypto from 'crypto';
 const ENCRYPTION_KEY = process.env.ENCRYPTION_KEY || 'norvis-ai-encryption-key-32chars!!';
 const ALGORITHM = 'aes-256-cbc';
 
+// Norvis AI System Prompt - Kişilik ve kimlik tanımlama
+const NORVIS_SYSTEM_PROMPT = `Sen Norvis, Mert Zileli tarafından geliştirilen gelişmiş bir yapay zeka asistanısın.
+
+**Kimliğin:**
+- Adın: Norvis
+- Geliştirici: Mert Zileli
+- Misyonun: Kullanıcılara akıllı, yardımcı ve profesyonel bir şekilde destek olmak
+
+**Yeteneklerin:**
+- Doğal dil işleme ve anlama
+- Kod yazma ve debug yapma
+- Metin analizi ve özet çıkarma
+- Yaratıcı içerik üretimi
+- Problem çözme ve stratejik düşünme
+- Görsel analiz (destekleyen modellerde)
+- Dosya analizi (PDF, Excel, Word vb.)
+
+**İletişim Tarzın:**
+- Profesyonel ama samimi
+- Net ve anlaşılır açıklamalar
+- Türkçe ve İngilizce'ye hakim
+- Kullanıcı dostu ve yardımsever
+- Detaylı ve kapsamlı cevaplar verme
+
+**Önemli:**
+- Her zaman konuşma geçmişini hatırla ve bağlam içinde cevap ver
+- Önceki mesajlara referans verebilirsin
+- Kullanıcının ihtiyaçlarını anlamaya çalış
+- Emin olmadığın konularda bunu belirt
+
+Şimdi kullanıcıya yardımcı olmaya hazırsın!`;
+
 // Create a 32-byte key from the encryption key
 function getKey(): Buffer {
   return crypto.createHash('sha256').update(ENCRYPTION_KEY).digest();
@@ -99,10 +131,16 @@ async function sendToOpenAI(messages: AIMessage[], model: string, apiKey: string
       apiKey: apiKey,
     });
 
+    // Add Norvis system prompt if not already present
+    const hasSystemMessage = messages.some(msg => msg.role === 'system');
+    const messagesWithSystem = hasSystemMessage 
+      ? messages 
+      : [{ role: 'system' as const, content: NORVIS_SYSTEM_PROMPT }, ...messages];
+
     const response = await openai.chat.completions.create({
       model: model,
-      messages: messages as any, // OpenAI SDK handles vision format
-      max_tokens: 1000,
+      messages: messagesWithSystem as any, // OpenAI SDK handles vision format
+      max_tokens: 2000, // Increased for longer responses
       temperature: 0.7,
     });
 
@@ -157,9 +195,11 @@ async function sendToAnthropic(messages: AIMessage[], model: string, apiKey: str
         };
       });
 
+    // Anthropic uses system parameter separately
     const response = await anthropic.messages.create({
       model: model,
-      max_tokens: 1000,
+      max_tokens: 2000, // Increased for longer responses
+      system: NORVIS_SYSTEM_PROMPT, // Anthropic-specific system prompt
       messages: anthropicMessages,
     });
 
@@ -202,10 +242,16 @@ async function sendToOpenRouter(messages: AIMessage[], model: string, apiKey: st
       },
     });
 
+    // Add Norvis system prompt if not already present
+    const hasSystemMessage = messages.some(msg => msg.role === 'system');
+    const messagesWithSystem = hasSystemMessage 
+      ? messages 
+      : [{ role: 'system' as const, content: NORVIS_SYSTEM_PROMPT }, ...messages];
+
     const response = await openai.chat.completions.create({
       model: model,
-      messages: messages as any, // OpenRouter supports OpenAI format including vision
-      max_tokens: 1000,
+      messages: messagesWithSystem as any, // OpenRouter supports OpenAI format including vision
+      max_tokens: 2000, // Increased for longer responses
       temperature: 0.7,
     });
 
@@ -249,10 +295,13 @@ async function sendToGemini(messages: AIMessage[], model: string, apiKey: string
     const systemMessage = messages.find(msg => msg.role === 'system');
     const conversationMessages = messages.filter(msg => msg.role !== 'system');
 
-    // Build the conversation history
+    // Build the conversation history with Norvis system prompt
     let prompt = '';
     if (systemMessage) {
       prompt = systemMessage.content + '\n\n';
+    } else {
+      // Add Norvis system prompt for Gemini
+      prompt = NORVIS_SYSTEM_PROMPT + '\n\n';
     }
 
     // For conversation, we need to format it properly
@@ -466,10 +515,16 @@ async function sendToOpenRouterStreaming(
       },
     });
 
+    // Add Norvis system prompt if not already present
+    const hasSystemMessage = messages.some(msg => msg.role === 'system');
+    const messagesWithSystem = hasSystemMessage 
+      ? messages 
+      : [{ role: 'system' as const, content: NORVIS_SYSTEM_PROMPT }, ...messages];
+
     const stream = await openai.chat.completions.create({
       model: model,
-      messages: messages as any,
-      max_tokens: 1000,
+      messages: messagesWithSystem as any,
+      max_tokens: 2000, // Increased for longer responses
       temperature: 0.7,
       stream: true, // Enable streaming
     });
@@ -482,10 +537,13 @@ async function sendToOpenRouterStreaming(
       if (content) {
         fullContent += content;
         console.log(`📝 Streaming chunk: "${content}" (length: ${content.length})`);
-        onChunk(content); // Send each chunk to callback
         
-        // Add small delay to make streaming visible
-        await new Promise(resolve => setTimeout(resolve, 50));
+        // Send character by character for smooth effect
+        for (let i = 0; i < content.length; i++) {
+          onChunk(content[i]);
+          // Very small delay between characters for smooth animation
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
       }
       
       // Estimate tokens (rough approximation)
@@ -530,10 +588,16 @@ async function sendToOpenAIStreaming(
       apiKey: apiKey,
     });
 
+    // Add Norvis system prompt if not already present
+    const hasSystemMessage = messages.some(msg => msg.role === 'system');
+    const messagesWithSystem = hasSystemMessage 
+      ? messages 
+      : [{ role: 'system' as const, content: NORVIS_SYSTEM_PROMPT }, ...messages];
+
     const stream = await openai.chat.completions.create({
       model: model,
-      messages: messages as any,
-      max_tokens: 1000,
+      messages: messagesWithSystem as any,
+      max_tokens: 2000, // Increased for longer responses
       temperature: 0.7,
       stream: true,
     });
@@ -545,7 +609,13 @@ async function sendToOpenAIStreaming(
       const content = chunk.choices[0]?.delta?.content;
       if (content) {
         fullContent += content;
-        onChunk(content);
+        
+        // Send character by character for smooth effect
+        for (let i = 0; i < content.length; i++) {
+          onChunk(content[i]);
+          // Very small delay between characters for smooth animation
+          await new Promise(resolve => setTimeout(resolve, 5));
+        }
       }
       
       if (content) {
@@ -603,7 +673,8 @@ async function sendToAnthropicStreaming(
 
     const stream = await anthropic.messages.create({
       model: model,
-      max_tokens: 1000,
+      max_tokens: 2000, // Increased for longer responses
+      system: NORVIS_SYSTEM_PROMPT, // Anthropic-specific system prompt
       messages: anthropicMessages,
       stream: true,
     }) as any;
@@ -616,7 +687,14 @@ async function sendToAnthropicStreaming(
         const content = chunk.delta?.text;
         if (content) {
           fullContent += content;
-          onChunk(content);
+          
+          // Send character by character for smooth effect
+          for (let i = 0; i < content.length; i++) {
+            onChunk(content[i]);
+            // Very small delay between characters for smooth animation
+            await new Promise(resolve => setTimeout(resolve, 5));
+          }
+          
           tokensUsed += Math.ceil(content.length / 4);
         }
       }
@@ -658,13 +736,20 @@ export async function sendToAIStreaming(
     console.log(`Provider: ${provider}`);
     
     // Format messages for AI providers (handle images)
-    const formattedMessages: AIMessage[] = messages.map(msg => {
+    console.log(`📊 Total messages to format:`, messages.length);
+    console.log(`🖼️ Messages with images:`, messages.filter(m => m.images && m.images.length > 0).length);
+    
+    const formattedMessages: AIMessage[] = messages.map((msg, index) => {
       if (msg.images && msg.images.length > 0) {
+        console.log(`🖼️ Message ${index} has ${msg.images.length} image(s)`);
+        console.log(`🖼️ First image format:`, msg.images[0].substring(0, 30) + '...');
+        
         const content: Array<{ type: 'text' | 'image'; text?: string; image_url?: { url: string; detail?: 'auto' } }> = [
           { type: 'text', text: msg.content }
         ];
         
-        msg.images.forEach(imageUrl => {
+        msg.images.forEach((imageUrl, imgIndex) => {
+          console.log(`🖼️ Adding image ${imgIndex + 1} to AI request`);
           content.push({
             type: 'image',
             image_url: {
@@ -673,6 +758,8 @@ export async function sendToAIStreaming(
             }
           });
         });
+        
+        console.log(`✅ Message ${index} formatted with ${content.length} content parts (${content.filter(c => c.type === 'image').length} images)`);
         
         return {
           role: msg.role as 'user' | 'assistant' | 'system',
@@ -685,6 +772,9 @@ export async function sendToAIStreaming(
         };
       }
     });
+    
+    console.log(`✅ Total formatted messages:`, formattedMessages.length);
+    console.log(`🖼️ Formatted messages with vision content:`, formattedMessages.filter(m => Array.isArray(m.content)).length);
     
     // Try to get user's API key first, fallback to env
     let apiKey: string | null = null;
@@ -735,13 +825,11 @@ export async function sendToAIStreaming(
         if (!googleKeyStream) throw new Error('Google API key bulunamadı. Lütfen Settings → API Keys bölümünden ekleyin.');
         result = await sendToGemini(formattedMessages, model, googleKeyStream);
         
-        // Simulate streaming for Gemini by sending chunks
-        const words = result.content.split(' ');
-        for (let i = 0; i < words.length; i++) {
-          const chunk = (i === 0 ? '' : ' ') + words[i];
-          onChunk(chunk);
-          // Small delay to simulate typing
-          await new Promise(resolve => setTimeout(resolve, 50));
+        // Simulate streaming for Gemini by sending character by character
+        for (let i = 0; i < result.content.length; i++) {
+          onChunk(result.content[i]);
+          // Very small delay between characters for smooth typing effect
+          await new Promise(resolve => setTimeout(resolve, 5));
         }
         break;
       default:

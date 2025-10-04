@@ -4,6 +4,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
 import { useChatStore } from '@/store/chatStore';
+import { useGuestStore } from '@/store/guestStore';
 import { ROUTES } from '@/constants';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -12,6 +13,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import toast from 'react-hot-toast';
 import AdvancedFilePreview, { FileUploadStats } from '@/components/ui/advanced-file-preview';
 import { getFileDisplayInfo, formatFileSize, validateFile } from '@/utils/fileUtils';
+import { useTranslation } from 'react-i18next';
 
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -58,8 +60,18 @@ import KeyboardShortcutsModal from '@/components/ui/keyboard-shortcuts-modal';
 
 
 const ChatPage: React.FC = () => {
+  const { t } = useTranslation();
   const router = useRouter();
   const { isAuthenticated, isLoading, logout, user } = useAuthStore();
+  
+  // Guest mode support
+  const { 
+    messages: guestMessages, 
+    sendGuestMessage, 
+    canSendMessage: canSendGuestMessage, 
+    getRemainingMessages,
+    isLoading: isGuestLoading
+  } = useGuestStore();
   
   // Custom toast helper with Lucide icons
   const showToast = {
@@ -104,7 +116,19 @@ const ChatPage: React.FC = () => {
   const [sidebarState, setSidebarState] = useState<'expanded' | 'collapsed'>('expanded');
   
   // Memoize currentChat to ensure proper re-rendering when chats or currentChatId changes
-  const currentChat = useMemo(() => getCurrentChat(), [chats, currentChatId, getCurrentChat]);
+  const currentChat = useMemo(() => {
+    // For guest users, create a temporary chat with guest messages
+    if (!isAuthenticated) {
+      return {
+        id: 'guest-chat',
+        title: 'Guest Chat',
+        messages: guestMessages,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+    }
+    return getCurrentChat();
+  }, [chats, currentChatId, getCurrentChat, isAuthenticated, guestMessages]);
   const [inputMessage, setInputMessage] = useState('');
   // const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -213,6 +237,26 @@ const ChatPage: React.FC = () => {
   const handleSendMessage = async (messageContent?: string) => {
     const content = messageContent || inputMessage.trim();
     if (!content && uploadedFiles.length === 0) return;
+
+    // Guest mode - use guest store
+    if (!isAuthenticated) {
+      // Check guest message limit
+      if (!canSendGuestMessage()) {
+        showToast.error('Misafir kullanıcı mesaj limitine ulaştınız! Giriş yaparak sınırsız mesajlaşabilirsiniz.', {
+          duration: 5000,
+        });
+        return;
+      }
+
+      setInputMessage('');
+      try {
+        await sendGuestMessage(content);
+      } catch (error) {
+        setInputMessage(content);
+        showToast.error('Mesaj gönderilemedi, lütfen tekrar deneyin.');
+      }
+      return;
+    }
 
     // Don't send if AI is already processing
     if (isAIThinking || isAIResponding) {
@@ -463,13 +507,7 @@ const ChatPage: React.FC = () => {
 
 
 
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push(ROUTES.LOGIN);
-    }
-  }, [isAuthenticated, isLoading, router]);
-
-  // Fetch chats when authenticated
+  // Fetch chats when authenticated (skip for guest users)
   useEffect(() => {
     if (isAuthenticated) {
       fetchChats();
@@ -491,9 +529,7 @@ const ChatPage: React.FC = () => {
     );
   }
 
-  if (!isAuthenticated) {
-    return null;
-  }
+  // Guest users are welcome! No auth required for chat
 
   // Check if chat is empty (no messages and not processing)
   const isChatEmpty = (!currentChat?.messages || currentChat.messages.length === 0) && !isAIThinking && !isAIResponding;
@@ -501,36 +537,50 @@ const ChatPage: React.FC = () => {
   return (
     <TooltipProvider>
       <SidebarProvider>
-        <AppSidebar
-          chats={chats}
-          currentChatId={currentChatId}
-          onChatSelect={navigateToChat}
-          onNewChat={handleNewChat}
-          onSearchOpen={handleSearchOpen}
-          onChatRename={handleChatRename}
-          onChatDelete={handleChatDelete}
-          onChatArchive={handleChatArchive}
-          onSidebarStateChange={setSidebarState}
-        />
-
+        {/* Only show sidebar for authenticated users */}
+        {isAuthenticated && (
+          <AppSidebar
+            chats={chats}
+            currentChatId={currentChatId}
+            onChatSelect={navigateToChat}
+            onNewChat={handleNewChat}
+            onSearchOpen={handleSearchOpen}
+            onChatRename={handleChatRename}
+            onChatDelete={handleChatDelete}
+            onChatArchive={handleChatArchive}
+            onSidebarStateChange={setSidebarState}
+          />
+        )}
 
         <SidebarInset>
           {/* Main Chat Area */}
           <div className="flex-1 flex flex-col bg-background h-screen overflow-hidden relative">
             {/* ChatGPT-style Fixed Top Left - Only show when chat has messages */}
             {!isChatEmpty && (
-              <div className={`fixed top-0 left-0 right-0 z-30 flex items-center p-3 transition-all duration-300 ${
-                sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16'
+              <div className={`fixed top-0 left-0 right-0 z-30 flex items-center justify-between p-3 transition-all duration-300 ${
+                isAuthenticated ? (sidebarState === 'expanded' ? 'md:left-64' : 'md:left-16') : ''
               }`}>
-                {/* Mobile Sidebar Trigger - only show on mobile */}
-                <SidebarTrigger className="md:hidden bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent mr-3" />
+                {/* Mobile Sidebar Trigger - only show on mobile for authenticated users */}
+                {isAuthenticated && (
+                  <SidebarTrigger className="md:hidden bg-background/80 backdrop-blur-sm border border-border rounded-md p-2 shadow-sm hover:bg-accent mr-3" />
+                )}
                 
-                {/* Always keep title left aligned */}
+                {/* Title */}
                 <div className="flex-1 flex justify-start">
                   <h1 className="text-xl font-semibold text-foreground bg-background/80 backdrop-blur-sm px-3 py-1 rounded-lg">
                     Norvis AI
                   </h1>
                 </div>
+                
+                {/* Login button for guest users */}
+                {!isAuthenticated && (
+                  <Button
+                    onClick={() => router.push(ROUTES.LOGIN)}
+                    className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    Giriş Yap
+                  </Button>
+                )}
               </div>
             )}
 
@@ -921,6 +971,46 @@ const ChatPage: React.FC = () => {
                 </div>
               </div>
             </div>
+            
+            {/* Guest Message Counter */}
+            {!isAuthenticated && (
+              <div className="mt-2 text-center">
+                <p className="text-sm text-muted-foreground">
+                  {canSendGuestMessage() ? (
+                    <span>
+                      Misafir kullanıcı - Kalan mesaj: <span className="font-semibold text-primary">{getRemainingMessages()}/3</span>
+                      {' '}•{' '}
+                      <button 
+                        onClick={() => router.push(ROUTES.LOGIN)}
+                        className="text-primary hover:underline"
+                      >
+                        Sınırsız mesaj için giriş yapın
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="text-destructive font-medium">
+                      ⚠️ Mesaj limitiniz doldu! 
+                      {' '}
+                      <button 
+                        onClick={() => router.push(ROUTES.LOGIN)}
+                        className="text-primary hover:underline font-semibold"
+                      >
+                        Giriş yapın
+                      </button>
+                      {' '}
+veya
+                      {' '}
+                      <button 
+                        onClick={() => router.push('/auth/register')}
+                        className="text-primary hover:underline font-semibold"
+                      >
+                        Kayıt olun
+                      </button>
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
             
             {/* Hidden file input - FOR BOTTOM STATE */}
             <input

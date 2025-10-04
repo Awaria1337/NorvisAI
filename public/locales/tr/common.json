@@ -1,0 +1,108 @@
+{
+  "settings": {
+    "title": "Ayarlar",
+    "tabs": {
+      "general": "Genel",
+      "plan": "Planım",
+      "notifications": "Bildirimler",
+      "personalization": "Kişiselleştirme",
+      "connections": "Bağlı uygulamalar",
+      "data": "Veri kontrolleri",
+      "security": "Güvenlik",
+      "account": "Hesap"
+    },
+    "general": {
+      "language": "Dil",
+      "selectLanguage": "Dil seçin",
+      "theme": "Tema",
+      "themeLight": "Açık",
+      "themeDark": "Koyu",
+      "themeSystem": "Sistem",
+      "compactMode": "Kompakt mod",
+      "compactModeDesc": "Daha fazla içerik göster"
+    },
+    "notifications": {
+      "desktop": "Masaüstü bildirimleri",
+      "desktopDesc": "Yeni mesajlar için bildirim al",
+      "sound": "Ses bildirimleri",
+      "soundDesc": "Bildirim sesleri"
+    },
+    "personalization": {
+      "fontSize": "Font boyutu",
+      "small": "Küçük",
+      "medium": "Orta",
+      "large": "Büyük",
+      "codeHighlighting": "Kod vurgulama",
+      "codeDesc": "Kod bloklarında renk vurgulama",
+      "animations": "Animasyonlar",
+      "animationsDesc": "UI animasyonları"
+    },
+    "data": {
+      "exportChats": "Sohbetleri dışa aktar",
+      "exportDesc": "Tüm sohbetlerinizi JSON olarak indirin"
+    },
+    "account": {
+      "deleteAccount": "Hesabı sil",
+      "deleteWarning": "Bu işlem geri alınamaz"
+    }
+  },
+  "sidebar": {
+    "newChat": "Yeni Sohbet",
+    "searchChats": "Sohbetlerde ara...",
+    "today": "Bugün",
+    "yesterday": "Dün",
+    "last7Days": "Son 7 gün",
+    "last30Days": "Son 30 gün",
+    "older": "Daha eski",
+    "noChats": "Henüz sohbet yok",
+    "rename": "Yeniden adlandır",
+    "archive": "Arşivle",
+    "delete": "Sil",
+    "confirmDelete": "Bu sohbeti silmek istediğinizden emin misiniz?",
+    "collapse": "Kenar çubuğunu kapat",
+    "expand": "Kenar çubuğunu aç"
+  },
+  "chat": {
+    "placeholder": "Norvis nasıl yardımcı olabilir?",
+    "send": "Gönder",
+    "uploadFile": "Dosya yükle",
+    "voiceInput": "Sesli giriş",
+    "imageUpload": "Görsel yükle",
+    "stopGenerating": "Durdur",
+    "thinking": "Düşünüyor...",
+    "typing": "Yazıyor...",
+    "maxFilesWarning": "Maksimum 3 dosya yükleyebilirsiniz! Pro plana geçerek daha fazla dosya yükleyebilirsiniz.",
+    "fileRemoved": "Dosya kaldırıldı",
+    "fileUploaded": "{{count}} dosya yüklendi",
+    "chatRenamed": "Sohbet adlandırıldı",
+    "chatDeleted": "Sohbet silindi",
+    "chatArchived": "Sohbet arşivlendi",
+    "errorRename": "Sohbet adlandırılırken bir hata oluştu. Lütfen tekrar deneyin.",
+    "errorDelete": "Sohbet silinirken bir hata oluştu. Lütfen tekrar deneyin.",
+    "copy": "Kopyala",
+    "copied": "Kopyalandı!",
+    "edit": "Düzenle",
+    "retry": "Yeniden dene",
+    "share": "Paylaş"
+  },
+  "ai": {
+    "greeting": "Merhaba! Size nasıl yardımcı olabilirim?",
+    "error": "Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.",
+    "processingImage": "Görsel işleniyor...",
+    "processingFile": "Dosya işleniyor...",
+    "generatingResponse": "Yanıt oluşturuluyor...",
+    "waitingForResponse": "Yanıt bekleniyor..."
+  },
+  "common": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "close": "Kapat",
+    "loading": "Yükleniyor...",
+    "success": "Başarılı!",
+    "error": "Hata oluştu",
+    "yes": "Evet",
+    "no": "Hayır",
+    "ok": "Tamam",
+    "continue": "Devam et"
+  }
+}

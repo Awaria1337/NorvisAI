@@ -86,28 +86,51 @@ export async function POST(
     let processedFiles: any[] = [];
     let aiEnhancedContent = content || '';
     
+    console.log(`📄 Files received:`, files?.length || 0);
+    
     if (files && files.length > 0) {
       try {
         const { processFile } = await import('@/lib/fileProcessor');
         
         for (const fileData of files) {
+          console.log(`📂 Processing file:`, fileData.filename, fileData.mimeType);
+          
           if (fileData.buffer && fileData.filename && fileData.mimeType) {
             const buffer = Buffer.from(fileData.buffer, 'base64');
             const result = await processFile(buffer, fileData.filename, fileData.mimeType);
+            
+            console.log(`📊 File processing result:`, {
+              success: result.success,
+              type: result.data?.type,
+              hasBase64: !!result.data?.base64,
+              hasContent: !!result.data?.content
+            });
             
             if (result.success && result.data) {
               processedFiles.push(result.data);
               
               if (result.data.type === 'text' || result.data.type === 'table' || result.data.type === 'code') {
+                console.log(`✅ Adding text/table/code content to AI prompt`);
                 aiEnhancedContent += '\n\n' + result.data.content;
               } else if (result.data.type === 'image') {
+                console.log(`🖼️ Image detected - will send as vision to AI`);
                 aiEnhancedContent = aiEnhancedContent || 'Please analyze this image:';
               }
+            } else {
+              console.error(`❌ File processing failed:`, result.error);
             }
+          } else {
+            console.warn(`⚠️ Invalid file data:`, { 
+              hasBuffer: !!fileData.buffer, 
+              hasFilename: !!fileData.filename, 
+              hasMimeType: !!fileData.mimeType 
+            });
           }
         }
+        
+        console.log(`✅ Total processed files:`, processedFiles.length);
       } catch (error) {
-        console.error('File processing error:', error);
+        console.error('❌ File processing error:', error);
       }
     }
     
@@ -180,11 +203,11 @@ export async function POST(
           });
           controller.enqueue(encoder.encode(`data: ${aiMessageStartData}\n\n`));
 
-          // Get chat history for context
+          // Get chat history for context - Increased limit for better memory
           const chatMessages = await prisma.message.findMany({
             where: { chatId },
             orderBy: { createdAt: 'asc' },
-            take: 10
+            take: 50 // 50 mesaj = yaklaşık 25 soru-cevap çifti - Uzun sohbetleri hatırlama
           });
 
           // Convert to AI format with enhanced content
@@ -201,6 +224,14 @@ export async function POST(
             .filter(file => file.type === 'image' && file.base64)
             .map(file => file.base64);
 
+          console.log(`🖼️ Images found for AI:`, imageUrls.length);
+          console.log(`📝 AI Enhanced content length:`, aiEnhancedContent.length);
+          
+          if (imageUrls.length > 0) {
+            console.log(`🖼️ Sending ${imageUrls.length} image(s) to AI with vision support`);
+            console.log(`📊 First image preview:`, imageUrls[0].substring(0, 50) + '...');
+          }
+
           aiMessages.push({
             role: 'user',
             content: aiEnhancedContent,
@@ -208,6 +239,8 @@ export async function POST(
           });
 
           console.log('🚀 Starting streaming AI response for chat:', chatId);
+          console.log(`🤖 AI Model:`, chat.aiModel);
+          console.log(`💬 Message count (with history):`, aiMessages.length);
           
           // Stream AI response with abort handling
           try {

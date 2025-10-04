@@ -11,8 +11,25 @@ model User {
   id        String   @id @default(cuid())
   email     String   @unique
   name      String
-  password  String
-  profileImage String?  @db.Text // Base64 encoded image
+  password  String?
+  profileImage String?  @db.Text // Base64 encoded image (custom upload)
+  image     String?  @db.Text // Google OAuth profile photo URL
+  
+  // Email Verification
+  emailVerified        Boolean  @default(false)
+  verificationToken    String?  @unique
+  verificationExpires  DateTime?
+  
+  // Password Reset
+  resetToken           String?  @unique
+  resetTokenExpires    DateTime?
+  
+  // OTP (Two-Factor Authentication)
+  otp                  String?
+  otpExpires           DateTime?
+  otpVerified          Boolean  @default(false)
+  lastOtpSentAt        DateTime?
+  
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

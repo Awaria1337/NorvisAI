@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useAuthStore } from "@/store/authStore";
 import { ROUTES } from "@/constants";
+import { useTranslation } from 'react-i18next';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -93,6 +94,7 @@ export function AppSidebar({
   onChatArchive,
   onSidebarStateChange,
 }: AppSidebarProps) {
+  const { t } = useTranslation();
   const router = useRouter();
   const { user, logout } = useAuthStore();
   const { state } = useSidebar();
@@ -175,26 +177,26 @@ export function AppSidebar({
               </TooltipTrigger>
               <TooltipContent>
                 {state === "expanded"
-                  ? "Kenar çubuğunu kapat"
-                  : "Kenar çubuğunu aç"}
+                  ? t('sidebar.collapse')
+                  : t('sidebar.expand')}
               </TooltipContent>
             </Tooltip>
           </div>
 
           <div className="px-1 pb-3 space-y-0.5">
             <Button
-              className="w-full justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0"
+              className="w-full cursor-pointer justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0"
               variant="ghost"
               onClick={handleNewChat}
             >
               <PenSquare className="h-4 w-4 group-data-[collapsible=icon]:mr-0 mr-2" />
               <span className="group-data-[collapsible=icon]:hidden font-medium">
-                Yeni sohbet
+                {t('Yeni Sohbet')}
               </span>
             </Button>
 
             <Button
-              className="w-full justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0"
+              className="w-full cursor-pointer justify-start text-left px-2 py-2 h-auto group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:w-10 group-data-[collapsible=icon]:h-10 group-data-[collapsible=icon]:p-0"
               variant="ghost"
               onClick={onSearchOpen}
             >
@@ -377,42 +379,12 @@ export function AppSidebar({
                   <DropdownMenuItem
                     className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
                     onClick={() => {
-                      /* TODO: Add tasks function */
-                    }}
-                  >
-                    <FileText className="mr-2 h-3.5 w-3.5 text-white" />
-                    <span className="text-white text-sm">Tasks</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
-                    onClick={() => {
-                      /* TODO: Add files function */
-                    }}
-                  >
-                    <FolderOpen className="mr-2 h-3.5 w-3.5 text-white" />
-                    <span className="text-white text-sm">Files</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
-                    onClick={() => {
                       // TODO: SSS sayfasına yönlendir
                       window.open("/faq", "_blank");
                     }}
                   >
                     <HelpCircle className="mr-2 h-3.5 w-3.5 text-white" />
                     <span className="text-white text-sm">SSS</span>
-                  </DropdownMenuItem>
-
-                  <DropdownMenuItem
-                    className="cursor-pointer text-white hover:bg-white/10 focus:bg-white/10 py-2 px-3 rounded-lg mx-1 flex items-center transition-colors"
-                    onClick={() => {
-                      /* TODO: Add changelog function */
-                    }}
-                  >
-                    <Clock className="mr-2 h-3.5 w-3.5 text-white" />
-                    <span className="text-white text-sm">Changelog</span>
                   </DropdownMenuItem>
 
                   <Link href={ROUTES.PRICING}>

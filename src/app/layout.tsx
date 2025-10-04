@@ -4,6 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import ToasterProvider from '@/components/providers/ToasterProvider';
 import AuthProvider from '@/components/providers/AuthProvider';
+import { SessionProvider } from '@/components/providers/session-provider';
 import { cn } from '@/utils/cn';
 
 // Main UI Font - Modern and clean like ChatGPT
@@ -52,10 +53,12 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ThemeProvider>
-          <AuthProvider>
-            {children}
-            <ToasterProvider />
-          </AuthProvider>
+          <SessionProvider>
+            <AuthProvider>
+              {children}
+              <ToasterProvider />
+            </AuthProvider>
+          </SessionProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -297,16 +297,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
           <div className="space-y-6">
             <div>
               <h3 className="text-sm font-medium mb-3">Tema seçimi</h3>
-              <div className="grid grid-cols-3 gap-2">
-                <Button
-                  variant={theme === 'light' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTheme('light')}
-                  className="flex items-center gap-2"
-                >
-                  <Sun className="w-4 h-4" />
-                  Açık
-                </Button>
+              <div className="grid grid-cols-2 gap-2">
                 <Button
                   variant={theme === 'dark' ? 'default' : 'outline'}
                   size="sm"

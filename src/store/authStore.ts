@@ -6,6 +6,7 @@ interface User {
   id: string;
   email: string;
   name: string;
+  image?: string | null; // Google profile photo or custom avatar
   createdAt: string;
 }
 
@@ -23,7 +24,7 @@ interface AuthState {
   logout: () => void;
   initializeAuth: () => Promise<void>;
   registerUser: (data: { name: string; email: string; password: string }) => Promise<boolean>;
-  loginUser: (data: { email: string; password: string }) => Promise<boolean>;
+  loginUser: (data: { email: string; password: string }) => Promise<{ success: true } | { requiresOTP: true; email: string } | { success: false }>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -139,22 +140,31 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       console.log('📡 API Response:', response);
       
       if (response.success) {
+        // Check if OTP is required
+        if (response.requiresOTP) {
+          console.log('🔐 OTP required, redirecting to verify-otp page');
+          set({ isLoading: false });
+          // Redirect will be handled in the component
+          return { requiresOTP: true, email: response.email };
+        }
+        
+        // Normal login with token
         const { user, token } = response.data;
         console.log('✅ Login successful, setting user data:', { user, tokenLength: token?.length });
         get().login(user, token);
         toast.success('Successfully logged in!');
-        return true;
+        return { success: true };
       } else {
         console.log('❌ Login failed:', response.error);
         toast.error(response.error || 'Login failed');
-        return false;
+        return { success: false };
       }
     } catch (error: any) {
       console.error('💥 Login error:', error);
       console.error('💥 Error response:', error.response?.data);
       const errorMessage = error.response?.data?.error || 'Login failed. Please try again.';
       toast.error(errorMessage);
-      return false;
+      return { success: false };
     } finally {
       set({ isLoading: false });
     }
